@@ -1,0 +1,97 @@
+SafetySec
+
+2 perfis: 
+
+Monitores: - Responsáveis
+Protegidos: Associar se a monitores
+
+Monitor pode acompanhar vários protegidos
+Protegidos, autorizar vários monitores
+
+User pode ser os dois, mas não pode ser monitor dele próprio
+Mecanismo One-Time Password
+
+User pode:
+Registar-se
+Alterar Dados
+Associação ou Cancelamento a um monitor
+Recuperação de Acesso
+Autenticação multifactor
+
+Monito:
+wcriar/alterar regras de proteção e segurança, autorizadas pelo Protegido
+
+Queda Deteção de queda ao solo do utilizador -
+Acidente Deteção de acidentes de viação (desaceleração brusca) -
+Geofencing O utilizador está fora de uma área. Esta opção pode ser utilizada
+de forma agregada, definindo-se várias áreas Coordenadas GPS e raio
+Controlo de
+velocidade
+Deteção de uma velocidade excessiva com base num valor
+predefinido como limite Velocidade máxima
+Inatividade
+prolongada Não é detetado qualquer movimento por um período de tempo Duração em minutos
+Botão de pânico Permite ao Protegido disparar um alarme de forma autónoma 
+
+Protegido pode escolher quando é verificado pelas regras
+
+
+
+
+
+Alertas - Protegido:
+Protegido é notificado
+Protegido tem 10 segundos para impedir notificação do monitor, cancelamnento feito por código definido pelo monitor
+Se não cancelar notificação, fazer um video
+
+
+Alertas - Monitor:
+Recene indicações de - Tipo de Eventoi, data, hora, identificação do protegido e localização
+
+
+
+
+
+Protegido:
+PHistórico de alertas
+Consaulta e modificação de 
+	Janelas temporais
+	Monitores Autorizados
+	Regras ativas, podem ser revogadas
+Perfil alteração de dados pessoais, password ou códigos de cancelamentos de alertas
+
+
+
+Monitor:
+Dashboar:
+	Alertas Recentes
+	Estado atual do protegido
+	Dados estatísticos
+Consulta e modificação das regras de cada protegido
+Alterar dados e password
+associar/cancelar protegido
+
+
+Ferramentas:
+Jetpack Compose
+Aconselhado uso de Firebase
+Idioma Inglês, suporte a português - consoante dispositivo (configuração de sistema)
+Portrait ou Landscape
+Ícones/barras, topo/botões flutuiantes
+Tudo dinâmico
+organização interna da aplicação, a qualidade do código e a robustez
+
+Entrega:
+04.01.2026 23.59
+Defesa 5 ou 6
+Um único ficheiro em formato ZIP via Nónio.
+o Nome do ficheiro (exemplo para 3 alunos):
+AMOV2526.<nr_aluno1>.<nr_aluno2>.<nr_aluno3>.zip
+
+zip: Código, remover diretórios <proj>/.gradle e <proj>/app/build
+Relatório - indicar soluções usadas, clarificar opções de implementação, identificar oportunidades de melhoria
+
+
+
+
+
