@@ -20,6 +20,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -39,39 +42,57 @@ fun ProtectedMainScreen(
     navController: NavHostController = rememberNavController(),
     onSwitchToMonitor: () -> Unit = {} // Callback para troca de perfil (futuro)
 ) {
-    Scaffold(
-        topBar = {
-            ProtectedTopBar(onProfileClick = {
-                navController.navigate("profile") {
-                    launchSingleTop = true
+    var isEditingProfile by remember { mutableStateOf(false) }
+
+    if (isEditingProfile) {
+        // Fullscreen Profile Edit View
+        ProfileSettingsView(
+            currentName = "Nome do Utilizador", // TODO: Get from ViewModel
+            currentEmail = "email@exemplo.com",
+            actualCurrentPin = "1234",
+            onDismiss = { isEditingProfile = false },
+            onSave = { _, _, _, _ ->
+                // TODO: Save logic via ViewModel
+                isEditingProfile = false
+            }
+        )
+    } else {
+        Scaffold(
+            topBar = {
+                ProtectedTopBar(onProfileClick = {
+                    navController.navigate("profile") {
+                        launchSingleTop = true
+                    }
+                })
+            },
+            bottomBar = {
+                ProtectedBottomBar(navController = navController)
+            }
+        ) { innerPadding ->
+            // Grafo de Navegação Interno (Nested Graph)
+            NavHost(
+                navController = navController,
+                startDestination = "guard",
+                modifier = Modifier.padding(innerPadding)
+            ) {
+                composable("guard") {
+                    // Ecrã "Guard" (Botão Pânico)
+                    GuardScreen()
                 }
-            })
-        },
-        bottomBar = {
-            ProtectedBottomBar(navController = navController)
-        }
-    ) { innerPadding ->
-        // Grafo de Navegação Interno (Nested Graph)
-        NavHost(
-            navController = navController,
-            startDestination = "guard",
-            modifier = Modifier.padding(innerPadding)
-        ) {
-            composable("guard") {
-                // Placeholder para o Ecrã "Guard" (Botão Pânico)
-                PlaceholderScreen(text = "Guard Screen (Panic Button)")
-            }
-            composable("monitors") {
-                // Placeholder para Lista de Monitores
-                PlaceholderScreen(text = "Monitors Management")
-            }
-            composable("activity") {
-                // Placeholder para Histórico
-                PlaceholderScreen(text = "Activity / History")
-            }
-            composable("profile") {
-                // Ecrã de Perfil
-                ProfileScreen()
+                composable("monitors") {
+                    // Placeholder para Lista de Monitores
+                    PlaceholderScreen(text = "Monitors Management")
+                }
+                composable("activity") {
+                    // Placeholder para Histórico
+                    PlaceholderScreen(text = "Activity / History")
+                }
+                composable("profile") {
+                    // Ecrã de Perfil
+                    ProfileScreen(
+                        onEditProfile = { isEditingProfile = true }
+                    )
+                }
             }
         }
     }
