@@ -2,18 +2,17 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.gms.google-services") // <--- Plugin do Firebase (Obrigatório)
 }
 
 android {
     namespace = "pt.isec.amov2526.projetoKotlin"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 35 // <--- CORREÇÃO: Estava "release(36)", tem de ser 35
 
     defaultConfig {
         applicationId = "pt.isec.amov2526.projetoKotlin"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 35 // <--- CORREÇÃO: Tem de bater certo com o compileSdk
         versionCode = 1
         versionName = "1.0"
 
@@ -42,6 +41,7 @@ android {
 }
 
 dependencies {
+    // --- Dependências que já tinhas (Mantém) ---
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -50,7 +50,6 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-
     implementation("androidx.navigation:navigation-compose:2.8.3")
     implementation("androidx.compose.material:material-icons-extended:1.7.0")
     implementation(libs.androidx.compose.foundation)
@@ -63,4 +62,24 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // --- O QUE FALTA (Cola isto) ---
+
+    // 1. Firebase (Backend & Auth)
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-storage-ktx")
+
+    // 2. Sensores e Localização
+    implementation("com.google.android.gms:play-services-location:21.0.1")
+
+    // 3. Câmara (CameraX)
+    val cameraxVersion = "1.3.0"
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+
+    // 4. ViewModel
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
 }
