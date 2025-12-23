@@ -66,10 +66,10 @@ dependencies {
     // --- O QUE FALTA (Cola isto) ---
 
     // 1. Firebase (Backend & Auth)
-    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
-    implementation("com.google.firebase:firebase-auth-ktx")
-    implementation("com.google.firebase:firebase-firestore-ktx")
-    implementation("com.google.firebase:firebase-storage-ktx")
+    implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-storage")
 
     // 2. Sensores e Localização
     implementation("com.google.android.gms:play-services-location:21.0.1")

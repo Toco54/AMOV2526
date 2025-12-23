@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "759036798006",
+    "project_id": "safetysec2026",
+    "storage_bucket": "safetysec2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:759036798006:android:9a1c77748e78c99e9f2497",
+        "android_client_info": {
+          "package_name": "pt.isec.amov2526.projetoKotlin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3hf5OUHOEnsZjKwKt8mVOEGOQhJ84Uyw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
