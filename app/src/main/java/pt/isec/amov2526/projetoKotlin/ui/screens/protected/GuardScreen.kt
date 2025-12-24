@@ -695,7 +695,9 @@ fun RemoveRuleChallengeModal(
                     BasicTextField(
                         value = pin,
                         onValueChange = {
-                            if (it.length <= 4 && it.all { c -> c.isDigit() }) pin = it
+                            if (it.length <= 4 && it.all { c -> c.isDigit() }) {
+                                pin = it
+                            }
                         },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         decorationBox = { innerTextField ->
@@ -846,7 +848,9 @@ fun PauseSystemModal(
                     BasicTextField(
                         value = pin,
                         onValueChange = {
-                            if (it.length <= 4 && it.all { c -> c.isDigit() }) pin = it
+                            if (it.length <= 4 && it.all { c -> c.isDigit() }) {
+                                pin = it
+                            }
                         },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         decorationBox = { innerTextField ->
@@ -1061,7 +1065,9 @@ fun ScheduleSystemModal(
                     BasicTextField(
                         value = pin,
                         onValueChange = {
-                            if (it.length <= 4 && it.all { c -> c.isDigit() }) pin = it
+                            if (it.length <= 4 && it.all { c -> c.isDigit() }) {
+                                pin = it
+                            }
                         },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         decorationBox = { innerTextField ->

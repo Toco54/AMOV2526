@@ -53,7 +53,11 @@ private val Red50 = Color(0xFFFEF2F2)
 private val Red600 = Color(0xFFDC2626)
 
 // --- ENUM & MODELO ---
-enum class ProtegeStatus { ACTIVE, INCOMING_REQUEST, OUTGOING_REQUEST }
+enum class ProtegeStatus {
+    ACTIVE,
+    INCOMING_REQUEST,
+    OUTGOING_REQUEST
+}
 
 data class ProtegeItem(
     val id: String,
@@ -527,8 +531,18 @@ fun AddProtegeModal(
                 TextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search by name or email") },
-                    leadingIcon = { Icon(Icons.Filled.Search, null, tint = Slate400) },
+                    placeholder = {
+                        Text(
+                            text = "Search by name or email"
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = null,
+                            tint = Slate400
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = TextFieldDefaults.colors(
@@ -645,12 +659,18 @@ fun ConfigureProtectedModal(
                 TextField(
                     value = pin,
                     onValueChange = {
-                        if (it.length <= 4 && it.all { c -> c.isDigit() }) pin = it
+                        if (it.length <= 4 && it.all { c -> c.isDigit() }) {
+                            pin = it
+                        }
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    placeholder = { Text("0000") },
+                    placeholder = {
+                        Text(
+                            text = "0000"
+                        )
+                    },
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Slate50,
                         unfocusedContainerColor = Slate50,
@@ -746,7 +766,11 @@ fun ProfileBottomButton(onClick: () -> Unit) {
                     .background(Slate100, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text("A", fontWeight = FontWeight.Bold, color = Slate500)
+                Text(
+                    text = "A",
+                    fontWeight = FontWeight.Bold,
+                    color = Slate500
+                )
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -761,7 +785,11 @@ fun ProfileBottomButton(onClick: () -> Unit) {
                     color = Slate500
                 )
             }
-            Icon(Icons.Default.Settings, null, tint = Slate400)
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = null,
+                tint = Slate400
+            )
         }
     }
 }

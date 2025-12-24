@@ -93,8 +93,19 @@ fun LoginScreen(
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
-            placeholder = { Text("name@example.com", color = Slate400.copy(alpha = 0.5f)) },
-            leadingIcon = { Icon(Icons.Default.Email, null, tint = Slate400) },
+            placeholder = {
+                Text(
+                    text = "name@example.com",
+                    color = Slate400.copy(alpha = 0.5f)
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Email,
+                    contentDescription = null,
+                    tint = Slate400
+                )
+            },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = OutlinedTextFieldDefaults.colors(
@@ -123,8 +134,19 @@ fun LoginScreen(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            placeholder = { Text("••••••••", color = Slate400.copy(alpha = 0.5f)) },
-            leadingIcon = { Icon(Icons.Default.Lock, null, tint = Slate400) },
+            placeholder = {
+                Text(
+                    text = "••••••••",
+                    color = Slate400.copy(alpha = 0.5f)
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = Slate400
+                )
+            },
             trailingIcon = {
                 IconButton(onClick = { showPassword = !showPassword }) {
                     Icon(
@@ -228,7 +250,10 @@ fun LoginScreen(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "Don't have an account? ", color = Slate400)
+            Text(
+                text = "Don't have an account? ",
+                color = Slate400
+            )
             Text(
                 text = "Sign Up",
                 color = Color.White,

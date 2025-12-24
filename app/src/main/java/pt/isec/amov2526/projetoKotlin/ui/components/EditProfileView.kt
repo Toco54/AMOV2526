@@ -154,7 +154,9 @@ fun EditProfileView(
                     TextField(
                         value = pinInput,
                         onValueChange = {
-                            if (it.length <= 4 && it.all { c -> c.isDigit() }) pinInput = it
+                            if (it.length <= 4 && it.all { c -> c.isDigit() }) {
+                                pinInput = it
+                            }
                         },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         visualTransformation = if (showPin) {
@@ -185,7 +187,11 @@ fun EditProfileView(
                         trailingIcon = {
                             IconButton(onClick = { showPin = !showPin }) {
                                 Icon(
-                                    imageVector = if (showPin) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    imageVector = if (showPin) {
+                                        Icons.Default.VisibilityOff
+                                    } else {
+                                        Icons.Default.Visibility
+                                    },
                                     contentDescription = null,
                                     tint = Slate500
                                 )
@@ -199,7 +205,9 @@ fun EditProfileView(
                     TextField(
                         value = newPinInput,
                         onValueChange = {
-                            if (it.length <= 4 && it.all { c -> c.isDigit() }) newPinInput = it
+                            if (it.length <= 4 && it.all { c -> c.isDigit() }) {
+                                newPinInput = it
+                            }
                         },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         visualTransformation = if (showPin) {
@@ -249,7 +257,11 @@ fun EditProfileView(
             TextField(
                 value = currentPassword,
                 onValueChange = { currentPassword = it },
-                placeholder = { Text("Current Password") },
+                placeholder = {
+                    Text(
+                        text = "Current Password"
+                    )
+                },
                 visualTransformation = if (showPassword) {
                     VisualTransformation.None
                 } else {
@@ -280,7 +292,11 @@ fun EditProfileView(
                 TextField(
                     value = newPassword,
                     onValueChange = { newPassword = it },
-                    placeholder = { Text("New Password") },
+                    placeholder = {
+                        Text(
+                            text = "New Password"
+                        )
+                    },
                     visualTransformation = if (showPassword) {
                         VisualTransformation.None
                     } else {
@@ -299,7 +315,11 @@ fun EditProfileView(
                 TextField(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
-                    placeholder = { Text("Confirm New Password") },
+                    placeholder = {
+                        Text(
+                            text = "Confirm New Password"
+                        )
+                    },
                     visualTransformation = if (showPassword) {
                         VisualTransformation.None
                     } else {

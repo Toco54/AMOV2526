@@ -159,7 +159,11 @@ fun MonitorDashboardScreen(
                 onEditClick = { editingRule = it },
                 onToggleRule = { id, enabled ->
                     rules = rules.map {
-                        if (it.id == id) it.copy(isEnabled = enabled) else it
+                        if (it.id == id) {
+                            it.copy(isEnabled = enabled)
+                        } else {
+                            it
+                        }
                     }
                 }
             )
@@ -585,12 +589,36 @@ fun MonitorAlertDetailModal(activity: ActivityItem, onDismiss: () -> Unit) {
                     ) {
                         activity.notifiedMonitors.forEach { action ->
                             val (icon, color, label) = when (action.state) {
-                                MonitorActionState.SENT -> Triple(Icons.Default.Notifications, Slate400, "Notified")
-                                MonitorActionState.VIEWED -> Triple(Icons.Default.Visibility, Color(0xFF6366F1), "Viewed")
-                                MonitorActionState.CALLED_USER -> Triple(Icons.Default.Phone, Color(0xFF6366F1), "Calling...")
-                                MonitorActionState.CALLED_112 -> Triple(Icons.Default.LocalPolice, Red600, "Called 112")
-                                MonitorActionState.ON_THE_WAY -> Triple(Icons.Default.DirectionsRun, Color(0xFFB45309), "On My Way")
-                                MonitorActionState.MARKED_SAFE -> Triple(Icons.Default.CheckCircle, Emerald500, "Marked Safe")
+                                MonitorActionState.SENT -> Triple(
+                                    Icons.Default.Notifications,
+                                    Slate400,
+                                    "Notified"
+                                )
+                                MonitorActionState.VIEWED -> Triple(
+                                    Icons.Default.Visibility,
+                                    Color(0xFF6366F1),
+                                    "Viewed"
+                                )
+                                MonitorActionState.CALLED_USER -> Triple(
+                                    Icons.Default.Phone,
+                                    Color(0xFF6366F1),
+                                    "Calling..."
+                                )
+                                MonitorActionState.CALLED_112 -> Triple(
+                                    Icons.Default.LocalPolice,
+                                    Red600,
+                                    "Called 112"
+                                )
+                                MonitorActionState.ON_THE_WAY -> Triple(
+                                    Icons.Default.DirectionsRun,
+                                    Color(0xFFB45309),
+                                    "On My Way"
+                                )
+                                MonitorActionState.MARKED_SAFE -> Triple(
+                                    Icons.Default.CheckCircle,
+                                    Emerald500,
+                                    "Marked Safe"
+                                )
                             }
 
                             Row(
@@ -661,7 +689,10 @@ fun MonitorAlertDetailModal(activity: ActivityItem, onDismiss: () -> Unit) {
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Call", fontWeight = FontWeight.Bold)
+                            Text(
+                                text = "Call",
+                                fontWeight = FontWeight.Bold
+                            )
                         }
 
                         Button(
@@ -678,7 +709,10 @@ fun MonitorAlertDetailModal(activity: ActivityItem, onDismiss: () -> Unit) {
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("SOS 112", fontWeight = FontWeight.Bold)
+                            Text(
+                                text = "SOS 112",
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
 
@@ -745,7 +779,10 @@ fun MonitorAlertDetailModal(activity: ActivityItem, onDismiss: () -> Unit) {
                         border = androidx.compose.foundation.BorderStroke(1.dp, Slate200),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Slate500)
                     ) {
-                        Text("Close Report", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            text = "Close Report",
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
             }
@@ -788,9 +825,15 @@ fun MonitorDetailCameraTab(
 @Composable
 fun MonitorStatusChip(status: ActivityAlertStatus) {
     val (bg, txt) = when (status) {
-        ActivityAlertStatus.CONFIRMED -> Red50 to Red600
-        ActivityAlertStatus.PENDING -> Color(0xFFFFFBEB) to Color(0xFFB45309) // Amber50, Amber700
-        ActivityAlertStatus.CANCELLED -> Slate100 to Slate500
+        ActivityAlertStatus.CONFIRMED -> {
+            Red50 to Red600
+        }
+        ActivityAlertStatus.PENDING -> {
+            Color(0xFFFFFBEB) to Color(0xFFB45309)
+        }
+        ActivityAlertStatus.CANCELLED -> {
+            Slate100 to Slate500
+        }
     }
     Box(
         modifier = Modifier
@@ -818,9 +861,26 @@ fun getMonitorIconForActivityType(type: ActivityAlertType): ImageVector {
 }
 
 // --- Activity Data Classes (Mirrored from Protected for independence) ---
-enum class ActivityAlertType { SPEED, FALL, ACCIDENT, GEOFENCE, PANIC }
-enum class ActivityAlertStatus { CONFIRMED, CANCELLED, PENDING }
-enum class MonitorActionState { SENT, VIEWED, CALLED_USER, CALLED_112, ON_THE_WAY, MARKED_SAFE }
+enum class ActivityAlertType {
+    SPEED,
+    FALL,
+    ACCIDENT,
+    GEOFENCE,
+    PANIC
+}
+enum class ActivityAlertStatus {
+    CONFIRMED,
+    CANCELLED,
+    PENDING
+}
+enum class MonitorActionState {
+    SENT,
+    VIEWED,
+    CALLED_USER,
+    CALLED_112,
+    ON_THE_WAY,
+    MARKED_SAFE
+}
 
 data class MonitorAction(
     val name: String,
@@ -1136,7 +1196,11 @@ fun EditRuleDialog(
                     TextField(
                         value = p2,
                         onValueChange = { p2 = it },
-                        placeholder = { Text("0.0000, 0.0000") },
+                        placeholder = {
+                            Text(
+                                text = "0.0000, 0.0000"
+                            )
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 4.dp),
@@ -1176,7 +1240,8 @@ fun EditRuleDialog(
                     )
                 } else {
                     Text(
-                        text = "This rule automatically detects events and notifies you immediately. No extra parameters required.",
+                        text = "This rule automatically detects events and notifies you immediately. " +
+                                "No extra parameters required.",
                         color = Slate500,
                         style = MaterialTheme.typography.bodyMedium
                     )

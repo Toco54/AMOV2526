@@ -143,7 +143,10 @@ fun LandingScreen(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "Already have an account? ", color = Slate400)
+            Text(
+                text = "Already have an account? ",
+                color = Slate400
+            )
             Text(
                 text = "Log In",
                 color = Color.White,

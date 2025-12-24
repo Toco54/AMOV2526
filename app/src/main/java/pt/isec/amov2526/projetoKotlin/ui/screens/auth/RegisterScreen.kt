@@ -131,32 +131,71 @@ fun RegisterScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Full Name
-        Text("FULL NAME", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+        Text(
+            text = "FULL NAME",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = Slate400
+        )
         Spacer(modifier = Modifier.height(8.dp))
-        AuthTextField(value = name, onValueChange = { name = it }, placeholder = "John Doe")
+        AuthTextField(
+            value = name,
+            onValueChange = { name = it },
+            placeholder = "John Doe"
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         // Email
-        Text("EMAIL", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+        Text(
+            
+            text = "EMAIL",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = Slate400
+        )
         Spacer(modifier = Modifier.height(8.dp))
-        AuthTextField(value = email, onValueChange = { email = it }, placeholder = "name@example.com", keyboardType = KeyboardType.Email)
+        AuthTextField(
+            value = email,
+            onValueChange = { email = it },
+            placeholder = "name@example.com",
+            keyboardType = KeyboardType.Email
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         // Password
-        Text("PASSWORD", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+        Text(
+            text = "PASSWORD",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = Slate400
+        )
         Spacer(modifier = Modifier.height(8.dp))
-        AuthTextField(value = password, onValueChange = { password = it }, placeholder = "Create a password", isPassword = true)
+        AuthTextField(
+            value = password,
+            onValueChange = { password = it },
+            placeholder = "Create a password",
+            isPassword = true
+        )
 
         // Conditional PIN
         if (selectedRole == "Protected") {
             Spacer(modifier = Modifier.height(16.dp))
-            Text("SAFETY PIN (4 DIGITS)", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+            Text(
+                text = "SAFETY PIN (4 DIGITS)",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = Slate400
+            )
             Spacer(modifier = Modifier.height(8.dp))
             AuthTextField(
                 value = pin,
-                onValueChange = { if (it.length <= 4 && it.all { c -> c.isDigit() }) pin = it },
+                onValueChange = {
+                    if (it.length <= 4 && it.all { c -> c.isDigit() }) {
+                        pin = it
+                    }
+                },
                 placeholder = "0 0 0 0",
                 keyboardType = KeyboardType.Number,
                 centerText = true
@@ -174,7 +213,12 @@ fun RegisterScreen(
             colors = ButtonDefaults.buttonColors(containerColor = Emerald500),
             shape = RoundedCornerShape(16.dp)
         ) {
-            Text("Sign Up", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Text(
+            text = "Sign Up",
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp
+        )
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -228,7 +272,10 @@ fun RegisterScreen(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "Already have an account? ", color = Slate400)
+            Text(
+                text = "Already have an account? ",
+                color = Slate400
+            )
             Text(
                 text = "Log In",
                 color = Color.White,

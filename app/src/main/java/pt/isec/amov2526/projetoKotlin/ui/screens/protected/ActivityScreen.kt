@@ -41,8 +41,24 @@ private val Amber700 = Color(0xFFB45309)
 private val TabSelectedColor = Color(0xFF334155)
 private val TabUnselectedColor = Color(0xFF1E293B)
 
-enum class ActivityAlertType { SPEED, FALL, ACCIDENT, GEOFENCE, PANIC }
-enum class ActivityAlertStatus { CONFIRMED, CANCELLED, PENDING }
+enum class ActivityAlertType {
+
+    SPEED,
+
+    FALL,
+
+    ACCIDENT,
+
+    GEOFENCE,
+
+    PANIC
+
+}
+enum class ActivityAlertStatus {
+    CONFIRMED,
+    CANCELLED,
+    PENDING
+}
 enum class MonitorActionState { SENT, VIEWED, CALLED_USER, CALLED_112, ON_THE_WAY, MARKED_SAFE }
 
 data class MonitorAction(
@@ -403,12 +419,36 @@ fun AlertDetailModal(activity: ActivityItem, onDismiss: () -> Unit) {
                     ) {
                         activity.notifiedMonitors.forEach { action ->
                             val (icon, color, label) = when (action.state) {
-                                MonitorActionState.SENT -> Triple(Icons.Default.Notifications, Slate400, "Notified")
-                                MonitorActionState.VIEWED -> Triple(Icons.Default.Visibility, Color(0xFF6366F1), "Viewed")
-                                MonitorActionState.CALLED_USER -> Triple(Icons.Default.Phone, Color(0xFF6366F1), "Calling...")
-                                MonitorActionState.CALLED_112 -> Triple(Icons.Default.LocalPolice, Red700, "Called 112")
-                                MonitorActionState.ON_THE_WAY -> Triple(Icons.Default.DirectionsRun, Amber700, "On My Way")
-                                MonitorActionState.MARKED_SAFE -> Triple(Icons.Default.CheckCircle, Color(0xFF10B981), "Marked Safe")
+                                MonitorActionState.SENT -> Triple(
+                                    Icons.Default.Notifications,
+                                    Slate400,
+                                    "Notified"
+                                )
+                                MonitorActionState.VIEWED -> Triple(
+                                    Icons.Default.Visibility,
+                                    Color(0xFF6366F1),
+                                    "Viewed"
+                                )
+                                MonitorActionState.CALLED_USER -> Triple(
+                                    Icons.Default.Phone,
+                                    Color(0xFF6366F1),
+                                    "Calling..."
+                                )
+                                MonitorActionState.CALLED_112 -> Triple(
+                                    Icons.Default.LocalPolice,
+                                    Red700,
+                                    "Called 112"
+                                )
+                                MonitorActionState.ON_THE_WAY -> Triple(
+                                    Icons.Default.DirectionsRun,
+                                    Amber700,
+                                    "On My Way"
+                                )
+                                MonitorActionState.MARKED_SAFE -> Triple(
+                                    Icons.Default.CheckCircle,
+                                    Color(0xFF10B981),
+                                    "Marked Safe"
+                                )
                             }
 
                             Row(
@@ -514,9 +554,15 @@ fun DetailCameraTab(
 @Composable
 fun StatusChip(status: ActivityAlertStatus) {
     val (bg, txt) = when (status) {
-        ActivityAlertStatus.CONFIRMED -> Red100 to Red700
-        ActivityAlertStatus.PENDING -> Amber50 to Amber700
-        ActivityAlertStatus.CANCELLED -> Slate100 to Slate500
+        ActivityAlertStatus.CONFIRMED -> {
+            Red100 to Red700
+        }
+        ActivityAlertStatus.PENDING -> {
+            Amber50 to Amber700
+        }
+        ActivityAlertStatus.CANCELLED -> {
+            Slate100 to Slate500
+        }
     }
     Box(
         modifier = Modifier

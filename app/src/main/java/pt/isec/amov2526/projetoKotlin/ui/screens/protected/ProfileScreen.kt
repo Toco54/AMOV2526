@@ -132,7 +132,8 @@ fun ProfileScreen(
             },
             text = {
                 Text(
-                    text = "Are you sure you want to Configure a Monitor profile? You will be able to supervise Protected users."
+                    text = "Are you sure you want to Configure a Monitor profile? " +
+                            "You will be able to supervise Protected users."
                 )
             },
             confirmButton = {

@@ -91,7 +91,11 @@ private val Indigo600 = Color(0xFF4F46E5)
 private val Red50 = Color(0xFFFEF2F2)
 private val Red600 = Color(0xFFDC2626)
 
-enum class MonitorStatus { ACTIVE, INCOMING_REQUEST, OUTGOING_REQUEST }
+enum class MonitorStatus {
+    ACTIVE,
+    INCOMING_REQUEST,
+    OUTGOING_REQUEST
+}
 
 data class MonitorItem(
     val id: String,
@@ -766,8 +770,18 @@ fun AddMonitorModal(
                 TextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search by name or email") },
-                    leadingIcon = { Icon(Icons.Default.Search, null, tint = Slate400) },
+                    placeholder = {
+                        Text(
+                            text = "Search by name or email"
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = Slate400
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = TextFieldDefaults.colors(
