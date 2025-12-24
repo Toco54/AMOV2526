@@ -128,10 +128,11 @@ fun ActivityScreen() {
 @Composable
 fun ActivityCard(activity: ActivityItem, onClick: () -> Unit) {
     Card(
+        onClick = onClick, // Ripple fix
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth().clickable { onClick() }
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -203,7 +204,7 @@ fun AlertDetailModal(activity: ActivityItem, onDismiss: () -> Unit) {
             colors = CardDefaults.cardColors(containerColor = Color.White),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 24.dp) // Avoid touching screen edges too much
+                .padding(vertical = 24.dp)
         ) {
             Column {
                 // Header
@@ -218,7 +219,7 @@ fun AlertDetailModal(activity: ActivityItem, onDismiss: () -> Unit) {
                         Box(
                             modifier = Modifier
                                 .size(48.dp)
-                                .background(Amber100, CircleShape), // Yellowish background for alert
+                                .background(Amber100, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -237,7 +238,7 @@ fun AlertDetailModal(activity: ActivityItem, onDismiss: () -> Unit) {
                                 color = Slate900
                             )
                             Text(
-                                text = "${activity.date} • ${activity.time}:53", // Added seconds mock
+                                text = "${activity.date} • ${activity.time}:53",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Slate500
                             )
@@ -253,7 +254,7 @@ fun AlertDetailModal(activity: ActivityItem, onDismiss: () -> Unit) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)
-                        .background(Color(0xFF0F172A)), // Dark blue/black background
+                        .background(Color(0xFF0F172A)),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -276,7 +277,6 @@ fun AlertDetailModal(activity: ActivityItem, onDismiss: () -> Unit) {
                         )
                     }
                     
-                    // Duration Badge
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
@@ -309,7 +309,6 @@ fun AlertDetailModal(activity: ActivityItem, onDismiss: () -> Unit) {
                     
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Map Placeholder
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -318,14 +317,11 @@ fun AlertDetailModal(activity: ActivityItem, onDismiss: () -> Unit) {
                             .border(1.dp, Slate200, RoundedCornerShape(12.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        // Grid lines mock
                         Box(modifier = Modifier.fillMaxSize().padding(1.dp)) {
-                            // Center lines
                             Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Slate200).align(Alignment.Center))
                             Box(modifier = Modifier.fillMaxHeight().width(1.dp).background(Slate200).align(Alignment.Center))
                         }
                         
-                        // Pin
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
                                 imageVector = Icons.Default.LocationOn,
@@ -379,6 +375,7 @@ fun AlertDetailModal(activity: ActivityItem, onDismiss: () -> Unit) {
                         .padding(16.dp)
                         .height(48.dp)
                         .background(Slate900, RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(12.dp)) // Ripple fix
                         .clickable { onDismiss() },
                     contentAlignment = Alignment.Center
                 ) {
@@ -392,7 +389,7 @@ fun AlertDetailModal(activity: ActivityItem, onDismiss: () -> Unit) {
 @Composable
 fun StatusChip(status: ActivityAlertStatus) {
     val backgroundColor = when (status) {
-        ActivityAlertStatus.CONFIRMED -> Red100 // Ligeiramente mais escuro para o modal
+        ActivityAlertStatus.CONFIRMED -> Red100
         ActivityAlertStatus.PENDING -> Amber50
         ActivityAlertStatus.CANCELLED -> Slate100
     }

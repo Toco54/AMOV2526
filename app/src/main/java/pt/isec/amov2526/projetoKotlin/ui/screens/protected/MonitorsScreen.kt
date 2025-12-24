@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.PersonRemove
 import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -77,18 +79,15 @@ private val Slate200 = Color(0xFFE2E8F0)
 private val Slate400 = Color(0xFF94A3B8)
 private val Slate500 = Color(0xFF64748B)
 private val Slate900 = Color(0xFF0F172A)
-
 private val Emerald50 = Color(0xFFECFDF5)
 private val Emerald100 = Color(0xFFD1FAE5)
 private val Emerald200 = Color(0xFFA7F3D0)
 private val Emerald500 = Color(0xFF10B981)
 private val Emerald700 = Color(0xFF047857)
-
 private val Indigo50 = Color(0xFFEEF2FF)
 private val Indigo100 = Color(0xFFE0E7FF)
 private val Indigo500 = Color(0xFF6366F1)
 private val Indigo600 = Color(0xFF4F46E5)
-
 private val Red50 = Color(0xFFFEF2F2)
 private val Red600 = Color(0xFFDC2626)
 
@@ -123,76 +122,97 @@ fun MonitorsScreen() {
     var showAddMonitorModal by remember { mutableStateOf(false) }
     var candidateMonitor by remember { mutableStateOf<MonitorItem?>(null) }
 
-    Box(modifier = Modifier.fillMaxSize().background(Slate50)) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Slate50)
+    ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            if (monitors.any { it.status == MonitorStatus.INCOMING_REQUEST }) {
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "RECEIVED REQUESTS",
-                    style = MaterialTheme.typography.labelSmall,
+                    text = "Manage Monitors",
+                    style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Slate400,
-                    letterSpacing = 1.sp,
+                    color = Slate900,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(monitors.filter { it.status == MonitorStatus.INCOMING_REQUEST }) { monitor ->
-                        IncomingRequestCard(
-                            monitor = monitor,
-                            onAccept = { showAcceptDialog = monitor },
-                            onReject = {
-                                monitors = monitors.filter { it.id != monitor.id }
-                            }
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(24.dp))
             }
 
-            if (monitors.any { it.status == MonitorStatus.OUTGOING_REQUEST }) {
-                Text(
-                    text = "SENT REQUESTS",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate400,
-                    letterSpacing = 1.sp,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(monitors.filter { it.status == MonitorStatus.OUTGOING_REQUEST }) { monitor ->
-                        OutgoingRequestCard(
-                            monitor = monitor,
-                            onCancel = {
-                                monitors = monitors.filter { it.id != monitor.id }
-                            }
-                        )
-                    }
+            // RECEIVED REQUESTS
+            val incoming = monitors.filter { it.status == MonitorStatus.INCOMING_REQUEST }
+            if (incoming.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "RECEIVED REQUESTS",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate400,
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                    )
                 }
-                Spacer(modifier = Modifier.height(24.dp))
+                items(incoming) { monitor ->
+                    IncomingRequestCard(
+                        monitor = monitor,
+                        onAccept = { showAcceptDialog = monitor },
+                        onReject = {
+                            monitors = monitors.filter { it.id != monitor.id }
+                        }
+                    )
+                }
             }
 
-            if (monitors.any { it.status == MonitorStatus.ACTIVE }) {
-                Text(
-                    text = "ACTIVE MONITORS",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate400,
-                    letterSpacing = 1.sp,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(monitors.filter { it.status == MonitorStatus.ACTIVE }) { monitor ->
-                        MonitorCard(
-                            monitor = monitor,
-                            onRemove = { showRemoveDialog = monitor }
-                        )
-                    }
+            // SENT REQUESTS
+            val outgoing = monitors.filter { it.status == MonitorStatus.OUTGOING_REQUEST }
+            if (outgoing.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "SENT REQUESTS",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate400,
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                    )
                 }
+                items(outgoing) { monitor ->
+                    OutgoingRequestCard(
+                        monitor = monitor,
+                        onCancel = {
+                            monitors = monitors.filter { it.id != monitor.id }
+                        }
+                    )
+                }
+            }
+
+            // ACTIVE MONITORS
+            val active = monitors.filter { it.status == MonitorStatus.ACTIVE }
+            if (active.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "ACTIVE MONITORS",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate400,
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                    )
+                }
+                items(active) { monitor ->
+                    MonitorCard(
+                        monitor = monitor,
+                        onRemove = { showRemoveDialog = monitor }
+                    )
+                }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(80.dp))
             }
         }
 
@@ -215,20 +235,19 @@ fun MonitorsScreen() {
     }
 
     // --- DIALOGS ---
-    
-    // CUSTOM REMOVE DIALOG
     if (showRemoveDialog != null) {
         Dialog(onDismissRequest = { showRemoveDialog = null }) {
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Red Icon Circle
                     Box(
                         modifier = Modifier
                             .size(64.dp)
@@ -242,49 +261,49 @@ fun MonitorsScreen() {
                             modifier = Modifier.size(32.dp)
                         )
                     }
-                    
                     Spacer(modifier = Modifier.height(16.dp))
-                    
                     Text(
                         text = "Remove Monitor?",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = Slate900
                     )
-                    
                     Spacer(modifier = Modifier.height(8.dp))
-                    
                     Text(
                         text = "${showRemoveDialog!!.name} will no longer have access to your alerts or status.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Slate500,
                         textAlign = TextAlign.Center
                     )
-                    
                     Spacer(modifier = Modifier.height(24.dp))
-                    
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TextButton(
-                            onClick = { showRemoveDialog = null }
-                        ) {
-                            Text("Cancel", fontWeight = FontWeight.Bold, color = Slate500)
+                        TextButton(onClick = { showRemoveDialog = null }) {
+                            Text(
+                                text = "Cancel",
+                                fontWeight = FontWeight.Bold,
+                                color = Slate500
+                            )
                         }
-                        
                         Box(
                             modifier = Modifier
                                 .background(Red600, RoundedCornerShape(12.dp))
-                                .clickable { 
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
                                     monitors = monitors.filter { it.id != showRemoveDialog!!.id }
-                                    showRemoveDialog = null 
+                                    showRemoveDialog = null
                                 }
                                 .padding(horizontal = 24.dp, vertical = 12.dp)
                                 .shadow(elevation = 2.dp, shape = RoundedCornerShape(12.dp))
                         ) {
-                            Text("Remove", color = Color.White, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = "Remove",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
@@ -337,13 +356,19 @@ fun MonitorsScreen() {
 }
 
 @Composable
-fun IncomingRequestCard(monitor: MonitorItem, onAccept: () -> Unit, onReject: () -> Unit) {
+fun IncomingRequestCard(
+    monitor: MonitorItem,
+    onAccept: () -> Unit,
+    onReject: () -> Unit
+) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Emerald50),
         shape = RoundedCornerShape(24.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, Emerald100),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -386,6 +411,7 @@ fun IncomingRequestCard(monitor: MonitorItem, onAccept: () -> Unit, onReject: ()
                     .size(40.dp)
                     .background(Color.White, RoundedCornerShape(12.dp))
                     .border(1.dp, Slate200, RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable { onReject() },
                 contentAlignment = Alignment.Center
             ) {
@@ -403,6 +429,7 @@ fun IncomingRequestCard(monitor: MonitorItem, onAccept: () -> Unit, onReject: ()
                 modifier = Modifier
                     .size(40.dp)
                     .background(Emerald500, RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable { onAccept() },
                 contentAlignment = Alignment.Center
             ) {
@@ -418,7 +445,10 @@ fun IncomingRequestCard(monitor: MonitorItem, onAccept: () -> Unit, onReject: ()
 }
 
 @Composable
-fun OutgoingRequestCard(monitor: MonitorItem, onCancel: () -> Unit) {
+fun OutgoingRequestCard(
+    monitor: MonitorItem,
+    onCancel: () -> Unit
+) {
     val infiniteTransition = rememberInfiniteTransition(label = "blinking")
     val alpha by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -434,7 +464,9 @@ fun OutgoingRequestCard(monitor: MonitorItem, onCancel: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(24.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -496,12 +528,17 @@ fun OutgoingRequestCard(monitor: MonitorItem, onCancel: () -> Unit) {
 }
 
 @Composable
-fun MonitorCard(monitor: MonitorItem, onRemove: () -> Unit) {
+fun MonitorCard(
+    monitor: MonitorItem,
+    onRemove: () -> Unit
+) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(24.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -568,7 +605,9 @@ fun AccessSelectionDialog(
         Card(
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp)
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -628,7 +667,11 @@ fun AccessSelectionDialog(
                     onClick = onDismiss,
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 ) {
-                    Text("Back", color = Slate400, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "Back",
+                        color = Slate400,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
@@ -646,12 +689,11 @@ fun AccessOptionCard(
     onClick: () -> Unit
 ) {
     Card(
+        onClick = onClick,
         colors = CardDefaults.cardColors(containerColor = bgColor),
         border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),
         shape = RoundedCornerShape(16.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -706,6 +748,7 @@ fun AddMonitorModal(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(500.dp)
+                .padding(horizontal = 8.dp)
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Text(
@@ -743,6 +786,7 @@ fun AddMonitorModal(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(Slate50, RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(12.dp))
                                 .clickable { onSelectCandidate(monitor) }
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -750,7 +794,11 @@ fun AddMonitorModal(
                             AvatarPlaceholder(monitor.name, 40)
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
-                                Text(text = monitor.name, fontWeight = FontWeight.Bold, color = Slate900)
+                                Text(
+                                    text = monitor.name,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Slate900
+                                )
                                 Text(
                                     text = monitor.email,
                                     style = MaterialTheme.typography.bodySmall,
@@ -758,7 +806,11 @@ fun AddMonitorModal(
                                 )
                             }
                             Spacer(modifier = Modifier.weight(1f))
-                            Icon(imageVector = Icons.Default.Add, contentDescription = null, tint = Indigo600)
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                tint = Indigo600
+                            )
                         }
                     }
                 }

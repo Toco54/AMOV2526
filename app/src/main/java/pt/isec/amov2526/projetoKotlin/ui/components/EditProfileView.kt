@@ -1,6 +1,7 @@
 package pt.isec.amov2526.projetoKotlin.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,26 +56,24 @@ private val Indigo600 = Color(0xFF4F46E5)
 fun EditProfileView(
     currentName: String,
     currentEmail: String,
-    currentPin: String? = null, // Se null, é Monitor (sem secção PIN)
+    currentPin: String? = null,
     onDismiss: () -> Unit,
-    onSave: (String, String, String?, String?) -> Unit // Name, Email, NewPass, NewPin
+    onSave: (String, String, String?, String?) -> Unit
 ) {
     var name by remember { mutableStateOf(currentName) }
     var email by remember { mutableStateOf(currentEmail) }
     
-    // PIN States (se aplicável)
-    var pinInput by remember { mutableStateOf("") } // Input for verification (current)
+    var pinInput by remember { mutableStateOf("") }
     var newPinInput by remember { mutableStateOf("") }
     var showPin by remember { mutableStateOf(false) }
     val isPinVerified = currentPin != null && pinInput == currentPin
 
-    // Password States
     var currentPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
 
-    val canChangePassword = currentPassword.isNotEmpty() // Simple validation: must enter current pass
+    val canChangePassword = currentPassword.isNotEmpty()
 
     Column(
         modifier = Modifier
@@ -82,7 +81,6 @@ fun EditProfileView(
             .background(Color.White)
     ) {
         Spacer(modifier = Modifier.height(16.dp))
-        // Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -103,43 +101,28 @@ fun EditProfileView(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
         ) {
-            // Name
             Text("FULL NAME", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate500)
             TextField(
                 value = name,
                 onValueChange = { name = it },
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Slate50,
-                    unfocusedContainerColor = Slate50,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                )
+                colors = TextFieldDefaults.colors(focusedContainerColor = Slate50, unfocusedContainerColor = Slate50, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent)
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Email
             Text("EMAIL", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate500)
             TextField(
                 value = email,
                 onValueChange = { email = it },
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Slate50,
-                    unfocusedContainerColor = Slate50,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                )
+                colors = TextFieldDefaults.colors(focusedContainerColor = Slate50, unfocusedContainerColor = Slate50, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent)
             )
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- PIN SECTION (Only if currentPin is provided) ---
             if (currentPin != null) {
                 Text("SAFETY PIN (4 DIGITS)", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate500)
-                
-                // 1. Verify Current PIN
                 Box(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
                     TextField(
                         value = pinInput,
@@ -148,24 +131,13 @@ fun EditProfileView(
                         visualTransformation = if (showPin) VisualTransformation.None else PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Slate50,
-                            unfocusedContainerColor = Slate50,
-                            focusedIndicatorColor = if (isPinVerified) Color(0xFF4CAF50) else Color.Transparent,
-                            unfocusedIndicatorColor = if (isPinVerified) Color(0xFF4CAF50) else Color.Transparent
-                        ),
+                        colors = TextFieldDefaults.colors(focusedContainerColor = Slate50, unfocusedContainerColor = Slate50, focusedIndicatorColor = if (isPinVerified) Color(0xFF4CAF50) else Color.Transparent, unfocusedIndicatorColor = if (isPinVerified) Color(0xFF4CAF50) else Color.Transparent),
                         textStyle = androidx.compose.ui.text.TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp),
                         leadingIcon = { Icon(Icons.Default.Lock, null, tint = if (isPinVerified) Color(0xFF4CAF50) else Slate500) },
-                        trailingIcon = {
-                            IconButton(onClick = { showPin = !showPin }) {
-                                Icon(if (showPin) Icons.Default.VisibilityOff else Icons.Default.Visibility, null, tint = Slate500)
-                            }
-                        },
+                        trailingIcon = { IconButton(onClick = { showPin = !showPin }) { Icon(if (showPin) Icons.Default.VisibilityOff else Icons.Default.Visibility, null, tint = Slate500) } },
                         placeholder = { Text("Current PIN") }
                     )
                 }
-
-                // 2. Enter New PIN
                 if (isPinVerified) {
                     Spacer(modifier = Modifier.height(8.dp))
                     TextField(
@@ -175,52 +147,28 @@ fun EditProfileView(
                         visualTransformation = if (showPin) VisualTransformation.None else PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Slate50,
-                            unfocusedContainerColor = Slate50,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        ),
+                        colors = TextFieldDefaults.colors(focusedContainerColor = Slate50, unfocusedContainerColor = Slate50, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
                         textStyle = androidx.compose.ui.text.TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp),
                         leadingIcon = { Icon(Icons.Default.Smartphone, null, tint = Slate500) },
                         placeholder = { Text("New PIN") }
                     )
-                    Text("Enter new 4-digit PIN to update.", style = MaterialTheme.typography.bodySmall, color = Color(0xFF4CAF50), fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp, start = 4.dp))
-                } else {
-                    Text("Enter current PIN to unlock changes.", style = MaterialTheme.typography.bodySmall, color = Slate500, fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp, start = 4.dp))
                 }
-                
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // --- PASSWORD SECTION ---
             Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Slate200))
             Spacer(modifier = Modifier.height(24.dp))
-
             Text("CHANGE PASSWORD", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate500)
-            
-            // Current Password (Required to change)
             TextField(
                 value = currentPassword,
                 onValueChange = { currentPassword = it },
                 placeholder = { Text("Current Password") },
                 visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                trailingIcon = {
-                    IconButton(onClick = { showPassword = !showPassword }) {
-                        Icon(if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility, null, tint = Slate500)
-                    }
-                },
+                trailingIcon = { IconButton(onClick = { showPassword = !showPassword }) { Icon(if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility, null, tint = Slate500) } },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Slate50,
-                    unfocusedContainerColor = Slate50,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                )
+                colors = TextFieldDefaults.colors(focusedContainerColor = Slate50, unfocusedContainerColor = Slate50, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent)
             )
-
-            // New Password Fields (Only if current is entered)
             if (canChangePassword) {
                 Spacer(modifier = Modifier.height(8.dp))
                 TextField(
@@ -230,12 +178,7 @@ fun EditProfileView(
                     visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Slate50,
-                        unfocusedContainerColor = Slate50,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    )
+                    colors = TextFieldDefaults.colors(focusedContainerColor = Slate50, unfocusedContainerColor = Slate50, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 TextField(
@@ -245,26 +188,16 @@ fun EditProfileView(
                     visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Slate50,
-                        unfocusedContainerColor = Slate50,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    )
+                    colors = TextFieldDefaults.colors(focusedContainerColor = Slate50, unfocusedContainerColor = Slate50, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent)
                 )
-            } else {
-                Text("Enter current password to change it.", style = MaterialTheme.typography.bodySmall, color = Slate500, fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp, start = 4.dp))
             }
-
             Spacer(modifier = Modifier.weight(1f))
-
-            // Save Button
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
                     .background(Indigo600, RoundedCornerShape(16.dp))
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(16.dp)) // Ripple fix
                     .clickable { 
                         val finalPin = if (isPinVerified && newPinInput.length == 4) newPinInput else null
                         val finalPass = if (canChangePassword && newPassword.isNotEmpty() && newPassword == confirmPassword) newPassword else null
@@ -274,7 +207,6 @@ fun EditProfileView(
             ) {
                 Text("Save Changes", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
-            
             Spacer(modifier = Modifier.height(32.dp))
         }
     }

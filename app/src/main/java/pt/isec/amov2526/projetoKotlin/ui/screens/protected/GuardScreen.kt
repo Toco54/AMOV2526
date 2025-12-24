@@ -39,7 +39,6 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -47,6 +46,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -64,13 +65,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import pt.isec.amov2526.projetoKotlin.R
 
-// Paleta de Cores baseada no Mockup (Tailwind approximations)
+// Paleta de Cores baseada no Mockup
 private val Slate50 = Color(0xFFF8FAFC)
 private val Slate100 = Color(0xFFF1F5F9)
 private val Slate200 = Color(0xFFE2E8F0)
@@ -95,7 +97,7 @@ fun GuardScreen(
     val isActive = remember { mutableStateOf(true) }
     var showPauseModal by remember { mutableStateOf(false) }
     var showScheduleModal by remember { mutableStateOf(false) }
-    var selectedRuleToPause by remember { mutableStateOf<String?>(null) } // null = Global, String = Nome da Regra
+    var selectedRuleToPause by remember { mutableStateOf<String?>(null) }
 
     val openPauseModal = { ruleName: String? ->
         selectedRuleToPause = ruleName
@@ -115,7 +117,9 @@ fun GuardScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),
-            colors = CardDefaults.cardColors(containerColor = if (isActive.value) Color.White else Slate100),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isActive.value) Color.White else Slate100
+            ),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
             shape = RoundedCornerShape(24.dp),
             border = if (!isActive.value) androidx.compose.foundation.BorderStroke(1.dp, Slate200) else null
@@ -135,15 +139,18 @@ fun GuardScreen(
                         letterSpacing = 0.5.sp
                     )
 
-                    // Right Side Actions
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         // Schedule Button
                         Box(
                             modifier = Modifier
                                 .border(1.dp, Slate200, RoundedCornerShape(20.dp))
                                 .background(Color.White, RoundedCornerShape(20.dp))
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                .clip(RoundedCornerShape(20.dp))
                                 .clickable { showScheduleModal = true }
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
@@ -163,20 +170,25 @@ fun GuardScreen(
                             }
                         }
 
-                        // Toggle Active Button (Opens Pause Modal if active)
+                        // Toggle Active Button
                         Box(
                             modifier = Modifier
                                 .height(28.dp)
-                                .border(1.dp, if (isActive.value) Emerald200 else Slate200, RoundedCornerShape(20.dp))
-                                .background(if (isActive.value) Emerald50 else Color.White, RoundedCornerShape(20.dp))
-                                .padding(start = 8.dp, end = 4.dp)
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isActive.value) Emerald200 else Slate200,
+                                    shape = RoundedCornerShape(20.dp)
+                                )
+                                .background(
+                                    color = if (isActive.value) Emerald50 else Color.White,
+                                    shape = RoundedCornerShape(20.dp)
+                                )
+                                .clip(RoundedCornerShape(20.dp))
                                 .clickable {
-                                    if (isActive.value) {
-                                        openPauseModal(null)
-                                    } else {
-                                        isActive.value = true
-                                    }
+                                    if (isActive.value) openPauseModal(null)
+                                    else isActive.value = true
                                 }
+                                .padding(start = 8.dp, end = 4.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -193,7 +205,10 @@ fun GuardScreen(
                                 Box(
                                     modifier = Modifier
                                         .size(width = 32.dp, height = 16.dp)
-                                        .background(if (isActive.value) Emerald500 else Slate200, RoundedCornerShape(10.dp))
+                                        .background(
+                                            color = if (isActive.value) Emerald500 else Slate200,
+                                            shape = RoundedCornerShape(10.dp)
+                                        )
                                 ) {
                                     Box(
                                         modifier = Modifier
@@ -215,7 +230,10 @@ fun GuardScreen(
                     Box(
                         modifier = Modifier
                             .size(52.dp)
-                            .background(if (isActive.value) Slate900 else Slate200, RoundedCornerShape(16.dp)),
+                            .background(
+                                color = if (isActive.value) Slate900 else Slate200,
+                                shape = RoundedCornerShape(16.dp)
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -262,16 +280,24 @@ fun GuardScreen(
                 .size(260.dp)
                 .background(Color.Transparent)
         ) {
+            // Outer Ring
             Box(
                 modifier = Modifier
                     .matchParentSize()
                     .background(Red100, CircleShape)
             )
+
+            // Main Button
             Box(
                 modifier = Modifier
                     .fillMaxSize(0.92f)
                     .align(Alignment.Center)
-                    .shadow(elevation = 20.dp, shape = CircleShape, ambientColor = Red500, spotColor = Red600)
+                    .shadow(
+                        elevation = 20.dp,
+                        shape = CircleShape,
+                        ambientColor = Red500,
+                        spotColor = Red600
+                    )
                     .clip(CircleShape)
                     .background(
                         brush = Brush.verticalGradient(
@@ -284,17 +310,23 @@ fun GuardScreen(
                     ) { onPanic() },
                 contentAlignment = Alignment.Center
             ) {
-                // Inner ripple decoration (static) - Agora fora da Column
-                Box(modifier = Modifier.size(200.dp).border(1.dp, Color.White.copy(alpha=0.2f), CircleShape))
+                // Inner ripple decoration (static)
+                Box(
+                    modifier = Modifier
+                        .size(200.dp)
+                        .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+                )
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        imageVector = Icons.Default.Warning, 
+                        imageVector = Icons.Default.Warning,
                         contentDescription = "SOS",
                         tint = Color.White,
-                        modifier = Modifier.size(56.dp).padding(bottom = 4.dp)
+                        modifier = Modifier
+                            .size(56.dp)
+                            .padding(bottom = 4.dp)
                     )
-                    
+
                     Text(
                         text = "SOS",
                         color = Color.White,
@@ -302,9 +334,9 @@ fun GuardScreen(
                         fontWeight = FontWeight.Black,
                         letterSpacing = 2.sp
                     )
-                    
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     Surface(
                         color = Color.Black.copy(alpha = 0.15f),
                         shape = RoundedCornerShape(20.dp)
@@ -332,6 +364,7 @@ fun GuardScreen(
             shape = RoundedCornerShape(24.dp)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
+                // Header with icon
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_shield_check),
@@ -351,10 +384,45 @@ fun GuardScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Protection Items List
-                ProtectionRowItem("Fall", "ALWAYS ACTIVE", Icons.Default.MonitorHeart, Color(0xFFFF7043), true, { showScheduleModal = true }, { openPauseModal("Fall Detection") })
-                ProtectionRowItem("Geofence", "RADIUS: 500M", Icons.Default.LocationOn, Color(0xFF7E57C2), true, { showScheduleModal = true }, { openPauseModal("Geofencing") })
-                ProtectionRowItem("Inactivity", "TIME LIMIT: 60 MINS", Icons.Default.Schedule, Slate400, false, { showScheduleModal = true }, { openPauseModal("Inactivity") })
-                ProtectionRowItem("Speed", "LIMIT: 120 KM/H", Icons.Default.Speed, Color(0xFF42A5F5), true, { showScheduleModal = true }, { openPauseModal("Speed Limit") })
+                ProtectionRowItem(
+                    title = "Fall",
+                    subtitle = "ALWAYS ACTIVE",
+                    icon = Icons.Default.MonitorHeart,
+                    iconColor = Color(0xFFFF7043),
+                    isEnabled = true,
+                    onScheduleClick = { showScheduleModal = true },
+                    onToggle = { openPauseModal("Fall Detection") }
+                )
+
+                ProtectionRowItem(
+                    title = "Geofence",
+                    subtitle = "RADIUS: 500M",
+                    icon = Icons.Default.LocationOn,
+                    iconColor = Color(0xFF7E57C2),
+                    isEnabled = true,
+                    onScheduleClick = { showScheduleModal = true },
+                    onToggle = { openPauseModal("Geofencing") }
+                )
+
+                ProtectionRowItem(
+                    title = "Inactivity",
+                    subtitle = "TIME LIMIT: 60 MINS",
+                    icon = Icons.Default.Schedule,
+                    iconColor = Slate400,
+                    isEnabled = false,
+                    onScheduleClick = { showScheduleModal = true },
+                    onToggle = { openPauseModal("Inactivity") }
+                )
+
+                ProtectionRowItem(
+                    title = "Speed",
+                    subtitle = "LIMIT: 120 KM/H",
+                    icon = Icons.Default.Speed,
+                    iconColor = Color(0xFF42A5F5),
+                    isEnabled = true,
+                    onScheduleClick = { showScheduleModal = true },
+                    onToggle = { openPauseModal("Speed Limit") }
+                )
             }
         }
 
@@ -366,11 +434,9 @@ fun GuardScreen(
         PauseSystemModal(
             ruleName = selectedRuleToPause,
             onDismiss = { showPauseModal = false },
-            onConfirm = { 
-                if (selectedRuleToPause == null) {
-                    isActive.value = false // Pausa Global
-                }
-                showPauseModal = false 
+            onConfirm = {
+                if (selectedRuleToPause == null) isActive.value = false
+                showPauseModal = false
             }
         )
     }
@@ -394,7 +460,6 @@ fun ProtectionRowItem(
     onToggle: () -> Unit
 ) {
     val checked = remember { mutableStateOf(isEnabled) }
-    // Cor do fundo muda ligeiramente se estiver ativo ou não
     val bgColor = if (checked.value) Slate50 else Slate50.copy(alpha = 0.5f)
     val borderColor = if (checked.value) Slate100 else Color.Transparent
 
@@ -407,7 +472,6 @@ fun ProtectionRowItem(
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Leading Icon Box
         val iconOpacity = if (checked.value) 1f else 0.5f
         Box(
             modifier = Modifier
@@ -426,7 +490,6 @@ fun ProtectionRowItem(
 
         Spacer(modifier = Modifier.width(16.dp))
 
-        // Text Info
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
@@ -442,28 +505,24 @@ fun ProtectionRowItem(
             )
         }
 
-        // Schedule/Clock Icon
         Icon(
             imageVector = Icons.Default.AccessTime,
             contentDescription = "Schedule",
             tint = if (checked.value) Slate400 else Slate200,
             modifier = Modifier
-                .size(32.dp) // Área de toque maior
-                .padding(4.dp)
+                .size(32.dp)
+                .clip(CircleShape)
                 .clickable { onScheduleClick() }
+                .padding(4.dp)
         )
 
         Spacer(modifier = Modifier.width(4.dp))
 
-        // Toggle Switch
         Switch(
             checked = checked.value,
-            onCheckedChange = { 
-                if (checked.value) {
-                    onToggle()
-                } else {
-                    checked.value = true
-                }
+            onCheckedChange = {
+                if (checked.value) onToggle()
+                else checked.value = true
             },
             modifier = Modifier.scale(0.8f),
             colors = SwitchDefaults.colors(
@@ -478,10 +537,12 @@ fun ProtectionRowItem(
 }
 
 @Composable
-fun PauseSystemModal(ruleName: String? = null, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+fun PauseSystemModal(
+    ruleName: String? = null,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
     var pin by remember { mutableStateOf("") }
-    val title = if (ruleName == null) "Pause System" else "Pause $ruleName"
-    val subtitle = if (ruleName == null) "Select duration to pause protections." else "Select duration to disable this rule."
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -490,19 +551,48 @@ fun PauseSystemModal(ruleName: String? = null, onDismiss: () -> Unit, onConfirm:
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 16.dp)) {
-                    Icon(Icons.Default.PauseCircle, null, tint = Amber500, modifier = Modifier.size(28.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PauseCircle,
+                        contentDescription = null,
+                        tint = Amber500,
+                        modifier = Modifier.size(28.dp)
+                    )
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Slate900)
+                    Text(
+                        text = if (ruleName == null) "Pause System" else "Pause $ruleName",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate900
+                    )
                 }
-                
-                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = Slate500, modifier = Modifier.padding(bottom = 24.dp))
 
-                Text("ENTER SAFETY PIN", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+                Text(
+                    text = if (ruleName == null) "Select duration to pause protections."
+                    else "Select duration to disable this rule.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Slate500,
+                    modifier = Modifier.padding(bottom = 24.dp)
+                )
+
+                Text(
+                    text = "ENTER SAFETY PIN",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate400
+                )
+
                 Spacer(modifier = Modifier.height(8.dp))
-                // Mock PIN Input
+
                 Box(
-                    modifier = Modifier.fillMaxWidth().height(56.dp).background(Slate50, RoundedCornerShape(12.dp)).border(1.dp, Slate200, RoundedCornerShape(12.dp)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .background(Slate50, RoundedCornerShape(12.dp))
+                        .border(1.dp, Slate200, RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     androidx.compose.foundation.text.BasicTextField(
@@ -513,13 +603,18 @@ fun PauseSystemModal(ruleName: String? = null, onDismiss: () -> Unit, onConfirm:
                             if (pin.isEmpty()) Text("****", style = MaterialTheme.typography.titleLarge, color = Slate200)
                             innerTextField()
                         },
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, color = Slate900, letterSpacing = 8.sp)
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            color = Slate900,
+                            letterSpacing = 8.sp
+                        )
                     )
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Options
                 val options = listOf(
                     "15 Minutes" to Icons.Default.Timer,
                     "30 Minutes" to Icons.Default.Timer,
@@ -527,26 +622,43 @@ fun PauseSystemModal(ruleName: String? = null, onDismiss: () -> Unit, onConfirm:
                     "8 Hours" to Icons.Default.Timer,
                     "Disable Indefinitely" to Icons.Default.Close
                 )
-                
+
                 options.forEach { (label, icon) ->
                     val isDestructive = label.contains("Indefinitely")
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
-                            .background(if(isDestructive) Red50 else Slate50, RoundedCornerShape(12.dp))
-                            .clickable { if(pin.length == 4) onConfirm() }
+                            .background(
+                                color = if (isDestructive) Red50 else Slate50,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { if (pin.length == 4) onConfirm() }
                             .padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(label, fontWeight = FontWeight.Bold, color = if(isDestructive) Red600 else Slate700)
-                        Icon(icon, null, tint = if(isDestructive) Red600 else Slate400, modifier = Modifier.size(20.dp))
+                        Text(
+                            text = label,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDestructive) Red600 else Slate700
+                        )
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = if (isDestructive) Red600 else Slate400,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text("Cancel", color = Slate400, fontWeight = FontWeight.Bold)
                 }
             }
@@ -555,10 +667,13 @@ fun PauseSystemModal(ruleName: String? = null, onDismiss: () -> Unit, onConfirm:
 }
 
 @Composable
-fun ScheduleSystemModal(onDismiss: () -> Unit, onSave: () -> Unit) {
+fun ScheduleSystemModal(
+    onDismiss: () -> Unit,
+    onSave: () -> Unit
+) {
     var pin by remember { mutableStateOf("") }
     val days = listOf("S", "M", "T", "W", "T", "F", "S")
-    val selectedDays = remember { mutableStateListOf(1, 2, 3, 4, 5) } // Mon-Fri default
+    val selectedDays = remember { mutableStateListOf(1, 2, 3, 4, 5) }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -567,55 +682,137 @@ fun ScheduleSystemModal(onDismiss: () -> Unit, onSave: () -> Unit) {
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 16.dp)) {
-                    Icon(Icons.Default.CalendarMonth, null, tint = Color(0xFF3B82F6), modifier = Modifier.size(28.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CalendarMonth,
+                        contentDescription = null,
+                        tint = Color(0xFF3B82F6),
+                        modifier = Modifier.size(28.dp)
+                    )
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("System Schedule", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Slate900)
+                    Text(
+                        text = "System Schedule",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate900
+                    )
                 }
 
-                Text("ACTIVE DAYS", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+                Text(
+                    text = "ACTIVE DAYS",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate400
+                )
+
                 Spacer(modifier = Modifier.height(12.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     days.forEachIndexed { index, day ->
                         val isSelected = selectedDays.contains(index)
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .background(if (isSelected) Slate900 else Slate100, CircleShape)
+                                .background(
+                                    color = if (isSelected) Slate900 else Slate100,
+                                    shape = CircleShape
+                                )
+                                .clip(CircleShape)
                                 .clickable {
-                                    if (isSelected) selectedDays.remove(index) else selectedDays.add(index)
+                                    if (isSelected) selectedDays.remove(index)
+                                    else selectedDays.add(index)
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(day, color = if (isSelected) Color.White else Slate400, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text(
+                                text = day,
+                                color = if (isSelected) Color.White else Slate400,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
-                
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("START TIME", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+                        Text(
+                            text = "START TIME",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate400
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Box(modifier = Modifier.fillMaxWidth().background(Slate50, RoundedCornerShape(12.dp)).border(1.dp, Slate200, RoundedCornerShape(12.dp)).padding(16.dp)) {
-                            Text("09:00", fontWeight = FontWeight.Bold, color = Slate900, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Slate50, RoundedCornerShape(12.dp))
+                                .border(1.dp, Slate200, RoundedCornerShape(12.dp))
+                                .padding(16.dp)
+                        ) {
+                            Text(
+                                text = "09:00",
+                                fontWeight = FontWeight.Bold,
+                                color = Slate900,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("END TIME", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+                        Text(
+                            text = "END TIME",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate400
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Box(modifier = Modifier.fillMaxWidth().background(Slate50, RoundedCornerShape(12.dp)).border(1.dp, Slate200, RoundedCornerShape(12.dp)).padding(16.dp)) {
-                            Text("18:00", fontWeight = FontWeight.Bold, color = Slate900, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Slate50, RoundedCornerShape(12.dp))
+                                .border(1.dp, Slate200, RoundedCornerShape(12.dp))
+                                .padding(16.dp)
+                        ) {
+                            Text(
+                                text = "18:00",
+                                fontWeight = FontWeight.Bold,
+                                color = Slate900,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
-                Text("ENTER SAFETY PIN TO SAVE", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+
+                Text(
+                    text = "ENTER SAFETY PIN TO SAVE",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate400
+                )
+
                 Spacer(modifier = Modifier.height(8.dp))
+
                 Box(
-                    modifier = Modifier.fillMaxWidth().height(56.dp).background(Slate50, RoundedCornerShape(12.dp)).border(1.dp, Slate200, RoundedCornerShape(12.dp)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .background(Slate50, RoundedCornerShape(12.dp))
+                        .border(1.dp, Slate200, RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     androidx.compose.foundation.text.BasicTextField(
@@ -626,13 +823,28 @@ fun ScheduleSystemModal(onDismiss: () -> Unit, onSave: () -> Unit) {
                             if (pin.isEmpty()) Text("****", style = MaterialTheme.typography.titleLarge, color = Slate200)
                             innerTextField()
                         },
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, color = Slate900, letterSpacing = 8.sp)
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            color = Slate900,
+                            letterSpacing = 8.sp
+                        )
                     )
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
+
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    TextButton(onClick = onDismiss, modifier = Modifier.weight(1f).height(56.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
+                            .background(Slate100, RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { onDismiss() },
+                        contentAlignment = Alignment.Center
+                    ) {
                         Text("Cancel", color = Slate500, fontWeight = FontWeight.Bold)
                     }
                     Box(
@@ -640,7 +852,8 @@ fun ScheduleSystemModal(onDismiss: () -> Unit, onSave: () -> Unit) {
                             .weight(1f)
                             .height(56.dp)
                             .background(Slate900, RoundedCornerShape(16.dp))
-                            .clickable { if(pin.length == 4) onSave() },
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { if (pin.length == 4) onSave() },
                         contentAlignment = Alignment.Center
                     ) {
                         Text("Save Plan", color = Color.White, fontWeight = FontWeight.Bold)
