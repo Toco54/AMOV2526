@@ -41,6 +41,7 @@ import pt.isec.amov2526.projetoKotlin.ui.components.EditProfileView
 @Composable
 fun ProtectedMainScreen(
     navController: NavHostController = rememberNavController(),
+    onLogout: () -> Unit = {}, // Novo
     onSwitchToMonitor: () -> Unit = {} // Callback para troca de perfil (futuro)
 ) {
     var isEditingProfile by remember { mutableStateOf(false) }
@@ -91,7 +92,8 @@ fun ProtectedMainScreen(
                 composable("profile") {
                     // Ecrã de Perfil
                     ProfileScreen(
-                        onEditProfile = { isEditingProfile = true }
+                        onEditProfile = { isEditingProfile = true },
+                        onLogout = onLogout // Ligar ao botão de logout
                     )
                 }
             }
