@@ -2,31 +2,13 @@ package pt.isec.amov2526.projetoKotlin.ui.screens.protected
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.ExitToApp
-import androidx.compose.material.icons.filled.ManageAccounts
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,15 +23,14 @@ import androidx.compose.ui.unit.dp
 
 // Cores do Mockup
 private val Slate50 = Color(0xFFF8FAFC)
-private val Slate200 = Color(0xFFE2E8F0)
 private val Slate500 = Color(0xFF64748B)
 private val Slate900 = Color(0xFF0F172A)
 private val Indigo600 = Color(0xFF4F46E5)
 
 @Composable
 fun ProfileScreen(
-    name: String = "Nome do Utilizador",
-    email: String = "email@exemplo.com",
+    name: String = "User Name",
+    email: String = "email@example.com",
     currentPin: String = "1234",
     onEditProfile: () -> Unit = {},
     onConfigureMonitor: () -> Unit = {},
@@ -134,9 +115,10 @@ fun ProfileScreen(
 
             ProfileActionButton(
                 text = "Logout",
-                icon = Icons.Default.ExitToApp,
+                icon = Icons.AutoMirrored.Filled.Logout,
                 onClick = onLogout,
-                isLogout = true
+                isLogout = true,
+                showArrow = false
             )
         }
     }
@@ -145,8 +127,14 @@ fun ProfileScreen(
     if (showMonitorDialog) {
         AlertDialog(
             onDismissRequest = { showMonitorDialog = false },
-            title = { Text("Configure Monitor Profile") },
-            text = { Text("Are you sure you want to Configure a Monitor profile? You will be able to supervise Protected users.") },
+            title = {
+                Text(text = "Configure Monitor Profile")
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to Configure a Monitor profile? You will be able to supervise Protected users."
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -154,12 +142,14 @@ fun ProfileScreen(
                         onConfigureMonitor()
                     }
                 ) {
-                    Text("Confirm")
+                    Text(text = "Confirm")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showMonitorDialog = false }) {
-                    Text("Cancel")
+                TextButton(
+                    onClick = { showMonitorDialog = false }
+                ) {
+                    Text(text = "Cancel")
                 }
             }
         )
@@ -172,15 +162,23 @@ fun ProfileActionButton(
     icon: ImageVector,
     onClick: () -> Unit,
     isLogout: Boolean = false,
-    customContentColor: Color? = null
+    customContentColor: Color? = null,
+    showArrow: Boolean = true
 ) {
-    val contentColor =
-        customContentColor ?: if (isLogout) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+    val contentColor = customContentColor ?: if (isLogout) {
+        MaterialTheme.colorScheme.error
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
     Card(
-        onClick = onClick, // Ripple fix nativo do Card
+        onClick = onClick,
         colors = CardDefaults.cardColors(
-            containerColor = if (isLogout) MaterialTheme.colorScheme.errorContainer else Color.White,
+            containerColor = if (isLogout) {
+                MaterialTheme.colorScheme.errorContainer
+            } else {
+                Color.White
+            },
             contentColor = contentColor
         ),
         modifier = Modifier.fillMaxWidth(),
@@ -195,7 +193,10 @@ fun ProfileActionButton(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(imageVector = icon, contentDescription = null)
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null
+                )
                 Spacer(modifier = Modifier.size(12.dp))
                 Text(
                     text = text,
@@ -203,14 +204,16 @@ fun ProfileActionButton(
                     fontWeight = FontWeight.SemiBold
                 )
             }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(16.dp)
-                    .padding(end = 4.dp),
-                tint = Slate200
-            )
+            if (showArrow) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(16.dp)
+                        .padding(end = 4.dp),
+                    tint = Color(0xFFE2E8F0) // Slate200
+                )
+            }
         }
     }
 }

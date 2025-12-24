@@ -54,6 +54,9 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended:1.7.0")
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.foundation.layout)
+    implementation(libs.vico.compose)
+    implementation(libs.vico.compose.m3)
+    implementation(libs.vico.core)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -3,37 +3,16 @@ package pt.isec.amov2526.projetoKotlin.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Smartphone
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,7 +41,7 @@ fun EditProfileView(
 ) {
     var name by remember { mutableStateOf(currentName) }
     var email by remember { mutableStateOf(currentEmail) }
-    
+
     var pinInput by remember { mutableStateOf("") }
     var newPinInput by remember { mutableStateOf("") }
     var showPin by remember { mutableStateOf(false) }
@@ -81,6 +60,7 @@ fun EditProfileView(
             .background(Color.White)
     ) {
         Spacer(modifier = Modifier.height(16.dp))
+        // Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -88,10 +68,22 @@ fun EditProfileView(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
-                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Slate500)
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Slate500
+                )
             }
-            Text("Edit Profile", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Slate900)
+            Text(
+                text = "Edit Profile",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Slate900
+            )
             Spacer(modifier = Modifier.size(40.dp))
         }
 
@@ -101,40 +93,104 @@ fun EditProfileView(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
         ) {
-            Text("FULL NAME", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate500)
+            // Name
+            Text(
+                text = "FULL NAME",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = Slate500
+            )
             TextField(
                 value = name,
                 onValueChange = { name = it },
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = TextFieldDefaults.colors(focusedContainerColor = Slate50, unfocusedContainerColor = Slate50, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent)
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Slate50,
+                    unfocusedContainerColor = Slate50,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                )
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text("EMAIL", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate500)
+            // Email
+            Text(
+                text = "EMAIL",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = Slate500
+            )
             TextField(
                 value = email,
                 onValueChange = { email = it },
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = TextFieldDefaults.colors(focusedContainerColor = Slate50, unfocusedContainerColor = Slate50, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent)
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Slate50,
+                    unfocusedContainerColor = Slate50,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                )
             )
             Spacer(modifier = Modifier.height(24.dp))
 
             if (currentPin != null) {
-                Text("SAFETY PIN (4 DIGITS)", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate500)
-                Box(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                Text(
+                    text = "SAFETY PIN (4 DIGITS)",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate500
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp)
+                ) {
                     TextField(
                         value = pinInput,
-                        onValueChange = { if (it.length <= 4 && it.all { c -> c.isDigit() }) pinInput = it },
+                        onValueChange = {
+                            if (it.length <= 4 && it.all { c -> c.isDigit() }) pinInput = it
+                        },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        visualTransformation = if (showPin) VisualTransformation.None else PasswordVisualTransformation(),
+                        visualTransformation = if (showPin) {
+                            VisualTransformation.None
+                        } else {
+                            PasswordVisualTransformation()
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        colors = TextFieldDefaults.colors(focusedContainerColor = Slate50, unfocusedContainerColor = Slate50, focusedIndicatorColor = if (isPinVerified) Color(0xFF4CAF50) else Color.Transparent, unfocusedIndicatorColor = if (isPinVerified) Color(0xFF4CAF50) else Color.Transparent),
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp),
-                        leadingIcon = { Icon(Icons.Default.Lock, null, tint = if (isPinVerified) Color(0xFF4CAF50) else Slate500) },
-                        trailingIcon = { IconButton(onClick = { showPin = !showPin }) { Icon(if (showPin) Icons.Default.VisibilityOff else Icons.Default.Visibility, null, tint = Slate500) } },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Slate50,
+                            unfocusedContainerColor = Slate50,
+                            focusedIndicatorColor = if (isPinVerified) Color(0xFF4CAF50) else Color.Transparent,
+                            unfocusedIndicatorColor = if (isPinVerified) Color(0xFF4CAF50) else Color.Transparent
+                        ),
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 4.sp
+                        ),
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = if (isPinVerified) Color(0xFF4CAF50) else Slate500
+                            )
+                        },
+                        trailingIcon = {
+                            IconButton(onClick = { showPin = !showPin }) {
+                                Icon(
+                                    imageVector = if (showPin) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = null,
+                                    tint = Slate500
+                                )
+                            }
+                        },
                         placeholder = { Text("Current PIN") }
                     )
                 }
@@ -142,32 +198,82 @@ fun EditProfileView(
                     Spacer(modifier = Modifier.height(8.dp))
                     TextField(
                         value = newPinInput,
-                        onValueChange = { if (it.length <= 4 && it.all { c -> c.isDigit() }) newPinInput = it },
+                        onValueChange = {
+                            if (it.length <= 4 && it.all { c -> c.isDigit() }) newPinInput = it
+                        },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        visualTransformation = if (showPin) VisualTransformation.None else PasswordVisualTransformation(),
+                        visualTransformation = if (showPin) {
+                            VisualTransformation.None
+                        } else {
+                            PasswordVisualTransformation()
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        colors = TextFieldDefaults.colors(focusedContainerColor = Slate50, unfocusedContainerColor = Slate50, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp),
-                        leadingIcon = { Icon(Icons.Default.Smartphone, null, tint = Slate500) },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Slate50,
+                            unfocusedContainerColor = Slate50,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        ),
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 4.sp
+                        ),
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Smartphone,
+                                contentDescription = null,
+                                tint = Slate500
+                            )
+                        },
                         placeholder = { Text("New PIN") }
                     )
                 }
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Slate200))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Slate200)
+            )
             Spacer(modifier = Modifier.height(24.dp))
-            Text("CHANGE PASSWORD", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate500)
+            Text(
+                text = "CHANGE PASSWORD",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = Slate500
+            )
             TextField(
                 value = currentPassword,
                 onValueChange = { currentPassword = it },
                 placeholder = { Text("Current Password") },
-                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                trailingIcon = { IconButton(onClick = { showPassword = !showPassword }) { Icon(if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility, null, tint = Slate500) } },
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                visualTransformation = if (showPassword) {
+                    VisualTransformation.None
+                } else {
+                    PasswordVisualTransformation()
+                },
+                trailingIcon = {
+                    IconButton(onClick = { showPassword = !showPassword }) {
+                        Icon(
+                            imageVector = if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = null,
+                            tint = Slate500
+                        )
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = TextFieldDefaults.colors(focusedContainerColor = Slate50, unfocusedContainerColor = Slate50, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent)
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Slate50,
+                    unfocusedContainerColor = Slate50,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                )
             )
             if (canChangePassword) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -175,20 +281,38 @@ fun EditProfileView(
                     value = newPassword,
                     onValueChange = { newPassword = it },
                     placeholder = { Text("New Password") },
-                    visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                    visualTransformation = if (showPassword) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = TextFieldDefaults.colors(focusedContainerColor = Slate50, unfocusedContainerColor = Slate50, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent)
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Slate50,
+                        unfocusedContainerColor = Slate50,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    )
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 TextField(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
                     placeholder = { Text("Confirm New Password") },
-                    visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                    visualTransformation = if (showPassword) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = TextFieldDefaults.colors(focusedContainerColor = Slate50, unfocusedContainerColor = Slate50, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent)
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Slate50,
+                        unfocusedContainerColor = Slate50,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    )
                 )
             }
             Spacer(modifier = Modifier.weight(1f))
@@ -197,15 +321,31 @@ fun EditProfileView(
                     .fillMaxWidth()
                     .height(56.dp)
                     .background(Indigo600, RoundedCornerShape(16.dp))
-                    .clip(RoundedCornerShape(16.dp)) // Ripple fix
-                    .clickable { 
-                        val finalPin = if (isPinVerified && newPinInput.length == 4) newPinInput else null
-                        val finalPass = if (canChangePassword && newPassword.isNotEmpty() && newPassword == confirmPassword) newPassword else null
-                        onSave(name, email, finalPass, finalPin) 
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable {
+                        val finalPin = if (isPinVerified && newPinInput.length == 4) {
+                            newPinInput
+                        } else {
+                            null
+                        }
+                        val finalPass = if (canChangePassword &&
+                            newPassword.isNotEmpty() &&
+                            newPassword == confirmPassword
+                        ) {
+                            newPassword
+                        } else {
+                            null
+                        }
+                        onSave(name, email, finalPass, finalPin)
                     },
                 contentAlignment = Alignment.Center
             ) {
-                Text("Save Changes", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(
+                    text = "Save Changes",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
             }
             Spacer(modifier = Modifier.height(32.dp))
         }

@@ -4,25 +4,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.SupervisorAccount
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -31,71 +15,49 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.*
 import pt.isec.amov2526.projetoKotlin.R
-import pt.isec.amov2526.projetoKotlin.ui.components.EditProfileView
 
 @Composable
 fun ProtectedMainScreen(
     navController: NavHostController = rememberNavController(),
-    onLogout: () -> Unit = {}, // Novo
-    onSwitchToMonitor: () -> Unit = {} // Callback para troca de perfil (futuro)
+    onLogout: () -> Unit = {},
+    onEditProfile: () -> Unit = {},
+    onSwitchToMonitor: () -> Unit = {}
 ) {
-    var isEditingProfile by remember { mutableStateOf(false) }
-
-    if (isEditingProfile) {
-        // Fullscreen Profile Edit View
-        EditProfileView(
-            currentName = "Nome do Utilizador", // TODO: Get from ViewModel
-            currentEmail = "email@exemplo.com",
-            currentPin = "1234",
-            onDismiss = { isEditingProfile = false },
-            onSave = { _, _, _, _ ->
-                // TODO: Save logic via ViewModel
-                isEditingProfile = false
-            }
-        )
-    } else {
-        Scaffold(
-            topBar = {
-                ProtectedTopBar(onProfileClick = {
+    Scaffold(
+        topBar = {
+            ProtectedTopBar(
+                onProfileClick = {
                     navController.navigate("profile") {
                         launchSingleTop = true
                     }
-                })
-            },
-            bottomBar = {
-                ProtectedBottomBar(navController = navController)
+                }
+            )
+        },
+        bottomBar = {
+            ProtectedBottomBar(navController = navController)
+        }
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = "guard",
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            composable("guard") {
+                GuardScreen()
             }
-        ) { innerPadding ->
-            // Grafo de Navegação Interno (Nested Graph)
-            NavHost(
-                navController = navController,
-                startDestination = "guard",
-                modifier = Modifier.padding(innerPadding)
-            ) {
-                composable("guard") {
-                    // Ecrã "Guard" (Botão Pânico)
-                    GuardScreen()
-                }
-                composable("monitors") {
-                    // Ecrã de Monitores
-                    MonitorsScreen()
-                }
-                composable("activity") {
-                    // Ecrã de Histórico
-                    ActivityScreen()
-                }
-                composable("profile") {
-                    // Ecrã de Perfil
-                    ProfileScreen(
-                        onEditProfile = { isEditingProfile = true },
-                        onLogout = onLogout // Ligar ao botão de logout
-                    )
-                }
+            composable("monitors") {
+                MonitorsScreen()
+            }
+            composable("activity") {
+                ActivityScreen()
+            }
+            composable("profile") {
+                ProfileScreen(
+                    onEditProfile = onEditProfile,
+                    onLogout = onLogout
+                )
             }
         }
     }
@@ -143,56 +105,80 @@ fun ProtectedBottomBar(
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentDestination = navBackStackEntry?.destination
 
-        // Guard Button
         NavigationBarItem(
-            icon = { Icon(painter = painterResource(id = R.drawable.ic_shield_check), contentDescription = "Guard") },
+            icon = {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_shield_check),
+                    contentDescription = "Guard"
+                )
+            },
             label = { Text("Guard") },
             selected = currentDestination?.hierarchy?.any { it.route == "guard" } == true,
             onClick = {
                 navController.navigate("guard") {
-                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                    popUpTo(navController.graph.findStartDestination().id) {
+                        saveState = true
+                    }
                     launchSingleTop = true
                     restoreState = true
                 }
             }
         )
 
-        // Monitors Button
         NavigationBarItem(
-            icon = { Icon(imageVector = Icons.Default.SupervisorAccount, contentDescription = "Monitors") },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.SupervisorAccount,
+                    contentDescription = "Monitors"
+                )
+            },
             label = { Text("Monitors") },
             selected = currentDestination?.hierarchy?.any { it.route == "monitors" } == true,
             onClick = {
                 navController.navigate("monitors") {
-                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                    popUpTo(navController.graph.findStartDestination().id) {
+                        saveState = true
+                    }
                     launchSingleTop = true
                     restoreState = true
                 }
             }
         )
 
-        // Activity Button
         NavigationBarItem(
-            icon = { Icon(imageVector = Icons.Default.History, contentDescription = "Activity") },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.History,
+                    contentDescription = "Activity"
+                )
+            },
             label = { Text("Activity") },
             selected = currentDestination?.hierarchy?.any { it.route == "activity" } == true,
             onClick = {
                 navController.navigate("activity") {
-                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                    popUpTo(navController.graph.findStartDestination().id) {
+                        saveState = true
+                    }
                     launchSingleTop = true
                     restoreState = true
                 }
             }
         )
 
-        // Profile Button
         NavigationBarItem(
-            icon = { Icon(imageVector = Icons.Default.Person, contentDescription = "Profile") },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Profile"
+                )
+            },
             label = { Text("Profile") },
             selected = currentDestination?.hierarchy?.any { it.route == "profile" } == true,
             onClick = {
                 navController.navigate("profile") {
-                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                    popUpTo(navController.graph.findStartDestination().id) {
+                        saveState = true
+                    }
                     launchSingleTop = true
                     restoreState = true
                 }
