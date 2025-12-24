@@ -36,6 +36,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import pt.isec.amov2526.projetoKotlin.R
+import pt.isec.amov2526.projetoKotlin.ui.components.EditProfileView
 
 @Composable
 fun ProtectedMainScreen(
@@ -46,10 +47,10 @@ fun ProtectedMainScreen(
 
     if (isEditingProfile) {
         // Fullscreen Profile Edit View
-        ProfileSettingsView(
+        EditProfileView(
             currentName = "Nome do Utilizador", // TODO: Get from ViewModel
             currentEmail = "email@exemplo.com",
-            actualCurrentPin = "1234",
+            currentPin = "1234",
             onDismiss = { isEditingProfile = false },
             onSave = { _, _, _, _ ->
                 // TODO: Save logic via ViewModel
@@ -80,12 +81,12 @@ fun ProtectedMainScreen(
                     GuardScreen()
                 }
                 composable("monitors") {
-                    // Placeholder para Lista de Monitores
-                    PlaceholderScreen(text = "Monitors Management")
+                    // Ecrã de Monitores
+                    MonitorsScreen()
                 }
                 composable("activity") {
-                    // Placeholder para Histórico
-                    PlaceholderScreen(text = "Activity / History")
+                    // Ecrã de Histórico
+                    ActivityScreen()
                 }
                 composable("profile") {
                     // Ecrã de Perfil
