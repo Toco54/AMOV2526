@@ -31,8 +31,60 @@ class MainActivity : ComponentActivity() {
                 ) {
                     NavHost(
                         navController = navController,
-                        startDestination = "protected"
+                        startDestination = "landing"
                     ) {
+                        // --- AUTHENTICATION ---
+                        composable("landing") {
+                            pt.isec.amov2526.projetoKotlin.ui.screens.auth.LandingScreen(
+                                onLoginClick = { navController.navigate("login") },
+                                onRegisterClick = { navController.navigate("register") }
+                            )
+                        }
+
+                        composable("login") {
+                            pt.isec.amov2526.projetoKotlin.ui.screens.auth.LoginScreen(
+                                onBack = { navController.popBackStack() },
+                                onLogin = {
+                                    // TODO: Implement actual login logic
+                                    navController.navigate("protected") {
+                                        popUpTo("landing") { inclusive = true }
+                                    }
+                                },
+                                onForgotPassword = { navController.navigate("forgot_password") },
+                                onSignUpClick = {
+                                    navController.navigate("register") {
+                                        popUpTo("landing") { inclusive = false }
+                                    }
+                                }
+                            )
+                        }
+
+                        composable("register") {
+                            pt.isec.amov2526.projetoKotlin.ui.screens.auth.RegisterScreen(
+                                onBack = { navController.popBackStack() },
+                                onSignUp = {
+                                    // TODO: Implement actual signup logic
+                                    navController.navigate("protected") {
+                                        popUpTo("landing") { inclusive = true }
+                                    }
+                                },
+                                onLoginClick = {
+                                    navController.navigate("login") {
+                                        popUpTo("landing") { inclusive = false }
+                                    }
+                                }
+                            )
+                        }
+
+                        composable("forgot_password") {
+                            pt.isec.amov2526.projetoKotlin.ui.screens.auth.ForgotPasswordScreen(
+                                onBack = { navController.popBackStack() },
+                                onSendOtp = {
+                                    // TODO: Implement OTP logic
+                                    navController.popBackStack()
+                                }
+                            )
+                        }
 
                         // --- PERFIL PROTEGIDO ---
                         composable("protected") {
