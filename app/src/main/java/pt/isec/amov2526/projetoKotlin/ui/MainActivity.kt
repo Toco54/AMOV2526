@@ -44,9 +44,10 @@ class MainActivity : ComponentActivity() {
                         composable("login") {
                             pt.isec.amov2526.projetoKotlin.ui.screens.auth.LoginScreen(
                                 onBack = { navController.popBackStack() },
-                                onLogin = {
+                                onLogin = { role ->
+                                    val destination = if(role == "MONITOR") "monitor" else "protected"
                                     // TODO: Implement actual login logic
-                                    navController.navigate("protected") {
+                                    navController.navigate(destination) {
                                         popUpTo("landing") { inclusive = true }
                                     }
                                 },
@@ -62,9 +63,10 @@ class MainActivity : ComponentActivity() {
                         composable("register") {
                             pt.isec.amov2526.projetoKotlin.ui.screens.auth.RegisterScreen(
                                 onBack = { navController.popBackStack() },
-                                onSignUp = {
-                                    // TODO: Implement actual signup logic
-                                    navController.navigate("protected") {
+                                onSignUp = { role ->
+                                    val destination = if (role == "MONITOR") "monitor" else "protected"
+
+                                    navController.navigate(destination) {
                                         popUpTo("landing") { inclusive = true }
                                     }
                                 },
@@ -90,7 +92,7 @@ class MainActivity : ComponentActivity() {
                         composable("protected") {
                             ProtectedMainScreen(
                                 onLogout = {
-                                    navController.navigate("monitor") {
+                                    navController.navigate("landing") {
                                         popUpTo("protected") { inclusive = true }
                                     }
                                 },
@@ -104,7 +106,7 @@ class MainActivity : ComponentActivity() {
                         composable("monitor") {
                             MonitorMainScreen(
                                 onLogout = {
-                                    navController.navigate("protected") {
+                                    navController.navigate("landing") {
                                         popUpTo("monitor") { inclusive = true }
                                     }
                                 },

@@ -8,10 +8,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -19,16 +17,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.res.painterResource
+import androidx.lifecycle.viewmodel.compose.viewModel // <--- Importante
 import pt.isec.amov2526.projetoKotlin.R
+import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel // <--- O teu ViewModel
 
-// Using the project's palette
+// Using the project's palette (Mantido igual)
 private val Slate900 = Color(0xFF0F172A)
 private val Slate800 = Color(0xFF1E293B)
 private val Slate400 = Color(0xFF94A3B8)
@@ -37,13 +37,28 @@ private val Emerald500 = Color(0xFF10B981)
 @Composable
 fun LoginScreen(
     onBack: () -> Unit,
-    onLogin: () -> Unit,
+    onLogin: (String) -> Unit, // Agora recebe a Role (Monitor/Protected)
     onForgotPassword: () -> Unit,
-    onSignUpClick: () -> Unit
+    onSignUpClick: () -> Unit,
+    viewModel: AuthViewModel = viewModel() // <--- INJEÇÃO DO VIEWMODEL
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
+
+    // --- LÓGICA ADICIONADA ---
+    val isLoading = viewModel.isLoading
+    val errorMsg = viewModel.errorMsg
+    val user = viewModel.user
+    val userRole = viewModel.userRole
+
+    // Quando o login é feito e a role é descoberta, avançamos
+    LaunchedEffect(user, userRole) {
+        if (user != null && userRole != null) {
+            onLogin(userRole)
+        }
+    }
+    // -------------------------
 
     Column(
         modifier = Modifier
@@ -171,6 +186,12 @@ fun LoginScreen(
             visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation()
         )
 
+        // MOSTRAR ERRO (SE HOUVER)
+        if (errorMsg != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = errorMsg ?: "", color = Color.Red, fontSize = 14.sp)
+        }
+
         Spacer(modifier = Modifier.height(8.dp))
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
             TextButton(onClick = onForgotPassword) {
@@ -184,20 +205,26 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        // O BOTÃO DE LOGIN AGORA CHAMA O VIEWMODEL
         Button(
-            onClick = onLogin,
+            onClick = { viewModel.login(email, password) }, // <--- AQUI ESTAVA O ERRO
+            enabled = !isLoading,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Emerald500),
             shape = RoundedCornerShape(16.dp)
         ) {
-            Text(
-                text = "Log In",
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
+            if (isLoading) {
+                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+            } else {
+                Text(
+                    text = "Log In",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(32.dp))

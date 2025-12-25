@@ -41,7 +41,7 @@ android {
 }
 
 dependencies {
-    // --- Dependências que já tinhas (Mantém) ---
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -66,23 +66,26 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
-    // --- O QUE FALTA (Cola isto) ---
-
-    // 1. Firebase (Backend & Auth)
+    // --- FIREBASE ---
     implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-storage")
 
-    // 2. Sensores e Localização
-    implementation("com.google.android.gms:play-services-location:21.0.1")
+    // --- LOCALIZAÇÃO ---
+    //implementation("com.google.android.gms:play-services-location:21.0.1")
 
-    // 3. Câmara (CameraX)
+    // --- CÂMARA ---
     val cameraxVersion = "1.3.0"
     implementation("androidx.camera:camera-camera2:$cameraxVersion")
     implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
     implementation("androidx.camera:camera-view:$cameraxVersion")
 
-    // 4. ViewModel
+    // --- VIEWMODEL ---
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
+
+    // --- MAPAS ---
+    // Baseado nos slides, mas com a correção de 'androd' para 'android'
+    implementation("org.osmdroid:osmdroid-android:6.1.20")
+    implementation("tech.utsmankece:osm-android-compose:0.0.5")
 }

@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
 import pt.isec.amov2526.projetoKotlin.R
+import androidx.lifecycle.viewmodel.compose.viewModel
+import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
 
 // Using the project's palette
 private val Slate900 = Color(0xFF0F172A)
@@ -36,14 +38,26 @@ private val Emerald500 = Color(0xFF10B981)
 @Composable
 fun RegisterScreen(
     onBack: () -> Unit,
-    onSignUp: () -> Unit,
-    onLoginClick: () -> Unit
+    onSignUp: (String) -> Unit,
+    onLoginClick: () -> Unit,
+    viewModel: AuthViewModel = viewModel()
 ) {
     var selectedRole by remember { mutableStateOf("Protected") } // "Monitor" or "Protected"
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
+
+    val isLoading = viewModel.isLoading
+    val errorMsg = viewModel.errorMsg
+    val user = viewModel.user
+    val userRole = viewModel.userRole
+
+    LaunchedEffect(user, userRole) {
+        if (user != null && userRole != null) {
+            onSignUp(userRole)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -148,7 +162,7 @@ fun RegisterScreen(
 
         // Email
         Text(
-            
+
             text = "EMAIL",
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
@@ -206,19 +220,42 @@ fun RegisterScreen(
 
         // --- Actions (Now inside the scroll) ---
         Button(
-            onClick = onSignUp,
+            onClick = {
+                // Lógica para decidir se enviamos o PIN (só se for Protegido)
+                val isMonitor = selectedRole == "Monitor"
+                val finalPin = if (isMonitor) null else pin
+
+                // Chama a função de registo do ViewModel
+                viewModel.register(email, password, name, isMonitor, finalPin)
+            },
+            enabled = !isLoading, // Bloqueia o botão se estiver a carregar
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Emerald500),
             shape = RoundedCornerShape(16.dp)
         ) {
-        Text(
-            text = "Sign Up",
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp
-        )
+            if (isLoading) {
+                // Mostra a rodinha de loading
+                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+            } else {
+                Text(
+                    text = "Sign Up",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
+        }
+
+        // Mostra mensagem de erro se o registo falhar (adiciona isto logo abaixo do botão)
+        if (errorMsg != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = errorMsg ?: "",
+                color = Color(0xFFEF4444), // Vermelho de erro
+                fontSize = 14.sp
+            )
         }
 
         Spacer(modifier = Modifier.height(24.dp))
