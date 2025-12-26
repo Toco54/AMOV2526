@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.ui.components.EditProfileView
+import androidx.lifecycle.viewmodel.compose.viewModel
+import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
 
 // --- CORES ---
 private val Slate50 = Color(0xFFF8FAFC)
@@ -67,24 +69,30 @@ data class ProtegeItem(
 )
 
 // --- MOCK DATA ---
-private val initialProteges = listOf(
-    ProtegeItem("1", "Bob Protected", "bob@example.com", ProtegeStatus.ACTIVE),
-    ProtegeItem("2", "Charlie Requesting", "charlie@req.com", ProtegeStatus.INCOMING_REQUEST),
-    ProtegeItem("3", "Dave Invited", "dave@invited.com", ProtegeStatus.OUTGOING_REQUEST)
-)
+//private val initialProteges = listOf(
+//    ProtegeItem("1", "Bob Protected", "bob@example.com", ProtegeStatus.ACTIVE),
+//    ProtegeItem("2", "Charlie Requesting", "charlie@req.com", ProtegeStatus.INCOMING_REQUEST),
+//    ProtegeItem("3", "Dave Invited", "dave@invited.com", ProtegeStatus.OUTGOING_REQUEST)
+//)
 
-private val availableUsersToProtect = listOf(
-    ProtegeItem("4", "David Walker", "david@example.com", ProtegeStatus.OUTGOING_REQUEST),
-    ProtegeItem("5", "Elena Elder", "elena@example.com", ProtegeStatus.OUTGOING_REQUEST),
-    ProtegeItem("6", "Frank Family", "frank@example.com", ProtegeStatus.OUTGOING_REQUEST)
-)
+private val initialProteges = emptyList<ProtegeItem>()
+
+//private val availableUsersToProtect = listOf(
+//    ProtegeItem("4", "David Walker", "david@example.com", ProtegeStatus.OUTGOING_REQUEST),
+//    ProtegeItem("5", "Elena Elder", "elena@example.com", ProtegeStatus.OUTGOING_REQUEST),
+//    ProtegeItem("6", "Frank Family", "frank@example.com", ProtegeStatus.OUTGOING_REQUEST)
+//)
+private val availableUsersToProtect = emptyList<ProtegeItem>()
 
 @Composable
 fun MonitorMainScreen(
     onLogout: () -> Unit = {},
     onProtegeClick: (String) -> Unit = {},
-    onEditProfile: () -> Unit = {}
+    onEditProfile: () -> Unit = {},
+    viewModel: AuthViewModel = viewModel()
 ) {
+    val realName = viewModel.userName
+    val realEmail = viewModel.userEmail
     var proteges by remember { mutableStateOf(initialProteges) }
     var showProfileMenu by remember { mutableStateOf(false) }
     var showConfigureProtectedModal by remember { mutableStateOf(false) }
@@ -216,6 +224,8 @@ fun MonitorMainScreen(
                     .padding(start = 16.dp, end = 16.dp, bottom = 100.dp)
             ) {
                 ProfileMenuOverlay(
+                    name = realName,
+                    email = realEmail,
                     onDismiss = { showProfileMenu = false },
                     onEditProfile = {
                         showProfileMenu = false
@@ -225,7 +235,10 @@ fun MonitorMainScreen(
                         showProfileMenu = false
                         showConfigureProtectedModal = true
                     },
-                    onLogout = onLogout
+                    onLogout = {
+                        viewModel.logout()
+                        onLogout()
+                    }
                 )
             }
         }
@@ -796,6 +809,8 @@ fun ProfileBottomButton(onClick: () -> Unit) {
 
 @Composable
 fun ProfileMenuOverlay(
+    name: String,
+    email: String,
     onDismiss: () -> Unit,
     onEditProfile: () -> Unit,
     onConfigureProtected: () -> Unit,
@@ -811,10 +826,15 @@ fun ProfileMenuOverlay(
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                text = "Alice Monitor",
+                text = name,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = Slate900
+            )
+            Text(
+                text = email,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Slate500
             )
             Text(
                 text = "Monitor Account",

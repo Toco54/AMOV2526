@@ -8,8 +8,8 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import pt.isec.amov2526.projetoKotlin.data.repository.AuthRepository
 
-class AuthViewModel : ViewModel() {
-    private val repository = AuthRepository()
+class AuthViewModel(application: android.app.Application) : androidx.lifecycle.AndroidViewModel(application) {
+    private val repository = AuthRepository(application as pt.isec.amov2526.projetoKotlin.SafetySecApp)
 
     // Estados observáveis pela UI (Jetpack Compose)
     var user by mutableStateOf(repository.currentUser)
@@ -19,13 +19,31 @@ class AuthViewModel : ViewModel() {
     // Para navegação: guardar se é Monitor ou Protegido
     var userRole by mutableStateOf<String?>(null)
 
+    var userName by mutableStateOf<String>("Carregando...")
+
+    var userEmail by mutableStateOf<String>("")
+
     init {
         if (user != null) {
             viewModelScope.launch {
-                isLoading = true
-                userRole = repository.getUserRole(user!!.uid)
-                isLoading = false
+                loadUserData(user!!.uid, user!!.email ?: "")
+//                isLoading = true
+//                userRole = repository.getUserRole(user!!.uid)
+//                isLoading = false
             }
+        }
+    }
+
+    private fun loadUserData(uid: String, email: String) {
+        userEmail = email
+        viewModelScope.launch {
+            isLoading = true
+            userRole = repository.getUserRole(uid)
+            val nameFromDb = repository.getUserName(uid)
+            if (nameFromDb != null) {
+                userName = nameFromDb
+            }
+            isLoading = false
         }
     }
 
@@ -37,7 +55,8 @@ class AuthViewModel : ViewModel() {
             if (result.isSuccess) {
                 user = repository.currentUser
                 // Buscar a role para saber para que ecrã ir
-                userRole = repository.getUserRole(user!!.uid)
+//                userRole = repository.getUserRole(user!!.uid)
+                loadUserData(user!!.uid, user!!.email ?: "")
             } else {
                 errorMsg = result.exceptionOrNull()?.message
             }
@@ -53,6 +72,8 @@ class AuthViewModel : ViewModel() {
             if (result.isSuccess) {
                 user = repository.currentUser
                 userRole = if (isMonitor) "MONITOR" else "PROTECTED"
+                userName = name
+                userEmail = email
             } else {
                 errorMsg = result.exceptionOrNull()?.message
             }
@@ -61,8 +82,11 @@ class AuthViewModel : ViewModel() {
     }
 
     fun logout() {
-        repository.logout()
-        user = null
-        userRole = null
+        viewModelScope.launch {
+            repository.logout()
+            user = null
+            userRole = null
+            userName = ""
+        }
     }
 }

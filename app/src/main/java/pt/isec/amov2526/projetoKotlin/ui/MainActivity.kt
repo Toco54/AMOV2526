@@ -16,7 +16,7 @@ import pt.isec.amov2526.projetoKotlin.ui.screens.monitor.MonitorDashboardScreen
 import pt.isec.amov2526.projetoKotlin.ui.screens.monitor.MonitorMainScreen
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.ProtectedMainScreen
 import pt.isec.amov2526.projetoKotlin.ui.theme.ProjetoKotlinTheme
-
+import androidx.compose.runtime.LaunchedEffect
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,6 +35,23 @@ class MainActivity : ComponentActivity() {
                     ) {
                         // --- AUTHENTICATION ---
                         composable("landing") {
+
+                            // Obtemos o estado do ViewModel (que é injetado automaticamente)
+                            val viewModel: pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+                            val userRole = viewModel.userRole
+                            val user = viewModel.user
+
+                            // Se já houver User e Role carregados, salta para a homepage
+                            LaunchedEffect(key1 = user, key2 = userRole) {
+                                if (user != null && userRole != null) {
+                                    val destination = if (userRole == "MONITOR") "monitor" else "protected"
+                                    navController.navigate(destination) {
+                                        popUpTo("landing") { inclusive = true }
+                                    }
+                                }
+                            }
+
+
                             pt.isec.amov2526.projetoKotlin.ui.screens.auth.LandingScreen(
                                 onLoginClick = { navController.navigate("login") },
                                 onRegisterClick = { navController.navigate("register") }
@@ -46,7 +63,6 @@ class MainActivity : ComponentActivity() {
                                 onBack = { navController.popBackStack() },
                                 onLogin = { role ->
                                     val destination = if(role == "MONITOR") "monitor" else "protected"
-                                    // TODO: Implement actual login logic
                                     navController.navigate(destination) {
                                         popUpTo("landing") { inclusive = true }
                                     }

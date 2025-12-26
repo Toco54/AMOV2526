@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("com.google.gms.google-services") // <--- Plugin do Firebase (Obrigatório)
+    id("kotlin-kapt")
 }
 
 android {
@@ -73,7 +74,7 @@ dependencies {
     implementation("com.google.firebase:firebase-storage")
 
     // --- LOCALIZAÇÃO ---
-    //implementation("com.google.android.gms:play-services-location:21.0.1")
+    implementation("com.google.android.gms:play-services-location:21.0.1")
 
     // --- CÂMARA ---
     val cameraxVersion = "1.3.0"
@@ -88,4 +89,9 @@ dependencies {
     // Baseado nos slides, mas com a correção de 'androd' para 'android'
     implementation("org.osmdroid:osmdroid-android:6.1.20")
     implementation("tech.utsmankece:osm-android-compose:0.0.5")
+
+    val roomVersion = "2.6.1"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion") // Suporte para Coroutines
+    kapt("androidx.room:room-compiler:$roomVersion")
 }
