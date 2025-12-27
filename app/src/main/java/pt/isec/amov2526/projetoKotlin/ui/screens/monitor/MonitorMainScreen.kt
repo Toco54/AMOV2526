@@ -39,6 +39,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.ui.components.EditProfileView
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
+import pt.isec.amov2526.projetoKotlin.ui.viewmodels.MonitorMainViewModel
+
+import pt.isec.amov2526.projetoKotlin.data.model.ConnectedUser
 
 // --- CORES ---
 private val Slate50 = Color(0xFFF8FAFC)
@@ -56,54 +59,32 @@ private val Indigo600 = Color(0xFF4F46E5)
 private val Red50 = Color(0xFFFEF2F2)
 private val Red600 = Color(0xFFDC2626)
 
-// --- ENUM & MODELO ---
-enum class ProtegeStatus {
-    ACTIVE,
-    INCOMING_REQUEST,
-    OUTGOING_REQUEST
-}
-
-data class ProtegeItem(
-    val id: String,
-    val name: String,
-    val email: String,
-    val status: ProtegeStatus
-)
-
-// --- MOCK DATA ---
-//private val initialProteges = listOf(
-//    ProtegeItem("1", "Bob Protected", "bob@example.com", ProtegeStatus.ACTIVE),
-//    ProtegeItem("2", "Charlie Requesting", "charlie@req.com", ProtegeStatus.INCOMING_REQUEST),
-//    ProtegeItem("3", "Dave Invited", "dave@invited.com", ProtegeStatus.OUTGOING_REQUEST)
-//)
-
-private val initialProteges = emptyList<ProtegeItem>()
-
-//private val availableUsersToProtect = listOf(
-//    ProtegeItem("4", "David Walker", "david@example.com", ProtegeStatus.OUTGOING_REQUEST),
-//    ProtegeItem("5", "Elena Elder", "elena@example.com", ProtegeStatus.OUTGOING_REQUEST),
-//    ProtegeItem("6", "Frank Family", "frank@example.com", ProtegeStatus.OUTGOING_REQUEST)
-//)
-private val availableUsersToProtect = emptyList<ProtegeItem>()
-
 @Composable
 fun MonitorMainScreen(
     onLogout: () -> Unit = {},
     onProtegeClick: (String) -> Unit = {},
-    viewModel: AuthViewModel = viewModel()
+    viewModel: AuthViewModel = viewModel(),
+    monitorViewModel: MonitorMainViewModel = viewModel()
 ) {
     val realName = viewModel.userName
     val realEmail = viewModel.userEmail
-    var proteges by remember { mutableStateOf(initialProteges) }
+    val proteges = monitorViewModel.proteges
     var showProfileMenu by remember { mutableStateOf(false) }
     var showConfigureProtectedModal by remember { mutableStateOf(false) }
-    var showAddProtegeModal by remember { mutableStateOf(false) }
+    var showEnterCodeModal by remember { mutableStateOf(false) }
     var isEditingProfile by remember { mutableStateOf(false) }
+    val connectionCandidate = monitorViewModel.connectionCandidate
 
     // Observe user state to trigger navigation after logout
     LaunchedEffect(viewModel.user) {
         if (viewModel.user == null) {
             onLogout()
+        }
+    }
+
+    LaunchedEffect(connectionCandidate) {
+        if (connectionCandidate != null) {
+            showEnterCodeModal = false
         }
     }
     
@@ -140,14 +121,14 @@ fun MonitorMainScreen(
                 },
                 floatingActionButton = {
                     FloatingActionButton(
-                        onClick = { showAddProtegeModal = true },
+                        onClick = { showEnterCodeModal = true },
                         containerColor = Slate900,
                         contentColor = Color.White,
                         shape = CircleShape,
                         modifier = Modifier.size(64.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.PersonAdd,
+                            imageVector = Icons.Filled.Add,
                             contentDescription = "Add Protege"
                         )
                     }
@@ -176,10 +157,9 @@ fun MonitorMainScreen(
                             modifier = Modifier.fillMaxSize()
                         ) {
                             // 1. MY PROTEGES
-                            val active = proteges.filter { it.status == ProtegeStatus.ACTIVE }
-                            if (active.isNotEmpty()) {
+                            if (proteges.isNotEmpty()) {
                                 item { SectionHeader("MY PROTEGES") }
-                                items(active) { protege ->
+                                items(items = proteges) { protege ->
                                     ProtegeCard(
                                         protege = protege,
                                         onClick = { onProtegeClick(protege.name) }
@@ -192,49 +172,6 @@ fun MonitorMainScreen(
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = Slate400,
                                         modifier = Modifier.padding(vertical = 8.dp)
-                                    )
-                                }
-                            }
-
-                            // 2. RECEIVED REQUESTS
-                            val incoming = proteges.filter { it.status == ProtegeStatus.INCOMING_REQUEST }
-                            if (incoming.isNotEmpty()) {
-                                item {
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    SectionHeader("RECEIVED REQUESTS")
-                                }
-                                items(incoming) { protege ->
-                                    IncomingProtegeRequestCard(
-                                        protege = protege,
-                                        onAccept = {
-                                            proteges = proteges.map {
-                                                if (it.id == protege.id) {
-                                                    it.copy(status = ProtegeStatus.ACTIVE)
-                                                } else {
-                                                    it
-                                                }
-                                            }
-                                        },
-                                        onReject = {
-                                            proteges = proteges.filter { it.id != protege.id }
-                                        }
-                                    )
-                                }
-                            }
-
-                            // 3. SENT REQUESTS
-                            val outgoing = proteges.filter { it.status == ProtegeStatus.OUTGOING_REQUEST }
-                            if (outgoing.isNotEmpty()) {
-                                item {
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    SectionHeader("SENT REQUESTS")
-                                }
-                                items(outgoing) { protege ->
-                                    OutgoingProtegeRequestCard(
-                                        protege = protege,
-                                        onCancel = {
-                                            proteges = proteges.filter { it.id != protege.id }
-                                        }
                                     )
                                 }
                             }
@@ -279,6 +216,21 @@ fun MonitorMainScreen(
         }
     }
 
+    if (connectionCandidate != null) {
+        ConfirmConnectionDialog(
+            candidate = connectionCandidate,
+            onAccept = {
+                monitorViewModel.acceptConnection {
+                    Toast.makeText(context, "Protege Connected Successfully!", Toast.LENGTH_LONG).show()
+                    showEnterCodeModal = false // Close code modal too
+                }
+            },
+            onReject = {
+                monitorViewModel.rejectConnection()
+            }
+        )
+    }
+
     if (showConfigureProtectedModal) {
         ConfigureProtectedModal(
             onDismiss = { showConfigureProtectedModal = false },
@@ -286,15 +238,107 @@ fun MonitorMainScreen(
         )
     }
 
-    if (showAddProtegeModal) {
-        AddProtegeModal(
-            existingProteges = proteges,
-            onDismiss = { showAddProtegeModal = false },
-            onAdd = { newProtege ->
-                proteges = proteges + newProtege.copy(status = ProtegeStatus.OUTGOING_REQUEST)
-                showAddProtegeModal = false
-            }
+    if (showEnterCodeModal) {
+        EnterCodeModal(
+            viewModel = monitorViewModel,
+            onDismiss = { showEnterCodeModal = false }
         )
+    }
+}
+
+@Composable
+fun EnterCodeModal(
+    viewModel: MonitorMainViewModel,
+    onDismiss: () -> Unit
+) {
+    var code by remember { mutableStateOf("") }
+    val isLoading = viewModel.isLoading
+    val errorMsg = viewModel.errorMsg
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp)
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    text = "Add Protege",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate900
+                )
+                Text(
+                    text = "Enter the 6-digit pairing code from the Protected user.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Slate500
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TextField(
+                    value = code,
+                    onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) code = it },
+                    placeholder = {
+                        Text(
+                            text = "000000",
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Slate50,
+                        unfocusedContainerColor = Slate50,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        letterSpacing = 8.sp
+                    )
+                )
+
+                if (errorMsg != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = errorMsg ?: "", color = Red600, fontSize = 14.sp)
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(containerColor = Slate100, contentColor = Slate900),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).height(50.dp)
+                    ) {
+                        Text("Cancel")
+                    }
+
+                    Button(
+                        onClick = { viewModel.validateCode(code) },
+                        enabled = code.length == 6 && !isLoading,
+                        colors = ButtonDefaults.buttonColors(containerColor = Slate900),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).height(50.dp)
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                        } else {
+                            Text("Connect")
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -311,168 +355,8 @@ fun SectionHeader(text: String) {
 }
 
 @Composable
-fun IncomingProtegeRequestCard(
-    protege: ProtegeItem,
-    onAccept: () -> Unit,
-    onReject: () -> Unit
-) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Emerald50),
-        shape = RoundedCornerShape(20.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Emerald200),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Emerald200, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = protege.name.first().toString(),
-                    fontWeight = FontWeight.Bold,
-                    color = Emerald700,
-                    fontSize = 20.sp
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = protege.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate900
-                )
-                Text(
-                    text = "WANTS PROTECTION",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Emerald500,
-                    fontSize = 10.sp
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(Color.White, RoundedCornerShape(12.dp))
-                    .border(1.dp, Slate200, RoundedCornerShape(12.dp))
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { onReject() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = null,
-                    tint = Slate400,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(Emerald500, RoundedCornerShape(12.dp))
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { onAccept() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun OutgoingProtegeRequestCard(
-    protege: ProtegeItem,
-    onCancel: () -> Unit
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 0.5f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "alpha"
-    )
-
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Slate100, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = protege.name.first().toString(),
-                    fontWeight = FontWeight.Bold,
-                    color = Slate500,
-                    fontSize = 20.sp
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = protege.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate900
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.alpha(alpha)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.HourglassEmpty,
-                        contentDescription = null,
-                        tint = Indigo500,
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "INVITE SENT",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Indigo500,
-                        fontSize = 10.sp
-                    )
-                }
-            }
-            IconButton(onClick = onCancel) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Cancel Invite",
-                    tint = Slate200
-                )
-            }
-        }
-    }
-}
-
-@Composable
 fun ProtegeCard(
-    protege: ProtegeItem,
+    protege: ConnectedUser,
     onClick: () -> Unit = {}
 ) {
     Card(
@@ -495,7 +379,7 @@ fun ProtegeCard(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = protege.name.first().toString(),
+                    text = if (protege.name.isNotEmpty()) protege.name.first().toString() else "?",
                     fontWeight = FontWeight.Bold,
                     color = Slate500,
                     fontSize = 20.sp
@@ -532,239 +416,6 @@ fun ProtegeCard(
                 tint = Slate200,
                 modifier = Modifier.size(20.dp)
             )
-        }
-    }
-}
-
-@Composable
-fun AddProtegeModal(
-    existingProteges: List<ProtegeItem>,
-    onDismiss: () -> Unit,
-    onAdd: (ProtegeItem) -> Unit
-) {
-    var searchQuery by remember { mutableStateOf("") }
-
-    val filteredUsers = availableUsersToProtect.filter { candidate ->
-        existingProteges.none { it.id == candidate.id }
-    }.filter {
-        searchQuery.isBlank() ||
-                it.name.contains(searchQuery, true) ||
-                it.email.contains(searchQuery, true)
-    }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(500.dp)
-                .padding(horizontal = 8.dp)
-        ) {
-            Column(modifier = Modifier.padding(24.dp)) {
-                Text(
-                    text = "Add Protege",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate900
-                )
-                Text(
-                    text = "Search for a user to protect.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Slate500
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                TextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = {
-                        Text(
-                            text = "Search by name or email"
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Filled.Search,
-                            contentDescription = null,
-                            tint = Slate400
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Slate50,
-                        unfocusedContainerColor = Slate50,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    ),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(filteredUsers) { user ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Slate50, RoundedCornerShape(12.dp))
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { onAdd(user) }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .background(Slate100, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = user.name.first().toString(),
-                                    fontWeight = FontWeight.Bold,
-                                    color = Slate500,
-                                    fontSize = 16.sp
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = user.name,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Slate900
-                                )
-                                Text(
-                                    text = user.email,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = Slate500
-                                )
-                            }
-                            Spacer(modifier = Modifier.weight(1f))
-                            Icon(Icons.Default.Add, null, tint = Indigo600)
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.weight(1f))
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Close", color = Slate500)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ConfigureProtectedModal(
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
-) {
-    var pin by remember { mutableStateOf("") }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(24.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Filled.Shield,
-                        contentDescription = null,
-                        tint = Emerald500,
-                        modifier = Modifier.size(28.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Enable Protection",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = Slate900
-                    )
-                }
-
-                Text(
-                    text = "Create a protected profile for yourself. You will need a PIN to cancel false alarms.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Slate500,
-                    modifier = Modifier.padding(vertical = 16.dp)
-                )
-
-                Text(
-                    text = "CREATE SAFETY PIN (4 DIGITS)",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate400
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                TextField(
-                    value = pin,
-                    onValueChange = {
-                        if (it.length <= 4 && it.all { c -> c.isDigit() }) {
-                            pin = it
-                        }
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    placeholder = {
-                        Text(
-                            text = "0000"
-                        )
-                    },
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Slate50,
-                        unfocusedContainerColor = Slate50,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    ),
-                    textStyle = androidx.compose.ui.text.TextStyle(
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        letterSpacing = 8.sp
-                    ),
-                    visualTransformation = PasswordVisualTransformation()
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp)
-                            .background(Slate100, RoundedCornerShape(16.dp))
-                            .clip(RoundedCornerShape(16.dp))
-                            .clickable { onDismiss() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("Cancel", color = Slate500, fontWeight = FontWeight.Bold)
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp)
-                            .background(
-                                color = if (pin.length == 4) Emerald500 else Slate200,
-                                shape = RoundedCornerShape(16.dp)
-                            )
-                            .clip(RoundedCornerShape(16.dp))
-                            .clickable(enabled = pin.length == 4) { onConfirm(pin) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("Create Profile", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
         }
     }
 }
@@ -909,6 +560,61 @@ fun ProfileMenuOverlay(
 }
 
 @Composable
+fun ConfirmConnectionDialog(
+    candidate: pt.isec.amov2526.projetoKotlin.data.repository.ConnectionCodeInfo,
+    onAccept: () -> Unit,
+    onReject: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onReject,
+        title = {
+            Text(text = "Confirm Connection", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column {
+                Text(text = "Do you want to connect with this user?")
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(text = "NAME", style = MaterialTheme.typography.labelSmall, color = Slate500, fontWeight = FontWeight.Bold)
+                Text(text = candidate.protegeName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(text = "EMAIL", style = MaterialTheme.typography.labelSmall, color = Slate500, fontWeight = FontWeight.Bold)
+                Text(text = candidate.protegeEmail, style = MaterialTheme.typography.bodyMedium)
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(text = "ACCESS LEVEL", style = MaterialTheme.typography.labelSmall, color = Slate500, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.Shield, 
+                        contentDescription = null, 
+                        tint = Emerald500, 
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = candidate.accessLevel, style = MaterialTheme.typography.bodyMedium, color = Emerald700, fontWeight = FontWeight.Bold)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onAccept,
+                colors = ButtonDefaults.buttonColors(containerColor = Slate900)
+            ) {
+                Text("Accept")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onReject) {
+                Text("Reject", color = Slate500)
+            }
+        }
+    )
+}
+
+@Composable
 fun MenuOptionButton(
     icon: ImageVector,
     text: String,
@@ -956,6 +662,116 @@ fun MenuOptionButton(
                     modifier = Modifier.size(16.dp),
                     tint = Slate200
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun ConfigureProtectedModal(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var pin by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.Shield,
+                        contentDescription = null,
+                        tint = Emerald500,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Enable Protection",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate900
+                    )
+                }
+
+                Text(
+                    text = "Create a protected profile for yourself. You will need a PIN to cancel false alarms.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Slate500,
+                    modifier = Modifier.padding(vertical = 16.dp)
+                )
+
+                Text(
+                    text = "CREATE SAFETY PIN (4 DIGITS)",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate400
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                TextField(
+                    value = pin,
+                    onValueChange = {
+                        if (it.length <= 4 && it.all { c -> c.isDigit() }) {
+                            pin = it
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    placeholder = {
+                        Text(
+                            text = "0000"
+                        )
+                    },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Slate50,
+                        unfocusedContainerColor = Slate50,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        letterSpacing = 8.sp
+                    ),
+                    visualTransformation = PasswordVisualTransformation()
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
+                            .background(Slate100, RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { onDismiss() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Cancel", color = Slate500, fontWeight = FontWeight.Bold)
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
+                            .background(
+                                color = if (pin.length == 4) Emerald500 else Slate200,
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable(enabled = pin.length == 4) { onConfirm(pin) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Create Profile", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
     }

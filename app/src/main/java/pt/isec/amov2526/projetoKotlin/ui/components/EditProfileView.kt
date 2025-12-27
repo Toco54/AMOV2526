@@ -33,6 +33,8 @@ private val Slate500 = Color(0xFF64748B)
 private val Slate900 = Color(0xFF0F172A)
 private val Indigo600 = Color(0xFF4F46E5)
 
+//TODO The EDITPROFILE FOR THE MONITOR CANT HAVE THE EDIT PIN FIELD
+
 @Composable
 fun EditProfileView(
     currentName: String,

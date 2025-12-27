@@ -30,20 +30,25 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PersonRemove
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.PersonRemove
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -53,6 +58,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -65,12 +71,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.viewmodel.compose.viewModel
+import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
+import pt.isec.amov2526.projetoKotlin.data.model.ConnectedUser
 
 // Cores
 private val Slate50 = Color(0xFFF8FAFC)
@@ -91,40 +102,14 @@ private val Indigo600 = Color(0xFF4F46E5)
 private val Red50 = Color(0xFFFEF2F2)
 private val Red600 = Color(0xFFDC2626)
 
-enum class MonitorStatus {
-    ACTIVE,
-    INCOMING_REQUEST,
-    OUTGOING_REQUEST
-}
-
-data class MonitorItem(
-    val id: String,
-    val name: String,
-    val email: String,
-    val status: MonitorStatus,
-    val accessLevel: String = "Full Monitoring"
-)
-
-// Mock Data Initial
-private val initialMonitors = listOf(
-    MonitorItem("1", "Alice Monitor", "alice@example.com", MonitorStatus.ACTIVE),
-    MonitorItem("2", "Dave Dual", "dave@example.com", MonitorStatus.INCOMING_REQUEST),
-    MonitorItem("3", "Eve Security", "eve@example.com", MonitorStatus.OUTGOING_REQUEST)
-)
-
-private val availableMonitors = listOf(
-    MonitorItem("4", "Eva Security", "eva@example.com", MonitorStatus.ACTIVE),
-    MonitorItem("5", "Frank Watch", "frank@example.com", MonitorStatus.ACTIVE),
-    MonitorItem("6", "George Guard", "george@example.com", MonitorStatus.ACTIVE)
-)
-
 @Composable
-fun MonitorsScreen() {
-    var monitors by remember { mutableStateOf(initialMonitors) }
-    var showRemoveDialog by remember { mutableStateOf<MonitorItem?>(null) }
-    var showAcceptDialog by remember { mutableStateOf<MonitorItem?>(null) }
-    var showAddMonitorModal by remember { mutableStateOf(false) }
-    var candidateMonitor by remember { mutableStateOf<MonitorItem?>(null) }
+fun MonitorsScreen(
+    viewModel: ProtectedMainViewModel = viewModel()
+) {
+    val monitors = viewModel.monitors
+    var showRemoveDialog by remember { mutableStateOf<ConnectedUser?>(null) }
+    var showGenerateCodeModal by remember { mutableStateOf(false) }
+    var showAccessSelectionDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -147,56 +132,8 @@ fun MonitorsScreen() {
                 )
             }
 
-            // RECEIVED REQUESTS
-            val incoming = monitors.filter { it.status == MonitorStatus.INCOMING_REQUEST }
-            if (incoming.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "RECEIVED REQUESTS",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Slate400,
-                        letterSpacing = 1.sp,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                    )
-                }
-                items(incoming) { monitor ->
-                    IncomingRequestCard(
-                        monitor = monitor,
-                        onAccept = { showAcceptDialog = monitor },
-                        onReject = {
-                            monitors = monitors.filter { it.id != monitor.id }
-                        }
-                    )
-                }
-            }
-
-            // SENT REQUESTS
-            val outgoing = monitors.filter { it.status == MonitorStatus.OUTGOING_REQUEST }
-            if (outgoing.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "SENT REQUESTS",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Slate400,
-                        letterSpacing = 1.sp,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                    )
-                }
-                items(outgoing) { monitor ->
-                    OutgoingRequestCard(
-                        monitor = monitor,
-                        onCancel = {
-                            monitors = monitors.filter { it.id != monitor.id }
-                        }
-                    )
-                }
-            }
-
             // ACTIVE MONITORS
-            val active = monitors.filter { it.status == MonitorStatus.ACTIVE }
-            if (active.isNotEmpty()) {
+            if (monitors.isNotEmpty()) {
                 item {
                     Text(
                         text = "ACTIVE MONITORS",
@@ -207,10 +144,19 @@ fun MonitorsScreen() {
                         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                     )
                 }
-                items(active) { monitor ->
+                items(monitors) { monitor ->
                     MonitorCard(
                         monitor = monitor,
                         onRemove = { showRemoveDialog = monitor }
+                    )
+                }
+            } else {
+                item {
+                    Text(
+                        text = "No active monitors yet.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Slate400,
+                        modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
             }
@@ -221,7 +167,7 @@ fun MonitorsScreen() {
         }
 
         FloatingActionButton(
-            onClick = { showAddMonitorModal = true },
+            onClick = { showAccessSelectionDialog = true },
             containerColor = Indigo600,
             contentColor = Color.White,
             shape = CircleShape,
@@ -231,7 +177,7 @@ fun MonitorsScreen() {
                 .size(64.dp)
         ) {
             Icon(
-                imageVector = Icons.Filled.PersonAdd,
+                imageVector = Icons.Filled.Add,
                 contentDescription = "Add Monitor",
                 modifier = Modifier.size(28.dp)
             )
@@ -297,7 +243,7 @@ fun MonitorsScreen() {
                                 .background(Red600, RoundedCornerShape(12.dp))
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable {
-                                    monitors = monitors.filter { it.id != showRemoveDialog!!.id }
+                                    viewModel.removeMonitor(showRemoveDialog!!.uid)
                                     showRemoveDialog = null
                                 }
                                 .padding(horizontal = 24.dp, vertical = 12.dp)
@@ -315,217 +261,121 @@ fun MonitorsScreen() {
         }
     }
 
-    if (showAcceptDialog != null) {
+    if (showAccessSelectionDialog) {
         AccessSelectionDialog(
-            title = "Grant Access",
-            targetName = showAcceptDialog!!.name,
-            onDismiss = { showAcceptDialog = null },
+            title = "New Connection",
+            targetName = "a Monitor",
+            onDismiss = { showAccessSelectionDialog = false },
             onConfirm = { level ->
-                monitors = monitors.map {
-                    if (it.id == showAcceptDialog!!.id) it.copy(
-                        status = MonitorStatus.ACTIVE,
-                        accessLevel = level
-                    ) else it
-                }
-                showAcceptDialog = null
+                viewModel.generateCode(level)
+                showAccessSelectionDialog = false
+                showGenerateCodeModal = true
             }
         )
     }
 
-    if (showAddMonitorModal) {
-        AddMonitorModal(
-            existingMonitors = monitors,
-            onDismiss = { showAddMonitorModal = false },
-            onSelectCandidate = {
-                candidateMonitor = it
-                showAddMonitorModal = false
-            }
-        )
-    }
-
-    if (candidateMonitor != null) {
-        AccessSelectionDialog(
-            title = "Invite Monitor",
-            targetName = candidateMonitor!!.name,
-            onDismiss = { candidateMonitor = null },
-            onConfirm = { level ->
-                monitors = monitors + candidateMonitor!!.copy(
-                    status = MonitorStatus.OUTGOING_REQUEST,
-                    accessLevel = level
-                )
-                candidateMonitor = null
-            }
+    if (showGenerateCodeModal) {
+        GenerateCodeModal(
+            viewModel = viewModel,
+            onDismiss = { showGenerateCodeModal = false }
         )
     }
 }
 
 @Composable
-fun IncomingRequestCard(
-    monitor: MonitorItem,
-    onAccept: () -> Unit,
-    onReject: () -> Unit
+fun GenerateCodeModal(
+    viewModel: ProtectedMainViewModel,
+    onDismiss: () -> Unit
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Emerald50),
-        shape = RoundedCornerShape(24.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Emerald100),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+    val clipboardManager = LocalClipboardManager.current
+    val generatedCode = viewModel.generatedCode
+    val isLoading = viewModel.isLoading
+    val errorMsg = viewModel.errorMsg
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Emerald200, CircleShape),
-                contentAlignment = Alignment.Center
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = monitor.name.first().toString(),
-                    fontWeight = FontWeight.Bold,
-                    color = Emerald700,
-                    fontSize = 20.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = monitor.name,
-                    style = MaterialTheme.typography.titleMedium,
+                    text = "Pairing Code",
+                    style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = Slate900
                 )
                 Text(
-                    text = "WANTS TO MONITOR YOU",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Emerald500,
-                    fontSize = 10.sp
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(Color.White, RoundedCornerShape(12.dp))
-                    .border(1.dp, Slate200, RoundedCornerShape(12.dp))
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { onReject() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = null,
-                    tint = Slate400,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(Emerald500, RoundedCornerShape(12.dp))
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { onAccept() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun OutgoingRequestCard(
-    monitor: MonitorItem,
-    onCancel: () -> Unit
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "blinking")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 0.3f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "alpha"
-    )
-
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Slate100, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = monitor.name.first().toString(),
-                    fontWeight = FontWeight.Bold,
+                    text = "Share this code with your Monitor to grant them access.",
+                    style = MaterialTheme.typography.bodyMedium,
                     color = Slate500,
-                    fontSize = 20.sp
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
                 )
-            }
 
-            Spacer(modifier = Modifier.width(16.dp))
+                if (isLoading) {
+                    CircularProgressIndicator(color = Indigo600)
+                } else if (generatedCode != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Slate50, RoundedCornerShape(16.dp))
+                            .border(1.dp, Slate200, RoundedCornerShape(16.dp))
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = generatedCode.chunked(3).joinToString(" "),
+                            style = MaterialTheme.typography.displayMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900,
+                            letterSpacing = 4.sp
+                        )
+                    }
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = monitor.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate900
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.alpha(alpha)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.HourglassEmpty,
-                        contentDescription = null,
-                        tint = Indigo500,
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "WAITING FOR ACCEPTANCE",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Indigo500,
-                        fontSize = 10.sp
-                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Button(
+                            onClick = { viewModel.generateCode("Full Monitoring") }, // Default if regen
+                            colors = ButtonDefaults.buttonColors(containerColor = Slate100, contentColor = Slate900),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(50.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("New Code")
+                        }
+
+                        Button(
+                            onClick = {
+                                clipboardManager.setText(AnnotatedString(generatedCode))
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Indigo600),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(50.dp)
+                        ) {
+                            Icon(Icons.Default.ContentCopy, null, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Copy")
+                        }
+                    }
+                } else if (errorMsg != null) {
+                    Text(text = errorMsg, color = Red600)
+                    Button(onClick = { viewModel.generateCode("Full Monitoring") }) {
+                        Text("Retry")
+                    }
                 }
-            }
 
-            IconButton(onClick = onCancel) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Cancel",
-                    tint = Slate200
-                )
+                Spacer(modifier = Modifier.height(24.dp))
+                TextButton(onClick = onDismiss) {
+                    Text("Close", color = Slate500)
+                }
             }
         }
     }
@@ -533,7 +383,7 @@ fun OutgoingRequestCard(
 
 @Composable
 fun MonitorCard(
-    monitor: MonitorItem,
+    monitor: ConnectedUser,
     onRemove: () -> Unit
 ) {
     Card(
@@ -555,7 +405,7 @@ fun MonitorCard(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = monitor.name.first().toString(),
+                    text = if (monitor.name.isNotEmpty()) monitor.name.first().toString() else "?",
                     fontWeight = FontWeight.Bold,
                     color = Slate900,
                     fontSize = 20.sp
@@ -580,7 +430,7 @@ fun MonitorCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = monitor.accessLevel,
+                        text = monitor.accessLevel ?: "Full Monitoring",
                         style = MaterialTheme.typography.bodySmall,
                         color = Slate500
                     )
@@ -726,113 +576,6 @@ fun AccessOptionCard(
                 tint = color,
                 modifier = Modifier.size(24.dp)
             )
-        }
-    }
-}
-
-@Composable
-fun AddMonitorModal(
-    existingMonitors: List<MonitorItem>,
-    onDismiss: () -> Unit,
-    onSelectCandidate: (MonitorItem) -> Unit
-) {
-    var searchQuery by remember { mutableStateOf("") }
-    val filteredMonitors = availableMonitors.filter { candidate ->
-        existingMonitors.none { it.id == candidate.id || it.email == candidate.email }
-    }.filter {
-        searchQuery.isBlank() ||
-                it.name.contains(searchQuery, true) ||
-                it.email.contains(searchQuery, true)
-    }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(500.dp)
-                .padding(horizontal = 8.dp)
-        ) {
-            Column(modifier = Modifier.padding(24.dp)) {
-                Text(
-                    text = "Add Monitor",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate900
-                )
-                Text(
-                    text = "Search for a user to invite.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Slate500
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                TextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = {
-                        Text(
-                            text = "Search by name or email"
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = Slate400
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Slate50,
-                        unfocusedContainerColor = Slate50,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    ),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(filteredMonitors) { monitor ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Slate50, RoundedCornerShape(12.dp))
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { onSelectCandidate(monitor) }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            AvatarPlaceholder(monitor.name, 40)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = monitor.name,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Slate900
-                                )
-                                Text(
-                                    text = monitor.email,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = Slate500
-                                )
-                            }
-                            Spacer(modifier = Modifier.weight(1f))
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = null,
-                                tint = Indigo600
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.weight(1f))
-                TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                    Text("Close", color = Slate500)
-                }
-            }
         }
     }
 }
