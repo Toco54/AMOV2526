@@ -1,6 +1,7 @@
 package pt.isec.amov2526.projetoKotlin.data.repository
 
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import pt.isec.amov2526.projetoKotlin.SafetySecApp
@@ -107,6 +108,91 @@ class AuthRepository(private val app: SafetySecApp) {
             doc.getString("name") // Retorna o campo "name" da base de dados
         } catch (e: Exception) {
             null
+        }
+    }
+
+    suspend fun getUser(uid: String): UserEntity? {
+        val localUser = userDao.getUser()
+        if (localUser != null && localUser.uid == uid) {
+            return localUser
+        }
+        return try {
+            val doc = db.collection("users").document(uid).get().await()
+            if (doc.exists()) {
+                val fetchedUser = UserEntity(
+                    uid = uid,
+                    name = doc.getString("name") ?: "",
+                    email = doc.getString("email") ?: "",
+                    role = doc.getString("role") ?: "PROTECTED",
+                    pin = doc.getString("pin")
+                )
+                userDao.insertUser(fetchedUser)
+                fetchedUser
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
+        return try {
+            auth.sendPasswordResetEmail(email).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateProfile(
+        uid: String,
+        name: String,
+        email: String,
+        newPass: String?,
+        newPin: String?,
+        currentPass: String?
+    ): Result<Unit> {
+        return try {
+            val user = auth.currentUser
+            if (user == null || user.uid != uid) throw Exception("User not logged in or UID mismatch")
+
+            // Re-authentication is required for sensitive operations (Email/Password change)
+            if (currentPass != null) {
+                val credential = EmailAuthProvider.getCredential(user.email!!, currentPass)
+                user.reauthenticate(credential).await()
+            } else if (!newPass.isNullOrEmpty() || email != user.email) {
+                 // If changing pass/email but no current pass provided -> Error (or let Firebase fail)
+                 // However, the UI logic should ensure currentPass is passed if fields are edited.
+            }
+
+            // 1. Update Firebase Auth (Email & Password)
+            if (email != user.email) {
+                user.updateEmail(email).await()
+            }
+            if (!newPass.isNullOrEmpty()) {
+                user.updatePassword(newPass).await()
+            }
+
+            // 2. Update Firestore
+            val updates = hashMapOf<String, Any>(
+                "name" to name,
+                "email" to email
+            )
+            if (newPin != null) {
+                updates["pin"] = newPin
+            }
+            db.collection("users").document(uid).update(updates).await()
+
+            // 3. Update Local DB
+            val currentLocal = userDao.getUser()
+            val role = currentLocal?.role ?: "PROTECTED"
+            val pinToSave = newPin ?: currentLocal?.pin
+            
+            val newUser = UserEntity(uid, name, email, role, pinToSave)
+            userDao.insertUser(newUser)
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 }

@@ -221,14 +221,28 @@ fun RegisterScreen(
         // --- Actions (Now inside the scroll) ---
         Button(
             onClick = {
-                // Lógica para decidir se enviamos o PIN (só se for Protegido)
                 val isMonitor = selectedRole == "Monitor"
-                val finalPin = if (isMonitor) null else pin
+                
+                // Local Validation
+                if (name.isBlank() || email.isBlank() || password.isBlank() || (!isMonitor && pin.length != 4)) {
+                    viewModel.errorMsg = "Please fill in all fields correctly"
+                    return@Button
+                }
+                
+                if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                    viewModel.errorMsg = "Invalid Email Format"
+                    return@Button
+                }
 
-                // Chama a função de registo do ViewModel
+                if (password.length < 6) {
+                    viewModel.errorMsg = "Password must be at least 6 characters"
+                    return@Button
+                }
+
+                val finalPin = if (isMonitor) null else pin
                 viewModel.register(email, password, name, isMonitor, finalPin)
             },
-            enabled = !isLoading, // Bloqueia o botão se estiver a carregar
+            enabled = !isLoading,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -236,7 +250,6 @@ fun RegisterScreen(
             shape = RoundedCornerShape(16.dp)
         ) {
             if (isLoading) {
-                // Mostra a rodinha de loading
                 CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
             } else {
                 Text(
@@ -248,13 +261,14 @@ fun RegisterScreen(
             }
         }
 
-        // Mostra mensagem de erro se o registo falhar (adiciona isto logo abaixo do botão)
         if (errorMsg != null) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = errorMsg ?: "",
-                color = Color(0xFFEF4444), // Vermelho de erro
-                fontSize = 14.sp
+                color = Color(0xFFEF4444),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 4.dp)
             )
         }
 

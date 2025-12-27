@@ -1,5 +1,6 @@
 package pt.isec.amov2526.projetoKotlin.ui.screens.monitor
 
+import android.widget.Toast
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -33,9 +35,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.viewmodel.compose.viewModel
 import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.ui.components.EditProfileView
-import androidx.lifecycle.viewmodel.compose.viewModel
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
 
 // --- CORES ---
@@ -88,7 +90,6 @@ private val availableUsersToProtect = emptyList<ProtegeItem>()
 fun MonitorMainScreen(
     onLogout: () -> Unit = {},
     onProtegeClick: (String) -> Unit = {},
-    onEditProfile: () -> Unit = {},
     viewModel: AuthViewModel = viewModel()
 ) {
     val realName = viewModel.userName
@@ -97,149 +98,183 @@ fun MonitorMainScreen(
     var showProfileMenu by remember { mutableStateOf(false) }
     var showConfigureProtectedModal by remember { mutableStateOf(false) }
     var showAddProtegeModal by remember { mutableStateOf(false) }
+    var isEditingProfile by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            topBar = {
-                MonitorTopBar()
-            },
-            floatingActionButton = {
-                FloatingActionButton(
-                    onClick = { showAddProtegeModal = true },
-                    containerColor = Slate900,
-                    contentColor = Color.White,
-                    shape = CircleShape,
-                    modifier = Modifier.size(64.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.PersonAdd,
-                        contentDescription = "Add Protege"
-                    )
-                }
-            },
-            bottomBar = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    ProfileBottomButton(
-                        onClick = { showProfileMenu = !showProfileMenu }
-                    )
-                }
-            }
-        ) { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Slate50)
-                    .padding(innerPadding)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        // 1. MY PROTEGES
-                        val active = proteges.filter { it.status == ProtegeStatus.ACTIVE }
-                        if (active.isNotEmpty()) {
-                            item { SectionHeader("MY PROTEGES") }
-                            items(active) { protege ->
-                                ProtegeCard(
-                                    protege = protege,
-                                    onClick = { onProtegeClick(protege.name) }
-                                )
-                            }
-                        } else {
-                            item {
-                                Text(
-                                    text = "No active proteges yet.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Slate400,
-                                    modifier = Modifier.padding(vertical = 8.dp)
-                                )
-                            }
-                        }
-
-                        // 2. RECEIVED REQUESTS
-                        val incoming = proteges.filter { it.status == ProtegeStatus.INCOMING_REQUEST }
-                        if (incoming.isNotEmpty()) {
-                            item {
-                                Spacer(modifier = Modifier.height(12.dp))
-                                SectionHeader("RECEIVED REQUESTS")
-                            }
-                            items(incoming) { protege ->
-                                IncomingProtegeRequestCard(
-                                    protege = protege,
-                                    onAccept = {
-                                        proteges = proteges.map {
-                                            if (it.id == protege.id) {
-                                                it.copy(status = ProtegeStatus.ACTIVE)
-                                            } else {
-                                                it
-                                            }
-                                        }
-                                    },
-                                    onReject = {
-                                        proteges = proteges.filter { it.id != protege.id }
-                                    }
-                                )
-                            }
-                        }
-
-                        // 3. SENT REQUESTS
-                        val outgoing = proteges.filter { it.status == ProtegeStatus.OUTGOING_REQUEST }
-                        if (outgoing.isNotEmpty()) {
-                            item {
-                                Spacer(modifier = Modifier.height(12.dp))
-                                SectionHeader("SENT REQUESTS")
-                            }
-                            items(outgoing) { protege ->
-                                OutgoingProtegeRequestCard(
-                                    protege = protege,
-                                    onCancel = {
-                                        proteges = proteges.filter { it.id != protege.id }
-                                    }
-                                )
-                            }
-                        }
-
-                        item { Spacer(modifier = Modifier.height(80.dp)) }
-                    }
-                }
-            }
+    // Observe user state to trigger navigation after logout
+    LaunchedEffect(viewModel.user) {
+        if (viewModel.user == null) {
+            onLogout()
         }
+    }
+    
+    val context = LocalContext.current
 
-        // Menu Overlay
-        if (showProfileMenu) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.2f))
-                    .clickable { showProfileMenu = false }
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 16.dp, end = 16.dp, bottom = 100.dp)
-            ) {
-                ProfileMenuOverlay(
-                    name = realName,
-                    email = realEmail,
-                    onDismiss = { showProfileMenu = false },
-                    onEditProfile = {
-                        showProfileMenu = false
-                        onEditProfile()
+    if (isEditingProfile) {
+        EditProfileView(
+            currentName = viewModel.currentUserData?.name ?: realName,
+            currentEmail = viewModel.currentUserData?.email ?: realEmail,
+            currentPin = viewModel.currentUserData?.pin,
+            onDismiss = { isEditingProfile = false },
+            onSave = { name, email, pass, pin, currentPass ->
+                viewModel.updateProfile(
+                    name = name,
+                    email = email,
+                    pass = pass,
+                    pin = pin,
+                    currentPass = currentPass,
+                    onSuccess = {
+                        Toast.makeText(context, "Profile Updated Successfully", Toast.LENGTH_SHORT).show()
+                        isEditingProfile = false
                     },
-                    onConfigureProtected = {
-                        showProfileMenu = false
-                        showConfigureProtectedModal = true
-                    },
-                    onLogout = {
-                        viewModel.logout()
-                        onLogout()
+                    onError = { error ->
+                        Toast.makeText(context, error, Toast.LENGTH_LONG).show()
                     }
                 )
+            }
+        )
+    } else {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Scaffold(
+                topBar = {
+                    MonitorTopBar()
+                },
+                floatingActionButton = {
+                    FloatingActionButton(
+                        onClick = { showAddProtegeModal = true },
+                        containerColor = Slate900,
+                        contentColor = Color.White,
+                        shape = CircleShape,
+                        modifier = Modifier.size(64.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.PersonAdd,
+                            contentDescription = "Add Protege"
+                        )
+                    }
+                },
+                bottomBar = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        ProfileBottomButton(
+                            onClick = { showProfileMenu = !showProfileMenu }
+                        )
+                    }
+                }
+            ) { innerPadding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Slate50)
+                        .padding(innerPadding)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            // 1. MY PROTEGES
+                            val active = proteges.filter { it.status == ProtegeStatus.ACTIVE }
+                            if (active.isNotEmpty()) {
+                                item { SectionHeader("MY PROTEGES") }
+                                items(active) { protege ->
+                                    ProtegeCard(
+                                        protege = protege,
+                                        onClick = { onProtegeClick(protege.name) }
+                                    )
+                                }
+                            } else {
+                                item {
+                                    Text(
+                                        text = "No active proteges yet.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = Slate400,
+                                        modifier = Modifier.padding(vertical = 8.dp)
+                                    )
+                                }
+                            }
+
+                            // 2. RECEIVED REQUESTS
+                            val incoming = proteges.filter { it.status == ProtegeStatus.INCOMING_REQUEST }
+                            if (incoming.isNotEmpty()) {
+                                item {
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    SectionHeader("RECEIVED REQUESTS")
+                                }
+                                items(incoming) { protege ->
+                                    IncomingProtegeRequestCard(
+                                        protege = protege,
+                                        onAccept = {
+                                            proteges = proteges.map {
+                                                if (it.id == protege.id) {
+                                                    it.copy(status = ProtegeStatus.ACTIVE)
+                                                } else {
+                                                    it
+                                                }
+                                            }
+                                        },
+                                        onReject = {
+                                            proteges = proteges.filter { it.id != protege.id }
+                                        }
+                                    )
+                                }
+                            }
+
+                            // 3. SENT REQUESTS
+                            val outgoing = proteges.filter { it.status == ProtegeStatus.OUTGOING_REQUEST }
+                            if (outgoing.isNotEmpty()) {
+                                item {
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    SectionHeader("SENT REQUESTS")
+                                }
+                                items(outgoing) { protege ->
+                                    OutgoingProtegeRequestCard(
+                                        protege = protege,
+                                        onCancel = {
+                                            proteges = proteges.filter { it.id != protege.id }
+                                        }
+                                    )
+                                }
+                            }
+
+                            item { Spacer(modifier = Modifier.height(80.dp)) }
+                        }
+                    }
+                }
+            }
+
+            // Menu Overlay
+            if (showProfileMenu) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.2f))
+                        .clickable { showProfileMenu = false }
+                )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 16.dp, end = 16.dp, bottom = 100.dp)
+                ) {
+                    ProfileMenuOverlay(
+                        name = realName,
+                        email = realEmail,
+                        onDismiss = { showProfileMenu = false },
+                        onEditProfile = {
+                            showProfileMenu = false
+                            isEditingProfile = true
+                        },
+                        onConfigureProtected = {
+                            showProfileMenu = false
+                            showConfigureProtectedModal = true
+                        },
+                        onLogout = {
+                            viewModel.logout()
+                        }
+                    )
+                }
             }
         }
     }

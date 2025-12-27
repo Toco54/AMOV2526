@@ -1,5 +1,6 @@
 package pt.isec.amov2526.projetoKotlin.ui.components
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -37,8 +39,9 @@ fun EditProfileView(
     currentEmail: String,
     currentPin: String? = null,
     onDismiss: () -> Unit,
-    onSave: (String, String, String?, String?) -> Unit
+    onSave: (String, String, String?, String?, String?) -> Unit // Name, Email, NewPass, NewPin, CurrentPass
 ) {
+    val context = LocalContext.current
     var name by remember { mutableStateOf(currentName) }
     var email by remember { mutableStateOf(currentEmail) }
 
@@ -248,25 +251,20 @@ fun EditProfileView(
                     .background(Slate200)
             )
             Spacer(modifier = Modifier.height(24.dp))
+
+            // --- CHANGE PASSWORD SECTION (Optional) ---
             Text(
-                text = "CHANGE PASSWORD",
+                text = "CHANGE PASSWORD (OPTIONAL)",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = Slate500
             )
+            
             TextField(
-                value = currentPassword,
-                onValueChange = { currentPassword = it },
-                placeholder = {
-                    Text(
-                        text = "Current Password"
-                    )
-                },
-                visualTransformation = if (showPassword) {
-                    VisualTransformation.None
-                } else {
-                    PasswordVisualTransformation()
-                },
+                value = newPassword,
+                onValueChange = { newPassword = it },
+                placeholder = { Text("New Password") },
+                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     IconButton(onClick = { showPassword = !showPassword }) {
                         Icon(
@@ -287,44 +285,14 @@ fun EditProfileView(
                     unfocusedIndicatorColor = Color.Transparent
                 )
             )
-            if (canChangePassword) {
-                Spacer(modifier = Modifier.height(8.dp))
-                TextField(
-                    value = newPassword,
-                    onValueChange = { newPassword = it },
-                    placeholder = {
-                        Text(
-                            text = "New Password"
-                        )
-                    },
-                    visualTransformation = if (showPassword) {
-                        VisualTransformation.None
-                    } else {
-                        PasswordVisualTransformation()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Slate50,
-                        unfocusedContainerColor = Slate50,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    )
-                )
+
+            if (newPassword.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 TextField(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
-                    placeholder = {
-                        Text(
-                            text = "Confirm New Password"
-                        )
-                    },
-                    visualTransformation = if (showPassword) {
-                        VisualTransformation.None
-                    } else {
-                        PasswordVisualTransformation()
-                    },
+                    placeholder = { Text("Confirm New Password") },
+                    visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = TextFieldDefaults.colors(
@@ -335,34 +303,75 @@ fun EditProfileView(
                     )
                 )
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Slate200)
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // --- CONFIRM IDENTITY (Mandatory) ---
+            Text(
+                text = "CURRENT PASSWORD (REQUIRED TO SAVE)",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFDC2626) // Red to emphasize requirement
+            )
+            TextField(
+                value = currentPassword,
+                onValueChange = { currentPassword = it },
+                placeholder = { Text("Enter current password") },
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Slate50,
+                    unfocusedContainerColor = Slate50,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                )
+            )
+
             Spacer(modifier = Modifier.weight(1f))
+
+            // Save Button
+            val canSave = currentPassword.isNotEmpty()
+            
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
-                    .background(Indigo600, RoundedCornerShape(16.dp))
+                    .background(
+                        if (canSave) Indigo600 else Slate200, 
+                        RoundedCornerShape(16.dp)
+                    )
                     .clip(RoundedCornerShape(16.dp))
-                    .clickable {
-                        val finalPin = if (isPinVerified && newPinInput.length == 4) {
-                            newPinInput
-                        } else {
-                            null
+                    .clickable(enabled = canSave) {
+                        val finalPin = if (isPinVerified && newPinInput.length == 4) newPinInput else null
+                        
+                        // Validate Password Change logic
+                        val finalPass = if (newPassword.isNotEmpty()) {
+                            if (newPassword == confirmPassword) newPassword else null
+                        } else null
+                        
+                        // If user tried to change password but mismatch, don't save (or handle error UI)
+                        if (newPassword.isNotEmpty() && newPassword != confirmPassword) {
+                            Toast.makeText(context, "Passwords Do Not Match", Toast.LENGTH_SHORT).show()
+                            return@clickable
                         }
-                        val finalPass = if (canChangePassword &&
-                            newPassword.isNotEmpty() &&
-                            newPassword == confirmPassword
-                        ) {
-                            newPassword
-                        } else {
-                            null
-                        }
-                        onSave(name, email, finalPass, finalPin)
+
+                        onSave(name, email, finalPass, finalPin, currentPassword)
                     },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "Save Changes",
-                    color = Color.White,
+                    color = if (canSave) Color.White else Slate500,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )

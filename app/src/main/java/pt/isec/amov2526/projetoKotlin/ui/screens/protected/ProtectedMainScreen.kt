@@ -1,5 +1,6 @@
 package pt.isec.amov2526.projetoKotlin.ui.screens.protected
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -9,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -18,46 +20,89 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import pt.isec.amov2526.projetoKotlin.R
 
+import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+
+import pt.isec.amov2526.projetoKotlin.ui.components.EditProfileView
+
 @Composable
 fun ProtectedMainScreen(
     navController: NavHostController = rememberNavController(),
     onLogout: () -> Unit = {},
-    onEditProfile: () -> Unit = {},
-    onSwitchToMonitor: () -> Unit = {}
+    onSwitchToMonitor: () -> Unit = {},
+    viewModel: AuthViewModel = viewModel()
 ) {
-    Scaffold(
-        topBar = {
-            ProtectedTopBar(
-                onProfileClick = {
-                    navController.navigate("profile") {
-                        launchSingleTop = true
-                    }
-                }
-            )
-        },
-        bottomBar = {
-            ProtectedBottomBar(navController = navController)
+    // Observe user state to trigger navigation after logout
+    LaunchedEffect(viewModel.user) {
+        if (viewModel.user == null) {
+            onLogout()
         }
-    ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = "guard",
-            modifier = Modifier.padding(innerPadding)
-        ) {
-            composable("guard") {
-                GuardScreen()
-            }
-            composable("monitors") {
-                MonitorsScreen()
-            }
-            composable("activity") {
-                ActivityScreen()
-            }
-            composable("profile") {
-                ProfileScreen(
-                    onEditProfile = onEditProfile,
-                    onLogout = onLogout
+    }
+    
+    val context = LocalContext.current
+    var isEditingProfile by remember { mutableStateOf(false) }
+    val currentUserData = viewModel.currentUserData
+
+    if (isEditingProfile) {
+        EditProfileView(
+            currentName = currentUserData?.name ?: viewModel.userName,
+            currentEmail = currentUserData?.email ?: viewModel.userEmail,
+            currentPin = currentUserData?.pin, // Protected user should have a PIN
+            onDismiss = { isEditingProfile = false },
+            onSave = { name, email, pass, pin, currentPass -> 
+                viewModel.updateProfile(
+                    name = name,
+                    email = email,
+                    pass = pass,
+                    pin = pin,
+                    currentPass = currentPass,
+                    onSuccess = {
+                        Toast.makeText(context, "Profile Updated Successfully", Toast.LENGTH_SHORT).show()
+                        isEditingProfile = false 
+                    },
+                    onError = { error ->
+                        Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                    }
                 )
+            }
+        )
+    } else {
+        Scaffold(
+            topBar = {
+                ProtectedTopBar(
+                    onProfileClick = {
+                        navController.navigate("profile") {
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            },
+            bottomBar = {
+                ProtectedBottomBar(navController = navController)
+            }
+        ) { innerPadding ->
+            NavHost(
+                navController = navController,
+                startDestination = "guard",
+                modifier = Modifier.padding(innerPadding)
+            ) {
+                composable("guard") {
+                    GuardScreen()
+                }
+                composable("monitors") {
+                    MonitorsScreen()
+                }
+                composable("activity") {
+                    ActivityScreen()
+                }
+                composable("profile") {
+                    ProfileScreen(
+                        name = viewModel.userName,
+                        email = viewModel.userEmail,
+                        onEditProfile = { isEditingProfile = true },
+                        onLogout = { viewModel.logout() }
+                    )
+                }
             }
         }
     }

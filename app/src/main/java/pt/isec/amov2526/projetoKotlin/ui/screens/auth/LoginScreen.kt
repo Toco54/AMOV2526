@@ -188,11 +188,17 @@ fun LoginScreen(
 
         // MOSTRAR ERRO (SE HOUVER)
         if (errorMsg != null) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = errorMsg ?: "", color = Color.Red, fontSize = 14.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = errorMsg ?: "", 
+                color = Color(0xFFEF4444), // Emerald Red
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
             TextButton(onClick = onForgotPassword) {
                 Text(
@@ -207,7 +213,16 @@ fun LoginScreen(
 
         // O BOTÃO DE LOGIN AGORA CHAMA O VIEWMODEL
         Button(
-            onClick = { viewModel.login(email, password) }, // <--- AQUI ESTAVA O ERRO
+            onClick = { 
+                if (email.isBlank() || password.isBlank()) {
+                    // Local validation before calling VM
+                    viewModel.errorMsg = "Please fill in all fields"
+                } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                    viewModel.errorMsg = "Invalid Email Format"
+                } else {
+                    viewModel.login(email, password) 
+                }
+            },
             enabled = !isLoading,
             modifier = Modifier
                 .fillMaxWidth()
