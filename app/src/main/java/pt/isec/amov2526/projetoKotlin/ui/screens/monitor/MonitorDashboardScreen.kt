@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,14 +24,23 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.viewmodel.compose.viewModel
+import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
 import pt.isec.amov2526.projetoKotlin.R
+import pt.isec.amov2526.projetoKotlin.ui.viewmodels.MonitorDashboardViewModel
+import pt.isec.amov2526.projetoKotlin.ui.viewmodels.MonitorDashboardViewModelFactory
 
 // --- CORES ---
 private val Slate50 = Color(0xFFF8FAFC)
@@ -61,7 +71,13 @@ data class ProtectionRule(
     val iconColor: Color,
     var isEnabled: Boolean,
     var param1: String = "",
-    var param2: String = ""
+    var param2: String = "",
+    // New fields
+    val scheduleDays: List<Int> = emptyList(),
+    val scheduleStart: String = "",
+    val scheduleEnd: String = "",
+    val pausedUntil: Long = 0L,
+    val isDisabledByProtege: Boolean = false
 )
 
 data class AlertStat(val label: String, val count: Int)
@@ -70,63 +86,32 @@ data class AlertStat(val label: String, val count: Int)
 @Composable
 fun MonitorDashboardScreen(
     protegeName: String = "Bob Protected",
+    protegeUid: String = "",
     onBack: () -> Unit = {}
 ) {
-    var rules by remember {
-        mutableStateOf(
-            listOf(
-                ProtectionRule(
-                    id = "1",
-                    type = RuleType.FALL,
-                    icon = Icons.Default.MonitorHeart,
-                    iconColor = Color(0xFFFF7043),
-                    isEnabled = true
-                ),
-                ProtectionRule(
-                    id = "2",
-                    type = RuleType.GEOFENCING,
-                    icon = Icons.Default.LocationOn,
-                    iconColor = Color(0xFF7E57C2),
-                    isEnabled = true,
-                    param1 = "500",
-                    param2 = "40.2033, -8.4103"
-                )
-            )
-        )
-    }
+    val viewModel: MonitorDashboardViewModel = viewModel(
+        factory = MonitorDashboardViewModelFactory(protegeUid)
+    )
+    val rules by viewModel.rules.collectAsState()
+    val userLocation by viewModel.userLocation.collectAsState()
 
     var showAddRuleSelection by remember { mutableStateOf(false) }
     var editingRule by remember { mutableStateOf<ProtectionRule?>(null) }
-    
     var selectedActivity by remember { mutableStateOf<ActivityItem?>(null) }
+    var ruleIdToDelete by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Column {
-                        Text(
-                            text = protegeName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
-                        )
-                        Text(
-                            text = "LIVE DASHBOARD",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Indigo600,
-                            letterSpacing = 0.5.sp
-                        )
+                        Text(protegeName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Slate900)
+                        Text("LIVE DASHBOARD", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Indigo600, letterSpacing = 0.5.sp)
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Slate900
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Slate900)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
@@ -134,211 +119,471 @@ fun MonitorDashboardScreen(
         }
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Slate50)
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+            modifier = Modifier.fillMaxSize().background(Slate50).padding(innerPadding).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            LiveLocationMapCard(userLocation = userLocation, rules = rules)
+
             AlertTrendsCard(
                 stats = listOf(
-                    AlertStat("Fall", 0),
-                    AlertStat("Crash", 0),
-                    AlertStat("Geo", 1),
-                    AlertStat("Speed", 2),
-                    AlertStat("Idle", 0),
-                    AlertStat("SOS", 1)
+                    AlertStat("Fall", 0), AlertStat("Crash", 0), AlertStat("Geo", 1),
+                    AlertStat("Speed", 2), AlertStat("Idle", 0), AlertStat("SOS", 1)
                 )
             )
 
-            ActiveRulesManagementCard(
-                rules = rules,
-                onAddClick = { showAddRuleSelection = true },
-                onEditClick = { editingRule = it },
-                onToggleRule = { id, enabled ->
-                    rules = rules.map {
-                        if (it.id == id) {
-                            it.copy(isEnabled = enabled)
-                        } else {
-                            it
+            // Rules Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(painterResource(id = R.drawable.ic_shield_check), null, tint = Emerald500, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Manage Protection Rules", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
+                        }
+                        IconButton(onClick = { showAddRuleSelection = true }, modifier = Modifier.size(28.dp).background(Slate100, CircleShape)) {
+                            Icon(Icons.Default.Add, "Add", tint = Slate900, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    if (rules.isEmpty()) {
+                        Text("No active rules. Tap + to add.", style = MaterialTheme.typography.bodySmall, color = Slate400, modifier = Modifier.padding(vertical = 12.dp))
+                    } else {
+                        // Group rules by Type and sort by enum ordinal
+                        val groupedRules = rules.groupBy { it.type }.toList().sortedBy { it.first.ordinal }
+                        
+                        groupedRules.forEach { (type, typeRules) ->
+                            if (type.isMultiInstance) {
+                                // Multi-instance: Use Expandable Group
+                                MonitorRuleGroup(
+                                    type = type,
+                                    rules = typeRules,
+                                    onToggleGroup = { enabled ->
+                                        typeRules.forEach { if (it.isEnabled != enabled) viewModel.toggleRule(it.id, enabled) }
+                                    },
+                                    onEditRule = { editingRule = it },
+                                    onToggleRule = { id, enabled -> viewModel.toggleRule(id, enabled) }
+                                )
+                            } else {
+                                // Single-instance: Render standalone card
+                                val rule = typeRules.firstOrNull()
+                                if (rule != null) {
+                                    // Use a simplified version of the row logic wrapped in a Card
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(containerColor = Slate50),
+                                        shape = RoundedCornerShape(16.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Slate100),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            // Icon
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(36.dp)
+                                                    .background(rule.iconColor.copy(alpha = 0.1f), CircleShape),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(rule.icon, null, tint = rule.iconColor, modifier = Modifier.size(20.dp))
+                                            }
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            
+                                            // Text
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = type.title,
+                                                    style = MaterialTheme.typography.titleSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Slate900
+                                                )
+                                                Text(
+                                                    text = if(rule.isEnabled) "Monitoring Active" else "Disabled",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = Slate400
+                                                )
+                                            }
+                                            
+                                            // Delete (optional for singleton? Maybe just toggle is enough, but keeping consistency)
+                                            // Actually, for singleton, usually you don't delete, you just disable.
+                                            // But if we want to allow removing the capability entirely:
+                                            IconButton(onClick = { ruleIdToDelete = rule.id }, modifier = Modifier.size(32.dp)) {
+                                                Icon(Icons.Default.Delete, null, tint = Slate400, modifier = Modifier.size(18.dp))
+                                            }
+
+                                            Spacer(modifier = Modifier.width(4.dp))
+
+                                            // Switch
+                                            if (rule.isDisabledByProtege) {
+                                                Icon(Icons.Default.PersonOff, "Disabled by User", tint = Red600, modifier = Modifier.size(24.dp))
+                                            } else if (rule.pausedUntil > System.currentTimeMillis()) {
+                                                Icon(Icons.Default.PauseCircle, "Paused", tint = Color(0xFFF59E0B), modifier = Modifier.size(24.dp))
+                                            } else {
+                                                Switch(
+                                                    checked = rule.isEnabled,
+                                                    onCheckedChange = { viewModel.toggleRule(rule.id, it) },
+                                                    modifier = Modifier.scale(0.6f),
+                                                    colors = SwitchDefaults.colors(checkedTrackColor = Emerald500)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
                         }
                     }
                 }
-            )
+            }
 
-            RecentActivityCard(
-                activities = mockMonitorActivities,
-                onActivityClick = { selectedActivity = it }
-            )
-
+            RecentActivityCard(activities = mockMonitorActivities, onActivityClick = { selectedActivity = it })
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
 
     if (showAddRuleSelection) {
-        AddRuleTypeDialog(
-            existingRules = rules,
-            onDismiss = { showAddRuleSelection = false },
-            onTypeSelected = { type ->
-                showAddRuleSelection = false
-                editingRule = ProtectionRule(
-                    id = "NEW_${java.util.UUID.randomUUID()}",
-                    type = type,
-                    icon = when (type) {
-                        RuleType.FALL -> Icons.Default.MonitorHeart
-                        RuleType.ACCIDENT -> Icons.Default.CarCrash
-                        RuleType.GEOFENCING -> Icons.Default.LocationOn
-                        RuleType.SPEED -> Icons.Default.Speed
-                        else -> Icons.Default.Schedule
-                    },
-                    iconColor = when (type) {
-                        RuleType.FALL -> Color(0xFFFF7043)
-                        RuleType.ACCIDENT -> Color(0xFFEF4444)
-                        RuleType.GEOFENCING -> Color(0xFF7E57C2)
-                        RuleType.SPEED -> Color(0xFF42A5F5)
-                        else -> Slate400
-                    },
-                    isEnabled = true
-                )
-            }
-        )
+        AddRuleTypeDialog(existingRules = rules, onDismiss = { showAddRuleSelection = false }, onTypeSelected = { type ->
+            showAddRuleSelection = false
+            editingRule = ProtectionRule(
+                id = "NEW_${java.util.UUID.randomUUID()}",
+                type = type,
+                icon = when (type) {
+                    RuleType.FALL -> Icons.Default.MonitorHeart
+                    RuleType.ACCIDENT -> Icons.Default.CarCrash
+                    RuleType.GEOFENCING -> Icons.Default.LocationOn
+                    RuleType.SPEED -> Icons.Default.Speed
+                    else -> Icons.Default.Schedule
+                },
+                iconColor = when (type) {
+                    RuleType.FALL -> Color(0xFFFF7043)
+                    RuleType.ACCIDENT -> Color(0xFFEF4444)
+                    RuleType.GEOFENCING -> Color(0xFF7E57C2)
+                    RuleType.SPEED -> Color(0xFF42A5F5)
+                    else -> Slate400
+                },
+                isEnabled = true
+            )
+        })
     }
 
     if (editingRule != null) {
-        val isNewRule = editingRule!!.id.startsWith("NEW_")
         EditRuleDialog(
             rule = editingRule!!,
-            isNew = isNewRule,
+            isNew = editingRule!!.id.startsWith("NEW_"),
+            existingRules = rules,
             onDismiss = { editingRule = null },
-            onSave = { updatedRule ->
-                val finalRule = if (isNewRule) {
-                    updatedRule.copy(id = java.util.UUID.randomUUID().toString())
-                } else {
-                    updatedRule
-                }
-                rules = if (!isNewRule) {
-                    rules.map { if (it.id == finalRule.id) finalRule else it }
-                } else {
-                    rules + finalRule
-                }
-                editingRule = null
+            onSave = { if (editingRule!!.id.startsWith("NEW_")) viewModel.addRule(it) else viewModel.updateRule(it); editingRule = null },
+            onDelete = { ruleIdToDelete = it }
+        )
+    }
+
+    if (ruleIdToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { ruleIdToDelete = null },
+            title = { Text("Delete Rule", fontWeight = FontWeight.Bold, color = Slate900) },
+            text = { Text("Are you sure you want to remove this protection rule? This action cannot be undone.", color = Slate500) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteRule(ruleIdToDelete!!)
+                        ruleIdToDelete = null
+                        editingRule = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Red600)
+                ) { Text("Delete", fontWeight = FontWeight.Bold) }
             },
-            onDelete = { id ->
-                rules = rules.filter { it.id != id }
-                editingRule = null
-            }
+            dismissButton = {
+                TextButton(onClick = { ruleIdToDelete = null }) { Text("Cancel", color = Slate500, fontWeight = FontWeight.Bold) }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(24.dp)
         )
     }
 
     if (selectedActivity != null) {
-        MonitorAlertDetailModal(
-            activity = selectedActivity!!,
-            onDismiss = { selectedActivity = null }
-        )
+        MonitorAlertDetailModal(activity = selectedActivity!!, onDismiss = { selectedActivity = null })
     }
 }
 
 @Composable
-fun ActiveRulesManagementCard(
-    rules: List<ProtectionRule>,
-    onAddClick: () -> Unit,
-    onEditClick: (ProtectionRule) -> Unit,
-    onToggleRule: (String, Boolean) -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        shape = RoundedCornerShape(20.dp)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_shield_check),
-                        contentDescription = null,
-                        tint = Emerald500,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Manage Protection Rules",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Slate900
-                    )
+fun MonitorRuleGroup(type: RuleType, rules: List<ProtectionRule>, onToggleGroup: (Boolean) -> Unit, onEditRule: (ProtectionRule) -> Unit, onToggleRule: (String, Boolean) -> Unit) {
+    var isExpanded by remember { mutableStateOf(false) }
+    val isAnyActive = rules.any { it.isEnabled }
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Slate50), shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Slate100)) {
+        Column {
+            Row(modifier = Modifier.fillMaxWidth().clickable { isExpanded = !isExpanded }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                val iconColor = rules.firstOrNull()?.iconColor ?: Slate400
+                val iconVector = rules.firstOrNull()?.icon ?: Icons.Default.Shield
+                Box(modifier = Modifier.size(36.dp).background(iconColor.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(iconVector, null, tint = iconColor, modifier = Modifier.size(20.dp))
                 }
-                IconButton(
-                    onClick = onAddClick,
-                    modifier = Modifier
-                        .size(28.dp)
-                        .background(Slate100, CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add",
-                        tint = Slate900,
-                        modifier = Modifier.size(18.dp)
-                    )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(type.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
+                    Text("${rules.count { it.isEnabled }} active / ${rules.size} total", style = MaterialTheme.typography.labelSmall, color = Slate400)
                 }
+                Switch(checked = isAnyActive, onCheckedChange = onToggleGroup, modifier = Modifier.scale(0.6f), colors = SwitchDefaults.colors(checkedTrackColor = Emerald500))
+                Icon(if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null, tint = Slate200)
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            rules.forEach { rule ->
-                RuleManageItem(
-                    rule = rule,
-                    onEdit = { onEditClick(rule) },
-                    onToggle = { onToggleRule(rule.id, it) }
-                )
+            androidx.compose.animation.AnimatedVisibility(visible = isExpanded) {
+                Column(modifier = Modifier.background(Color.White.copy(alpha = 0.5f)).padding(bottom = 8.dp)) {
+                    HorizontalDivider(color = Slate100, modifier = Modifier.padding(horizontal = 12.dp))
+                    rules.forEach { rule ->
+                        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                val detail = when (rule.type) {
+                                    RuleType.GEOFENCING -> if (rule.param1.isEmpty()) "Pending" else "Radius: ${rule.param1}m"
+                                    RuleType.SPEED -> "Limit: ${rule.param1} km/h"
+                                    RuleType.INACTIVITY -> "Limit: ${rule.param1} min"
+                                    else -> "Always Active"
+                                }
+                                Text(if(rule.type.isMultiInstance) "Custom Rule" else "Standard Rule", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = Indigo600)
+                                Text(detail, style = MaterialTheme.typography.labelSmall, color = Slate500)
+                            }
+                            IconButton(onClick = { onEditRule(rule) }, modifier = Modifier.size(24.dp)) {
+                                Icon(Icons.Default.Settings, null, tint = Slate400, modifier = Modifier.size(16.dp))
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            
+                            if (rule.isDisabledByProtege) {
+                                Icon(Icons.Default.PersonOff, "Disabled by User", tint = Red600, modifier = Modifier.size(20.dp))
+                            } else if (rule.pausedUntil > System.currentTimeMillis()) {
+                                Icon(Icons.Default.PauseCircle, "Paused", tint = Color(0xFFF59E0B), modifier = Modifier.size(20.dp))
+                            } else {
+                                Switch(
+                                    checked = rule.isEnabled,
+                                    onCheckedChange = { onToggleRule(rule.id, it) },
+                                    modifier = Modifier.scale(0.55f),
+                                    colors = SwitchDefaults.colors(checkedTrackColor = Emerald500)
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun RecentActivityCard(
-    activities: List<ActivityItem>,
-    onActivityClick: (ActivityItem) -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        shape = RoundedCornerShape(20.dp)
-    ) {
+fun AddRuleTypeDialog(existingRules: List<ProtectionRule>, onDismiss: () -> Unit, onTypeSelected: (RuleType) -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text("Protection Type", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Slate900)
+                Spacer(modifier = Modifier.height(16.dp))
+                RuleType.entries.forEach { type ->
+                    val isAlreadyDefined = !type.isMultiInstance && existingRules.any { it.type == type }
+                    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).background(if (isAlreadyDefined) Slate100 else Slate50, RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).clickable(enabled = !isAlreadyDefined) { onTypeSelected(type) }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(type.title, fontWeight = FontWeight.Bold, color = if (isAlreadyDefined) Slate400 else Slate700)
+                        Spacer(modifier = Modifier.weight(1f))
+                        if (isAlreadyDefined) Text("DEFINED", style = MaterialTheme.typography.labelSmall, color = Slate400) else Icon(Icons.Default.ChevronRight, null, tint = Slate400)
+                    }
+                }
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 16.dp)) { Text("Cancel", color = Slate400, fontWeight = FontWeight.Bold) }
+            }
+        }
+    }
+}
+
+@Composable
+fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<ProtectionRule>, onDismiss: () -> Unit, onSave: (ProtectionRule) -> Unit, onDelete: (String) -> Unit) {
+    var p1 by remember { mutableStateOf(if(rule.param1.isEmpty()) "500" else rule.param1) }
+    // FIX: Use a mutable object that doesn't trigger recomposition for map updates
+    val p2 = remember { object { var value = rule.param2 } }
+    var searchQuery by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    val locationHelper = remember { pt.isec.amov2526.projetoKotlin.utils.LocationHelper(context) }
+    val userLocation by locationHelper.currentLocation.collectAsState()
+    var hasInitializedMap by remember { mutableStateOf(false) }
+    var mapViewRef by remember { mutableStateOf<MapView?>(null) }
+    var currentPoly by remember { mutableStateOf<org.osmdroid.views.overlay.Polygon?>(null) }
+
+    fun zoomToRadius(map: MapView, center: GeoPoint, radiusMeters: Double) {
+        val delta = (radiusMeters * 1.5) / 111000.0
+        map.zoomToBoundingBox(org.osmdroid.util.BoundingBox(center.latitude+delta, center.longitude+delta, center.latitude-delta, center.longitude-delta), true)
+    }
+
+    LaunchedEffect(Unit) { Configuration.getInstance().userAgentValue = context.packageName; locationHelper.getLastLocation() }
+    LaunchedEffect(p1) {
+        val r = p1.toDoubleOrNull() ?: 100.0
+        mapViewRef?.let { map ->
+            currentPoly?.points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(map.mapCenter as GeoPoint, r)
+            zoomToRadius(map, map.mapCenter as GeoPoint, r)
+            map.invalidate()
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
+            Column(modifier = Modifier.padding(20.dp).verticalScroll(rememberScrollState())) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.size(44.dp).background(rule.iconColor.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
+                        Icon(rule.icon, null, tint = rule.iconColor, modifier = Modifier.size(24.dp))
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(rule.type.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Slate900)
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                if (rule.type == RuleType.GEOFENCING) {
+                    OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, placeholder = { Text("Search address...") }, leadingIcon = { Icon(Icons.Default.Search, null) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), singleLine = true)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(250.dp).clip(RoundedCornerShape(16.dp)).border(1.dp, Slate200, RoundedCornerShape(16.dp))) {
+                        AndroidView(factory = { ctx ->
+                            MapView(ctx).apply {
+                                setTileSource(TileSourceFactory.MAPNIK); setMultiTouchControls(true); controller.setZoom(15.5); mapViewRef = this
+                                // Fix vertical scroll conflict
+                                setOnTouchListener { v, _ ->
+                                    v.parent.requestDisallowInterceptTouchEvent(true)
+                                    false
+                                }
+                                existingRules.forEach { other ->
+                                    if (other.type == RuleType.GEOFENCING && other.id != rule.id) {
+                                        val parts = other.param2.split(",").map { it.trim().toDoubleOrNull() }
+                                        if (parts.size == 2 && parts[0] != null && parts[1] != null) {
+                                            val otherPoly = org.osmdroid.views.overlay.Polygon(this)
+                                            otherPoly.points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(GeoPoint(parts[0]!!, parts[1]!!), other.param1.toDoubleOrNull() ?: 100.0)
+                                            val c = if (other.isEnabled) Color(0xFF059669) else Color(0xFFDC2626)
+                                            otherPoly.fillColor = android.graphics.Color.argb(50, (c.red*255).toInt(), (c.green*255).toInt(), (c.blue*255).toInt())
+                                            otherPoly.strokeColor = android.graphics.Color.argb(180, (c.red*255).toInt(), (c.green*255).toInt(), (c.blue*255).toInt())
+                                            otherPoly.strokeWidth = 3f; overlays.add(otherPoly)
+                                        }
+                                    }
+                                }
+                                val poly = org.osmdroid.views.overlay.Polygon(this)
+                                poly.fillColor = android.graphics.Color.argb(60, 79, 70, 229); poly.strokeColor = android.graphics.Color.argb(200, 79, 70, 229); poly.strokeWidth = 4f
+                                overlays.add(poly); currentPoly = poly
+                                addMapListener(object : org.osmdroid.events.MapListener {
+                                    override fun onScroll(e: org.osmdroid.events.ScrollEvent?): Boolean {
+                                        val center = mapCenter as GeoPoint; p2.value = "${center.latitude}, ${center.longitude}"
+                                        poly.points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(center, p1.toDoubleOrNull() ?: 100.0); invalidate(); return true
+                                    }
+                                    override fun onZoom(e: org.osmdroid.events.ZoomEvent?): Boolean {
+                                        poly.points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(mapCenter as GeoPoint, p1.toDoubleOrNull() ?: 100.0); return true
+                                    }
+                                })
+                            }
+                        }, modifier = Modifier.fillMaxSize(),
+                            update = { map ->
+                                if (!hasInitializedMap) {
+                                    val start = if (isNew && userLocation != null) GeoPoint(userLocation!!.latitude, userLocation!!.longitude)
+                                                else if (p2.value.isNotBlank()) {
+                                                    val parts = p2.value.split(",").map { it.trim().toDoubleOrNull() }
+                                                    if(parts.size == 2 && parts[0] != null && parts[1] != null) GeoPoint(parts[0]!!, parts[1]!!) else null
+                                                } else if (!isNew) GeoPoint(40.2033, -8.4103) else null
+                                    
+                                    start?.let {
+                                        map.controller.setCenter(it)
+                                        // Sync p2 with initial center
+                                        p2.value = "${it.latitude}, ${it.longitude}"
+                                        
+                                        currentPoly?.points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(it, p1.toDoubleOrNull() ?: 500.0)
+                                        map.invalidate()
+                                        hasInitializedMap = true
+                                    }
+                                }
+                                // Crucial Fix: Do NOT setCenter here based on p2. 
+                                // The map drives p2, not the other way around during drag.
+                            }
+                        )
+                        Box(modifier = Modifier.align(Alignment.Center)) {
+                            Icon(Icons.Default.LocationOn, null, tint = Indigo600, modifier = Modifier.size(44.dp).offset(y = (-22).dp))
+                        }
+                        SmallFloatingActionButton(onClick = { locationHelper.getLastLocation(); userLocation?.let { mapViewRef?.controller?.animateTo(GeoPoint(it.latitude, it.longitude)) } }, modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp), containerColor = Color.White, contentColor = Indigo600) {
+                            Icon(Icons.Default.MyLocation, null, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("RADIUS: ${p1} METERS", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate500)
+                    Slider(value = p1.toFloatOrNull() ?: 500f, onValueChange = { p1 = it.toInt().toString() }, valueRange = 100f..5000f, steps = 49, colors = SliderDefaults.colors(thumbColor = Indigo600, activeTrackColor = Indigo600))
+                }
+                if (rule.type.isMultiInstance && rule.type != RuleType.GEOFENCING) {
+                    Text(if (rule.type == RuleType.SPEED) "MAX SPEED (KM/H)" else "TIME LIMIT (MINUTES)", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+                    TextField(value = p1, onValueChange = { p1 = it }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth().padding(top = 4.dp), shape = RoundedCornerShape(12.dp), colors = TextFieldDefaults.colors(focusedContainerColor = Slate50, unfocusedContainerColor = Slate50))
+                } else if (!rule.type.isMultiInstance) {
+                    Text("This rule automatically detects events and notifies you. No parameters required.", color = Slate500, style = MaterialTheme.typography.bodyMedium)
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = { if (isNew) onDismiss() else onDelete(rule.id) },
+                        modifier = Modifier.weight(1f).height(52.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isNew) Slate100 else Red600,
+                            contentColor = if (isNew) Slate500 else Color.White
+                        ),
+                        shape = RoundedCornerShape(14.dp)
+                    ) { Text(if (isNew) "Cancel" else "Delete", fontWeight = FontWeight.Bold) }
+                    
+                    Button(
+                        onClick = { onSave(rule.copy(param1 = p1, param2 = p2.value, isEnabled = true)) },
+                        modifier = Modifier.weight(1f).height(52.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Indigo600,
+                            contentColor = Color.White // Fix: Added white text for indigo button
+                        ),
+                        shape = RoundedCornerShape(14.dp)
+                    ) { Text(if (isNew) "Add" else "Save", fontWeight = FontWeight.Bold) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AlertTrendsCard(stats: List<AlertStat>) {
+    Card(colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.History,
-                    contentDescription = null,
-                    tint = Slate400,
-                    modifier = Modifier.size(20.dp)
-                )
+                Icon(Icons.AutoMirrored.Filled.ShowChart, null, tint = Slate400, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Alert History",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate900
-                )
+                Text("Alert Trends", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                activities.forEach { activity ->
-                    ActivityItemRow(
-                        activity = activity,
-                        onClick = { onActivityClick(activity) }
-                    )
+            Spacer(modifier = Modifier.height(24.dp))
+            Row(modifier = Modifier.fillMaxWidth().height(160.dp), verticalAlignment = Alignment.Bottom) {
+                Column(modifier = Modifier.fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
+                    listOf("4", "3", "2", "1", "0").forEach { label -> Text(label, style = MaterialTheme.typography.labelSmall, color = Slate400, fontSize = 10.sp) }
                 }
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+                        repeat(5) { Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Slate100)) }
+                    }
+                    Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.Bottom) {
+                        stats.forEach { stat ->
+                            val barHeightFactor = stat.count / 4f
+                            Box(modifier = Modifier.width(16.dp).fillMaxHeight(barHeightFactor.coerceAtLeast(0.02f)).background(Emerald500, RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)))
+                        }
+                    }
+                }
+            }
+            Row(modifier = Modifier.fillMaxWidth().padding(start = 18.dp, top = 8.dp), horizontalArrangement = Arrangement.SpaceAround) {
+                stats.forEach { stat -> Text(stat.label, style = MaterialTheme.typography.labelSmall, color = Slate500, textAlign = TextAlign.Center, fontSize = 9.sp, modifier = Modifier.width(36.dp)) }
+            }
+        }
+    }
+}
+
+@Composable
+fun RecentActivityCard(activities: List<ActivityItem>, onActivityClick: (ActivityItem) -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), shape = RoundedCornerShape(20.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.History, null, tint = Slate400, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Alert History", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                activities.forEach { activity -> ActivityItemRow(activity) { onActivityClick(activity) } }
             }
         }
     }
@@ -346,443 +591,77 @@ fun RecentActivityCard(
 
 @Composable
 fun ActivityItemRow(activity: ActivityItem, onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Slate50),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Slate100)
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(12.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(Color.White, CircleShape)
-                    .border(1.dp, Slate100, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = getMonitorIconForActivityType(activity.type),
-                    contentDescription = null,
-                    tint = Slate500,
-                    modifier = Modifier.size(20.dp)
-                )
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Slate50), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = 0.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Slate100)) {
+        Row(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(40.dp).background(Color.White, CircleShape).border(1.dp, Slate100, CircleShape), contentAlignment = Alignment.Center) {
+                Icon(getMonitorIconForActivityType(activity.type), null, tint = Slate500, modifier = Modifier.size(20.dp))
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = activity.title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate900
-                )
-                Text(
-                    text = "${activity.date} • ${activity.time}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Slate400
-                )
+                Text(activity.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = Slate900)
+                Text("${activity.date} • ${activity.time}", style = MaterialTheme.typography.labelSmall, color = Slate400)
             }
             MonitorStatusChip(activity.status)
             Spacer(modifier = Modifier.width(8.dp))
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                contentDescription = null,
-                tint = Slate200,
-                modifier = Modifier.size(14.dp)
-            )
+            Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, null, tint = Slate200, modifier = Modifier.size(14.dp))
         }
     }
 }
 
 @Composable
 fun MonitorAlertDetailModal(activity: ActivityItem, onDismiss: () -> Unit) {
-    var selectedCameraTab by remember { mutableIntStateOf(0) } // 0 = Rear, 1 = Front
-
+    var selectedCameraTab by remember { mutableIntStateOf(0) }
     Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 24.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .verticalScroll(rememberScrollState()) // Allow scrolling
-            ) {
-                // Header
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+        Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp)) {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .background(Color(0xFFFEF3C7), CircleShape), // Amber100
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = getMonitorIconForActivityType(activity.type),
-                                contentDescription = null,
-                                tint = Color(0xFFB45309), // Amber700
-                                modifier = Modifier.size(24.dp)
-                            )
+                        Box(modifier = Modifier.size(48.dp).background(Color(0xFFFEF3C7), CircleShape), contentAlignment = Alignment.Center) {
+                            Icon(getMonitorIconForActivityType(activity.type), null, tint = Color(0xFFB45309), modifier = Modifier.size(24.dp))
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
-                            Text(
-                                text = activity.title.uppercase(),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Slate900
-                            )
-                            Text(
-                                text = "${activity.date} • ${activity.time}:53",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Slate500
-                            )
+                            Text(activity.title.uppercase(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Slate900)
+                            Text("${activity.date} • ${activity.time}:53", style = MaterialTheme.typography.bodySmall, color = Slate500)
                         }
                     }
-                    IconButton(onClick = onDismiss) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = null,
-                            tint = Slate400
-                        )
-                    }
+                    IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, null, tint = Slate400) }
                 }
-
-                // Camera Tabs
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                        .background(Slate700) // TabUnselected
-                ) {
-                    MonitorDetailCameraTab(
-                        title = "REAR CAM",
-                        isSelected = selectedCameraTab == 0,
-                        onClick = { selectedCameraTab = 0 },
-                        modifier = Modifier.weight(1f)
-                    )
-                    MonitorDetailCameraTab(
-                        title = "FRONT CAM",
-                        isSelected = selectedCameraTab == 1,
-                        onClick = { selectedCameraTab = 1 },
-                        modifier = Modifier.weight(1f)
-                    )
+                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)).background(Slate700)) {
+                    MonitorDetailCameraTab("REAR CAM", selectedCameraTab == 0, { selectedCameraTab = 0 }, Modifier.weight(1f))
+                    MonitorDetailCameraTab("FRONT CAM", selectedCameraTab == 1, { selectedCameraTab = 1 }, Modifier.weight(1f))
                 }
-
-                // Video Feed Area
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .height(200.dp)
-                        .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
-                        .background(Color.Black),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(200.dp).clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)).background(Color.Black), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = if (selectedCameraTab == 0) Icons.Default.Videocam else Icons.Default.Face,
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.5f),
-                            modifier = Modifier
-                                .size(48.dp)
-                                .background(Color.White.copy(alpha = 0.1f), CircleShape)
-                                .padding(12.dp)
-                        )
+                        Icon(if (selectedCameraTab == 0) Icons.Default.Videocam else Icons.Default.Face, null, tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(48.dp).background(Color.White.copy(alpha = 0.1f), CircleShape).padding(12.dp))
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = if (selectedCameraTab == 0) "REAR RECORDING" else "FRONT RECORDING",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White.copy(alpha = 0.4f),
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(12.dp)
-                            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "00:30",
-                            color = Color.White,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text(if (selectedCameraTab == 0) "REAR RECORDING" else "FRONT RECORDING", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.4f), fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     }
                 }
-
-                // Content
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.LocationOn,
-                            contentDescription = null,
-                            tint = Slate400,
-                            modifier = Modifier.size(16.dp)
-                        )
+                        Icon(Icons.Default.Notifications, null, tint = Slate400, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "INCIDENT LOCATION",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Slate400,
-                            letterSpacing = 1.sp
-                        )
+                        Text("NOTIFIED MONITORS", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400, letterSpacing = 1.sp)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(140.dp)
-                            .background(Slate50, RoundedCornerShape(12.dp))
-                            .border(1.dp, Slate200, RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.LocationOn,
-                            contentDescription = null,
-                            tint = Red600,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // --- NEW SECTION: NOTIFIED MONITORS ---
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = null,
-                            tint = Slate400,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "NOTIFIED MONITORS",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Slate400,
-                            letterSpacing = 1.sp
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         activity.notifiedMonitors.forEach { action ->
-                            val (icon, color, label) = when (action.state) {
-                                MonitorActionState.SENT -> Triple(
-                                    Icons.Default.Notifications,
-                                    Slate400,
-                                    "Notified"
-                                )
-                                MonitorActionState.VIEWED -> Triple(
-                                    Icons.Default.Visibility,
-                                    Color(0xFF6366F1),
-                                    "Viewed"
-                                )
-                                MonitorActionState.CALLED_USER -> Triple(
-                                    Icons.Default.Phone,
-                                    Color(0xFF6366F1),
-                                    "Calling..."
-                                )
-                                MonitorActionState.CALLED_112 -> Triple(
-                                    Icons.Default.LocalPolice,
-                                    Red600,
-                                    "Called 112"
-                                )
-                                MonitorActionState.ON_THE_WAY -> Triple(
-                                    Icons.Default.DirectionsRun,
-                                    Color(0xFFB45309),
-                                    "On My Way"
-                                )
-                                MonitorActionState.MARKED_SAFE -> Triple(
-                                    Icons.Default.CheckCircle,
-                                    Emerald500,
-                                    "Marked Safe"
-                                )
-                            }
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Slate50, RoundedCornerShape(8.dp))
-                                    .padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .background(Color.White, CircleShape)
-                                        .border(1.dp, Slate200, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = action.name.first().toString(),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Slate500
-                                    )
+                            Row(modifier = Modifier.fillMaxWidth().background(Slate50, RoundedCornerShape(8.dp)).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.size(32.dp).background(Color.White, CircleShape).border(1.dp, Slate200, CircleShape), contentAlignment = Alignment.Center) {
+                                    Text(action.name.first().toString(), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate500)
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = action.name,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Slate900
-                                    )
-                                    Text(
-                                        text = "$label • ${action.time}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = color,
-                                        fontSize = 10.sp
-                                    )
+                                    Text(action.name, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = Slate900)
+                                    Text("Viewed • ${action.time}", style = MaterialTheme.typography.labelSmall, color = Slate400, fontSize = 10.sp)
                                 }
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = label,
-                                    tint = color,
-                                    modifier = Modifier.size(18.dp)
-                                )
                             }
                         }
                     }
-                }
-
-                // Actions Column
-                Column(modifier = Modifier.padding(16.dp)) {
-                    // Row 1: Immediate Contact
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Button(
-                            onClick = { /* TODO: Implement Call */ },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Emerald500),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Phone,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Call",
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-
-                        Button(
-                            onClick = { /* TODO: Implement SOS */ },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Red600),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "SOS 112",
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Row 2: Status Updates
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Button(
-                            onClick = { /* TODO: Implement On My Way */ },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB45309)), // Amber700
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.DirectionsRun,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "On My Way",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
-                            )
-                        }
-
-                        Button(
-                            onClick = { /* TODO: Implement Mark Safe */ },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Indigo600),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Resolved",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
-                            )
-                        }
-                    }
-
                     Spacer(modifier = Modifier.height(16.dp))
-
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Slate200),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Slate500)
-                    ) {
-                        Text(
-                            text = "Close Report",
-                            fontWeight = FontWeight.SemiBold
-                        )
+                    OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Slate200), colors = ButtonDefaults.outlinedButtonColors(contentColor = Slate500)) {
+                        Text("Close Report", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -791,62 +670,22 @@ fun MonitorAlertDetailModal(activity: ActivityItem, onDismiss: () -> Unit) {
 }
 
 @Composable
-fun MonitorDetailCameraTab(
-    title: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier
-) {
-    Box(
-        modifier = modifier
-            .clickable(onClick = onClick)
-            .background(if (isSelected) Slate700 else Color.Transparent)
-            .padding(vertical = 10.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = title,
-            color = if (isSelected) Color.White else Color.Gray,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-            fontSize = 11.sp
-        )
-        if (isSelected) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(2.dp)
-                    .background(Color(0xFFDC2626)) // AlertRed
-            )
-        }
+fun MonitorDetailCameraTab(title: String, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+    Box(modifier = modifier.clickable(onClick = onClick).background(if (isSelected) Slate700 else Color.Transparent).padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
+        Text(title, color = if (isSelected) Color.White else Color.Gray, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, fontSize = 11.sp)
+        if (isSelected) Box(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(2.dp).background(Color(0xFFDC2626)))
     }
 }
 
 @Composable
 fun MonitorStatusChip(status: ActivityAlertStatus) {
     val (bg, txt) = when (status) {
-        ActivityAlertStatus.CONFIRMED -> {
-            Red50 to Red600
-        }
-        ActivityAlertStatus.PENDING -> {
-            Color(0xFFFFFBEB) to Color(0xFFB45309)
-        }
-        ActivityAlertStatus.CANCELLED -> {
-            Slate100 to Slate500
-        }
+        ActivityAlertStatus.CONFIRMED -> Red50 to Red600
+        ActivityAlertStatus.PENDING -> Color(0xFFFFFBEB) to Color(0xFFB45309)
+        ActivityAlertStatus.CANCELLED -> Slate100 to Slate500
     }
-    Box(
-        modifier = Modifier
-            .background(bg, RoundedCornerShape(4.dp))
-            .padding(horizontal = 8.dp, vertical = 2.dp)
-    ) {
-        Text(
-            text = status.name,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = txt,
-            fontSize = 10.sp
-        )
+    Box(modifier = Modifier.background(bg, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 2.dp)) {
+        Text(status.name, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = txt, fontSize = 10.sp)
     }
 }
 
@@ -860,535 +699,101 @@ fun getMonitorIconForActivityType(type: ActivityAlertType): ImageVector {
     }
 }
 
-// --- Activity Data Classes (Mirrored from Protected for independence) ---
-enum class ActivityAlertType {
-    SPEED,
-    FALL,
-    ACCIDENT,
-    GEOFENCE,
-    PANIC
-}
-enum class ActivityAlertStatus {
-    CONFIRMED,
-    CANCELLED,
-    PENDING
-}
-enum class MonitorActionState {
-    SENT,
-    VIEWED,
-    CALLED_USER,
-    CALLED_112,
-    ON_THE_WAY,
-    MARKED_SAFE
-}
-
-data class MonitorAction(
-    val name: String,
-    val state: MonitorActionState,
-    val time: String
-)
-
-data class ActivityItem(
-    val id: String,
-    val type: ActivityAlertType,
-    val title: String,
-    val date: String,
-    val time: String,
-    val status: ActivityAlertStatus,
-    val notifiedMonitors: List<MonitorAction> = emptyList()
-)
+enum class ActivityAlertType { SPEED, FALL, ACCIDENT, GEOFENCE, PANIC }
+enum class ActivityAlertStatus { CONFIRMED, CANCELLED, PENDING }
+enum class MonitorActionState { SENT, VIEWED, CALLED_USER, CALLED_112, ON_THE_WAY, MARKED_SAFE }
+data class MonitorAction(val name: String, val state: MonitorActionState, val time: String)
+data class ActivityItem(val id: String, val type: ActivityAlertType, val title: String, val date: String, val time: String, val status: ActivityAlertStatus, val notifiedMonitors: List<MonitorAction> = emptyList())
 
 private val mockMonitorActivities = listOf(
-    ActivityItem(
-        "1",
-        ActivityAlertType.SPEED,
-        "Speed Alert",
-        "23/12/2025",
-        "21:36",
-        ActivityAlertStatus.CONFIRMED,
-        listOf(
-            MonitorAction("Alice Monitor", MonitorActionState.CALLED_USER, "21:37"),
-            MonitorAction("Bob Supervisor", MonitorActionState.VIEWED, "21:38")
-        )
-    ),
-    ActivityItem(
-        "2",
-        ActivityAlertType.FALL,
-        "Fall Detected",
-        "22/12/2025",
-        "14:20",
-        ActivityAlertStatus.CANCELLED,
-        listOf(
-            MonitorAction("Alice Monitor", MonitorActionState.MARKED_SAFE, "14:22")
-        )
-    ),
-    ActivityItem(
-        "3",
-        ActivityAlertType.GEOFENCE,
-        "Safe Zone Exit",
-        "20/12/2025",
-        "09:15",
-        ActivityAlertStatus.CONFIRMED,
-        listOf(
-            MonitorAction("Alice Monitor", MonitorActionState.ON_THE_WAY, "09:20"),
-            MonitorAction("Charlie Guard", MonitorActionState.SENT, "09:15")
-        )
-    ),
-    ActivityItem(
-        "4",
-        ActivityAlertType.PANIC,
-        "SOS Activated",
-        "18/12/2025",
-        "23:45",
-        ActivityAlertStatus.PENDING,
-        listOf(
-            MonitorAction("Alice Monitor", MonitorActionState.CALLED_112, "23:46"),
-            MonitorAction("Bob Supervisor", MonitorActionState.ON_THE_WAY, "23:50"),
-            MonitorAction("Charlie Guard", MonitorActionState.VIEWED, "23:47")
-        )
-    )
+    ActivityItem("1", ActivityAlertType.SPEED, "Speed Alert", "23/12/2025", "21:36", ActivityAlertStatus.CONFIRMED, listOf(MonitorAction("Alice Monitor", MonitorActionState.CALLED_USER, "21:37"))),
+    ActivityItem("2", ActivityAlertType.FALL, "Fall Detected", "22/12/2025", "14:20", ActivityAlertStatus.CANCELLED, listOf(MonitorAction("Alice Monitor", MonitorActionState.MARKED_SAFE, "14:22"))),
+    ActivityItem("3", ActivityAlertType.GEOFENCE, "Safe Zone Exit", "20/12/2025", "09:15", ActivityAlertStatus.CONFIRMED),
+    ActivityItem("4", ActivityAlertType.PANIC, "SOS Activated", "18/12/2025", "23:45", ActivityAlertStatus.PENDING)
 )
 
-
 @Composable
-fun RuleManageItem(
-    rule: ProtectionRule,
-    onEdit: () -> Unit,
-    onToggle: (Boolean) -> Unit
-) {
-    val subtitle = when (rule.type) {
-        RuleType.FALL, RuleType.ACCIDENT -> "ALWAYS ACTIVE"
-        RuleType.GEOFENCING -> if (rule.param1.isEmpty()) "PENDING" else "RADIUS: ${rule.param1}M"
-        RuleType.SPEED -> if (rule.param1.isEmpty()) "PENDING" else "LIMIT: ${rule.param1}KM/H"
-        RuleType.INACTIVITY -> if (rule.param1.isEmpty()) "PENDING" else "LIMIT: ${rule.param1}MIN"
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp)
-            .background(
-                color = if (rule.isEnabled) Slate50 else Slate50.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(16.dp)
-            )
-            .border(
-                width = 1.dp,
-                color = if (rule.isEnabled) Slate100 else Color.Transparent,
-                shape = RoundedCornerShape(16.dp)
-            )
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .background(Color.White, RoundedCornerShape(12.dp))
-                .border(1.dp, Slate100, RoundedCornerShape(12.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = rule.icon,
-                contentDescription = null,
-                tint = rule.iconColor.copy(alpha = if (rule.isEnabled) 1f else 0.5f),
-                modifier = Modifier.size(24.dp)
-            )
-        }
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = rule.type.title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = if (rule.isEnabled) Slate900 else Slate400
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.labelSmall,
-                color = Slate400,
-                letterSpacing = 0.5.sp
-            )
-        }
-        IconButton(
-            onClick = onEdit,
-            modifier = Modifier.size(32.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = null,
-                tint = Slate400,
-                modifier = Modifier.size(18.dp)
-            )
-        }
-        Switch(
-            checked = rule.isEnabled,
-            onCheckedChange = onToggle,
-            modifier = Modifier.scale(0.7f),
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = Emerald500,
-                uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = Slate200,
-                uncheckedBorderColor = Color.Transparent
-            )
-        )
-    }
-}
-
-@Composable
-fun AddRuleTypeDialog(
-    existingRules: List<ProtectionRule>,
-    onDismiss: () -> Unit,
-    onTypeSelected: (RuleType) -> Unit
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(24.dp)) {
-                Text(
-                    text = "Protection Type",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate900
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                RuleType.entries.forEach { type ->
-                    val isAlreadyDefined = !type.isMultiInstance && existingRules.any { it.type == type }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .background(
-                                color = if (isAlreadyDefined) Slate100 else Slate50,
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable(enabled = !isAlreadyDefined) { onTypeSelected(type) }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = type.title,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isAlreadyDefined) Slate400 else Slate700
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                        if (isAlreadyDefined) {
-                            Text(
-                                text = "DEFINED",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Slate400
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.ChevronRight,
-                                contentDescription = null,
-                                tint = Slate400
-                            )
-                        }
-                    }
-                }
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(top = 16.dp)
-                ) {
-                    Text(
-                        text = "Cancel",
-                        color = Slate400,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun EditRuleDialog(
-    rule: ProtectionRule,
-    isNew: Boolean,
-    onDismiss: () -> Unit,
-    onSave: (ProtectionRule) -> Unit,
-    onDelete: (String) -> Unit
-) {
-    var p1 by remember { mutableStateOf(rule.param1) }
-    var p2 by remember { mutableStateOf(rule.param2) }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(24.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(rule.iconColor.copy(alpha = 0.1f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = rule.icon,
-                            contentDescription = null,
-                            tint = rule.iconColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = rule.type.title,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = Slate900
-                    )
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-
-                if (rule.type == RuleType.GEOFENCING) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Slate100),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            drawLine(
-                                color = Color(0xFFCBD5E1),
-                                start = Offset(size.width * 0.6f, 0f),
-                                end = Offset(size.width * 0.6f, size.height),
-                                strokeWidth = 20f
-                            )
-                            drawLine(
-                                color = Color(0xFFCBD5E1),
-                                start = Offset(0f, size.height * 0.4f),
-                                end = Offset(size.width, size.height * 0.4f),
-                                strokeWidth = 20f
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(60.dp)
-                                .background(rule.iconColor.copy(alpha = 0.2f), CircleShape)
-                                .border(2.dp, rule.iconColor, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.LocationOn,
-                                contentDescription = null,
-                                tint = rule.iconColor
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "GPS COORDINATES",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Slate400
-                    )
-                    TextField(
-                        value = p2,
-                        onValueChange = { p2 = it },
-                        placeholder = {
-                            Text(
-                                text = "0.0000, 0.0000"
-                            )
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Slate50,
-                            unfocusedContainerColor = Slate50
-                        )
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-
-                if (rule.type.isMultiInstance) {
-                    val label = when (rule.type) {
-                        RuleType.GEOFENCING -> "RADIUS (METERS)"
-                        RuleType.SPEED -> "MAX SPEED (KM/H)"
-                        else -> "TIME LIMIT (MINUTES)"
-                    }
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Slate400
-                    )
-                    TextField(
-                        value = p1,
-                        onValueChange = { p1 = it },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Slate50,
-                            unfocusedContainerColor = Slate50
-                        )
-                    )
-                } else {
-                    Text(
-                        text = "This rule automatically detects events and notifies you immediately. " +
-                                "No extra parameters required.",
-                        color = Slate500,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(32.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // Botão Esquerdo: Cancelar (se novo) ou Eliminar (se existente)
-                    Button(
-                        onClick = { if (isNew) onDismiss() else onDelete(rule.id) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(50.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isNew) Slate100 else Red600,
-                            contentColor = if (isNew) Slate500 else Color.White
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            text = if (isNew) "Cancel" else "Delete",
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    // Botão Direito: Sempre visível se for novo ou se tiver parâmetros
-                    if (isNew || rule.type.isMultiInstance) {
-                        Button(
-                            onClick = { onSave(rule.copy(param1 = p1, param2 = p2, isEnabled = true)) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(50.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Indigo600,
-                                contentColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(
-                                text = if (isNew) "Add" else "Save",
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun AlertTrendsCard(stats: List<AlertStat>) {
+fun LiveLocationMapCard(userLocation: GeoPoint?, rules: List<ProtectionRule>) {
     Card(
+        modifier = Modifier.fillMaxWidth().height(300.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        shape = RoundedCornerShape(20.dp),
-        modifier = Modifier.fillMaxWidth()
+        shape = RoundedCornerShape(20.dp)
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.ShowChart,
-                    contentDescription = null,
-                    tint = Slate400,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Alert Trends",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate900
-                )
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(160.dp),
-                verticalAlignment = Alignment.Bottom
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxHeight(),
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    listOf("4", "3", "2", "1", "0").forEach { label ->
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Slate400,
-                            fontSize = 10.sp
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        repeat(5) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(1.dp)
-                                    .background(Slate100)
-                            )
+        Box(modifier = Modifier.fillMaxSize()) {
+            AndroidView(
+                factory = { ctx ->
+                    MapView(ctx).apply {
+                        setTileSource(TileSourceFactory.MAPNIK)
+                        setMultiTouchControls(true)
+                        controller.setZoom(15.0)
+                        
+                        // Fix for parent scroll
+                        setOnTouchListener { v, _ ->
+                            v.parent.requestDisallowInterceptTouchEvent(true)
+                            false
                         }
                     }
-                    Row(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalArrangement = Arrangement.SpaceAround,
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        stats.forEach { stat ->
-                            val barHeightFactor = stat.count / 4f
-                            Box(
-                                modifier = Modifier
-                                    .width(16.dp)
-                                    .fillMaxHeight(barHeightFactor.coerceAtLeast(0.02f))
-                                    .background(
-                                        color = Emerald500,
-                                        shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
-                                    )
+                },
+                modifier = Modifier.fillMaxSize(),
+                update = { map ->
+                    map.overlays.clear()
+
+                    // Draw Geofences
+                    rules.filter { it.type == RuleType.GEOFENCING }.forEach { rule ->
+                        val parts = rule.param2.split(",").map { it.trim().toDoubleOrNull() }
+                        if (parts.size == 2 && parts[0] != null && parts[1] != null) {
+                            val poly = org.osmdroid.views.overlay.Polygon(map)
+                            poly.points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(
+                                GeoPoint(parts[0]!!, parts[1]!!), 
+                                rule.param1.toDoubleOrNull() ?: 100.0
                             )
+                            
+                            val c = if (rule.isEnabled) Color(0xFF059669) else Color(0xFFDC2626)
+                            poly.fillColor = android.graphics.Color.argb(50, (c.red*255).toInt(), (c.green*255).toInt(), (c.blue*255).toInt())
+                            poly.strokeColor = android.graphics.Color.argb(180, (c.red*255).toInt(), (c.green*255).toInt(), (c.blue*255).toInt())
+                            poly.strokeWidth = 3f
+                            map.overlays.add(poly)
                         }
                     }
+
+                    // Draw User Location
+                    if (userLocation != null) {
+                        val marker = org.osmdroid.views.overlay.Marker(map)
+                        marker.position = userLocation
+                        marker.setAnchor(org.osmdroid.views.overlay.Marker.ANCHOR_CENTER, org.osmdroid.views.overlay.Marker.ANCHOR_BOTTOM)
+                        marker.title = "Protege Location"
+                        // You can set a custom icon here if needed
+                        // marker.icon = ...
+                        map.overlays.add(marker)
+                        map.controller.setCenter(userLocation)
+                    } else {
+                        // Default center if no location
+                        if (map.mapCenter.latitude == 0.0 && map.mapCenter.longitude == 0.0) {
+                            map.controller.setCenter(GeoPoint(40.2033, -8.4103))
+                        }
+                    }
+                    map.invalidate()
                 }
-            }
-            Row(
+            )
+            
+            // Overlay Label
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 18.dp, top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceAround
+                    .align(Alignment.TopStart)
+                    .padding(12.dp)
+                    .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
-                stats.forEach { stat ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.size(8.dp).background(if (userLocation != null) Emerald500 else Red600, CircleShape))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = stat.label,
+                        text = if (userLocation != null) "LIVE LOCATION" else "OFFLINE",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Slate500,
-                        textAlign = TextAlign.Center,
-                        fontSize = 9.sp,
-                        modifier = Modifier.width(36.dp)
+                        fontWeight = FontWeight.Bold,
+                        color = Slate900,
+                        fontSize = 10.sp
                     )
                 }
             }

@@ -1,0 +1,37 @@
+package pt.isec.amov2526.projetoKotlin.data.model
+
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+
+// --- CORES ---
+private val Slate400 = Color(0xFF94A3B8)
+
+enum class RuleType(val title: String, val icon: ImageVector, val color: Color) {
+    FALL("Fall", Icons.Default.MonitorHeart, Color(0xFFFF7043)),
+    ACCIDENT("Accident", Icons.Default.CarCrash, Color(0xFFEF4444)),
+    GEOFENCING("Geofencing", Icons.Default.LocationOn, Color(0xFF7E57C2)),
+    SPEED("Speed Control", Icons.Default.Speed, Color(0xFF42A5F5)),
+    INACTIVITY("Inactivity", Icons.Default.Schedule, Slate400)
+}
+
+data class MonitorRule(
+    val id: String,
+    val monitorId: String,
+    val monitorName: String,
+    val parameter: String,
+    val isEnabled: Boolean,
+    val type: RuleType,
+    val scheduleDays: List<Int> = emptyList(), // 0=Sunday, 1=Monday...
+    val scheduleStart: String = "", // "HH:mm"
+    val scheduleEnd: String = "",   // "HH:mm"
+    val pausedUntil: Long = 0L,     // Timestamp in millis
+    val isDisabledByProtege: Boolean = false
+)
+
+data class ProtectionGroup(
+    val type: RuleType,
+    val rules: List<MonitorRule>,
+    val isExpanded: Boolean = false
+)

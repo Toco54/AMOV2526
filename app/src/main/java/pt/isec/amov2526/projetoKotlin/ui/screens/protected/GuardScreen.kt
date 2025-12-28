@@ -35,7 +35,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.platform.LocalContext // Added
 import pt.isec.amov2526.projetoKotlin.R
+import pt.isec.amov2526.projetoKotlin.data.model.*
+import kotlinx.coroutines.launch
 
 // --- CORES ---
 private val Slate50 = Color(0xFFF8FAFC)
@@ -55,67 +58,35 @@ private val Red100 = Color(0xFFFEE2E2)
 private val Red600 = Color(0xFFDC2626)
 private val Amber500 = Color(0xFFF59E0B)
 
-// --- MODELOS ---
-enum class RuleType(val title: String, val icon: ImageVector, val color: Color) {
-    FALL("Fall", Icons.Default.MonitorHeart, Color(0xFFFF7043)),
-    ACCIDENT("Accident", Icons.Default.CarCrash, Color(0xFFEF4444)),
-    GEOFENCING("Geofencing", Icons.Default.LocationOn, Color(0xFF7E57C2)),
-    SPEED("Speed Control", Icons.Default.Speed, Color(0xFF42A5F5)),
-    INACTIVITY("Inactivity", Icons.Default.Schedule, Slate400)
-}
-
-data class MonitorRule(
-    val id: String,
-    val monitorName: String,
-    val parameter: String,
-    val isEnabled: Boolean
-)
-
-data class ProtectionGroup(
-    val type: RuleType,
-    val rules: List<MonitorRule>,
-    val isExpanded: Boolean = false
-)
+// --- MODELOS MOVED TO GuardModels.kt ---
 
 @Composable
 fun GuardScreen(
     onPanic: () -> Unit = {}
 ) {
-    val isActive = remember { mutableStateOf(true) }
+    val context = LocalContext.current
+    val viewModel: pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        factory = pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModelFactory()
+    )
+
+    // Init Location Tracking
+    LaunchedEffect(Unit) {
+        val locationHelper = pt.isec.amov2526.projetoKotlin.utils.LocationHelper(context)
+        viewModel.setLocationHelper(locationHelper)
+    }
+
+    val isActive by viewModel.isActive.collectAsState()
+    val protectionGroups by viewModel.protectionGroups.collectAsState()
+    
+    // Local UI states
     var showPauseModal by remember { mutableStateOf(false) }
     var showScheduleModal by remember { mutableStateOf(false) }
     var showAlertScreen by remember { mutableStateOf(false) }
     var ruleToRemove by remember { mutableStateOf<MonitorRule?>(null) }
-
-    var protectionGroups by remember {
-        mutableStateOf(
-            listOf(
-                ProtectionGroup(
-                    type = RuleType.FALL,
-                    rules = listOf(MonitorRule("1", "Alice Monitor", "ACTIVE", true))
-                ),
-                ProtectionGroup(
-                    type = RuleType.ACCIDENT,
-                    rules = listOf(MonitorRule("2", "Alice Monitor", "ACTIVE", true))
-                ),
-                ProtectionGroup(
-                    type = RuleType.GEOFENCING,
-                    rules = listOf(
-                        MonitorRule("3", "Alice Monitor", "500M", true),
-                        MonitorRule("4", "Bob Supervisor", "200M", true)
-                    )
-                ),
-                ProtectionGroup(
-                    type = RuleType.SPEED,
-                    rules = listOf(MonitorRule("5", "Bob Supervisor", "120 KM/H", true))
-                ),
-                ProtectionGroup(
-                    type = RuleType.INACTIVITY,
-                    rules = listOf(MonitorRule("6", "Alice Monitor", "60 MIN", false))
-                )
-            )
-        )
-    }
+    
+    // Coroutine scope for async operations (PIN verification)
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     if (showAlertScreen) {
         Dialog(
@@ -131,304 +102,312 @@ fun GuardScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Slate50)
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // --- System Status Card ---
-        Card(
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { paddingValues ->
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = if (isActive.value) Color.White else Slate100
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-            shape = RoundedCornerShape(24.dp),
-            border = if (!isActive.value) androidx.compose.foundation.BorderStroke(1.dp, Slate200) else null
+                .fillMaxSize()
+                .background(Slate50)
+                .verticalScroll(rememberScrollState())
+                .padding(paddingValues)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "SYSTEM STATUS",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Slate400,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp
-                    )
+            // --- System Status Card ---
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isActive) Color.White else Slate100
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                shape = RoundedCornerShape(24.dp),
+                border = if (!isActive) androidx.compose.foundation.BorderStroke(1.dp, Slate200) else null
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .border(1.dp, Slate200, RoundedCornerShape(20.dp))
-                                .background(Color.White, RoundedCornerShape(20.dp))
-                                .clip(RoundedCornerShape(20.dp))
-                                .clickable { showScheduleModal = true }
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        Text(
+                            text = "SYSTEM STATUS",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Slate400,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.CalendarMonth,
-                                    contentDescription = null,
-                                    tint = Slate500,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "PLAN",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Slate500,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 10.sp
-                                )
-                            }
-                        }
-                        Box(
-                            modifier = Modifier
-                                .height(28.dp)
-                                .border(
-                                    width = 1.dp,
-                                    color = if (isActive.value) Emerald200 else Slate200,
-                                    shape = RoundedCornerShape(20.dp)
-                                )
-                                .background(
-                                    color = if (isActive.value) Emerald50 else Color.White,
-                                    shape = RoundedCornerShape(20.dp)
-                                )
-                                .clip(RoundedCornerShape(20.dp))
-                                .clickable {
-                                    if (isActive.value) showPauseModal = true else isActive.value = true
-                                }
-                                .padding(start = 8.dp, end = 4.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxHeight()
+                            Box(
+                                modifier = Modifier
+                                    .border(1.dp, Slate200, RoundedCornerShape(20.dp))
+                                    .background(Color.White, RoundedCornerShape(20.dp))
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .clickable { showScheduleModal = true }
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
                             ) {
-                                Text(
-                                    text = if (isActive.value) "ACTIVE" else "OFFLINE",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = if (isActive.value) Emerald700 else Slate400,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 10.sp
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .size(width = 32.dp, height = 16.dp)
-                                        .background(
-                                            color = if (isActive.value) Emerald500 else Slate200,
-                                            shape = RoundedCornerShape(10.dp)
-                                        )
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(12.dp)
-                                            .align(if (isActive.value) Alignment.CenterEnd else Alignment.CenterStart)
-                                            .padding(2.dp)
-                                            .background(Color.White, CircleShape)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.CalendarMonth,
+                                        contentDescription = null,
+                                        tint = Slate500,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "PLAN",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Slate500,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp
                                     )
                                 }
                             }
+                            Box(
+                                modifier = Modifier
+                                    .height(28.dp)
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isActive) Emerald200 else Slate200,
+                                        shape = RoundedCornerShape(20.dp)
+                                    )
+                                    .background(
+                                        color = if (isActive) Emerald50 else Color.White,
+                                        shape = RoundedCornerShape(20.dp)
+                                    )
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .clickable {
+                                        if (isActive) showPauseModal = true else viewModel.setSystemStatus("ACTIVE")
+                                    }
+                                    .padding(start = 8.dp, end = 4.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxHeight()
+                                ) {
+                                    Text(
+                                        text = if (isActive) "ACTIVE" else "OFFLINE",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (isActive) Emerald700 else Slate400,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .size(width = 32.dp, height = 16.dp)
+                                            .background(
+                                                color = if (isActive) Emerald500 else Slate200,
+                                                shape = RoundedCornerShape(10.dp)
+                                            )
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(12.dp)
+                                                .align(if (isActive) Alignment.CenterEnd else Alignment.CenterStart)
+                                                .padding(2.dp)
+                                                .background(Color.White, CircleShape)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(52.dp)
+                                .background(
+                                    color = if (isActive) Slate900 else Slate200,
+                                    shape = RoundedCornerShape(16.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Shield,
+                                contentDescription = null,
+                                tint = if (isActive) Color.White else Slate500,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = if (isActive) "Protected" else "System Paused",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = if (isActive) Slate900 else Slate500,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Active security by multiple monitors",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Slate500
+                            )
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(20.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .background(
-                                color = if (isActive.value) Slate900 else Slate200,
-                                shape = RoundedCornerShape(16.dp)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Shield,
-                            contentDescription = null,
-                            tint = if (isActive.value) Color.White else Slate500,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column {
-                        Text(
-                            text = if (isActive.value) "Protected" else "System Paused",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = if (isActive.value) Slate900 else Slate500,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Active security by multiple monitors",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Slate500
-                        )
-                    }
-                }
             }
-        }
 
-        Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
-        // --- SOS Button ---
-        val interactionSource = remember { MutableInteractionSource() }
-        val isPressed by interactionSource.collectIsPressedAsState()
-        val scale by animateFloatAsState(
-            targetValue = if (isPressed) 0.95f else 1.0f,
-            label = "scale"
-        )
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .scale(scale)
-                .size(260.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(Red100, CircleShape)
+            // --- SOS Button ---
+            val interactionSource = remember { MutableInteractionSource() }
+            val isPressed by interactionSource.collectIsPressedAsState()
+            val scale by animateFloatAsState(
+                targetValue = if (isPressed) 0.95f else 1.0f,
+                label = "scale"
             )
             Box(
+                contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .fillMaxSize(0.92f)
-                    .align(Alignment.Center)
-                    .shadow(20.dp, CircleShape, ambientColor = Color.Red, spotColor = Red600)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color(0xFFEF4444), Red600)
-                        )
-                    )
-                    .clickable(interactionSource, null) {
-                        showAlertScreen = true
-                        onPanic()
-                    },
-                contentAlignment = Alignment.Center
+                    .scale(scale)
+                    .size(260.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(200.dp)
-                        .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+                        .matchParentSize()
+                        .background(Red100, CircleShape)
                 )
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = "SOS",
-                        tint = Color.White,
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize(0.92f)
+                        .align(Alignment.Center)
+                        .shadow(20.dp, CircleShape, ambientColor = Color.Red, spotColor = Red600)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color(0xFFEF4444), Red600)
+                            )
+                        )
+                        .clickable(interactionSource, null) {
+                            showAlertScreen = true
+                            onPanic()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
                         modifier = Modifier
-                            .size(56.dp)
-                            .padding(bottom = 4.dp)
+                            .size(200.dp)
+                            .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
                     )
-                    Text(
-                        text = "SOS",
-                        color = Color.White,
-                        fontSize = 42.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 2.sp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Surface(
-                        color = Color.Black.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "SOS",
+                            tint = Color.White,
+                            modifier = Modifier
+                                .size(56.dp)
+                                .padding(bottom = 4.dp)
+                        )
                         Text(
-                            text = "EMERGENCY",
-                            color = Color.White.copy(alpha = 0.9f),
-                            fontSize = 12.sp,
+                            text = "SOS",
+                            color = Color.White,
+                            fontSize = 42.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 2.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Surface(
+                            color = Color.Black.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(20.dp)
+                        ) {
+                            Text(
+                                text = "EMERGENCY",
+                                color = Color.White.copy(alpha = 0.9f),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            // --- CARTÃO PRINCIPAL: PROTEÇÕES ATIVAS ---
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_shield_check),
+                            contentDescription = null,
+                            tint = Emerald500,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Active Protections",
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                            color = Slate900
                         )
                     }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(40.dp))
-
-        // --- CARTÃO PRINCIPAL: PROTEÇÕES ATIVAS ---
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-            shape = RoundedCornerShape(24.dp)
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_shield_check),
-                        contentDescription = null,
-                        tint = Emerald500,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Active Protections",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Slate900
-                    )
-                }
-                Spacer(modifier = Modifier.height(20.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    protectionGroups.forEachIndexed { index, group ->
-                        IndividualRuleTypeSubCard(
-                            group = group,
-                            onToggleGroup = { expanded ->
-                                protectionGroups = protectionGroups.toMutableList().apply {
-                                    this[index] = this[index].copy(isExpanded = expanded)
-                                }
-                            },
-                            onToggleGlobal = { enabled ->
-                                if (!enabled) showPauseModal = true
-                                else {
-                                    protectionGroups = protectionGroups.toMutableList().apply {
-                                        this[index] = this[index].copy(
-                                            rules = this[index].rules.map { it.copy(isEnabled = true) }
-                                        )
-                                    }
-                                }
-                            },
-                            onUpdateRule = { ruleId, enabled ->
-                                if (!enabled) showPauseModal = true
-                                else {
-                                    protectionGroups = protectionGroups.toMutableList().apply {
-                                        this[index] = this[index].copy(
-                                            rules = this[index].rules.map {
-                                                if (it.id == ruleId) it.copy(isEnabled = true) else it
+                    Spacer(modifier = Modifier.height(20.dp))
+                    
+                    if (protectionGroups.isEmpty()) {
+                         Text("No protections active.", style = MaterialTheme.typography.bodyMedium, color = Slate500, modifier = Modifier.padding(vertical = 12.dp))
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            protectionGroups.forEach { group ->
+                                IndividualRuleTypeSubCard(
+                                    group = group,
+                                    onToggleGroup = { expanded ->
+                                        viewModel.toggleGroupExpansion(group.type, expanded)
+                                    },
+                                    onToggleGlobal = { enabled ->
+                                        if (!enabled) showPauseModal = true
+                                        else {
+                                            // Enable all rules in group
+                                            group.rules.forEach { viewModel.toggleRule(it, true) }
+                                        }
+                                    },
+                                    onUpdateRule = { ruleId, enabled ->
+                                        val rule = group.rules.find { it.id == ruleId }
+                                        if (rule != null) {
+                                            if (!enabled) {
+                                                 // Check if we want pin for single rule disable? Mockup implies yes for "Remove", maybe not for toggle?
+                                                 // The logic: if (!enabled) showPauseModal = true -> This pauses SYSTEM.
+                                                 // Let's assume toggle simply toggles for now, unless we want strict mode.
+                                                 // Mockup logic was: onToggleGlobal(!enabled) -> showPause.
+                                                 // For single rule:
+                                                 viewModel.toggleRule(rule, enabled)
+                                            } else {
+                                                 viewModel.toggleRule(rule, enabled)
                                             }
-                                        )
-                                    }
-                                }
-                            },
-                            onRemoveRule = { rule -> ruleToRemove = rule },
-                            onGlobalSchedule = { showScheduleModal = true }
-                        )
+                                        }
+                                    },
+                                    onRemoveRule = { rule -> ruleToRemove = rule },
+                                    onGlobalSchedule = { showScheduleModal = true }
+                                )
+                            }
+                        }
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(32.dp))
         }
-        Spacer(modifier = Modifier.height(32.dp))
     }
 
     if (showPauseModal) {
         PauseSystemModal(
             onDismiss = { showPauseModal = false },
-            onConfirm = {
-                isActive.value = false
+            onConfirm = { pin ->
                 showPauseModal = false
-            }
+            },
+            viewModel = viewModel // Pass VM to modal
         )
     }
     if (showScheduleModal) {
@@ -441,12 +420,15 @@ fun GuardScreen(
         RemoveRuleChallengeModal(
             ruleName = ruleToRemove!!.monitorName,
             onDismiss = { ruleToRemove = null },
-            onConfirm = {
-                val targetId = ruleToRemove!!.id
-                protectionGroups = protectionGroups.map { group ->
-                    group.copy(rules = group.rules.filter { it.id != targetId })
-                }.filter { it.rules.isNotEmpty() }
-                ruleToRemove = null
+            onConfirm = { pin ->
+                 scope.launch {
+                     if (viewModel.verifyPin(pin)) {
+                         viewModel.deleteRule(ruleToRemove!!)
+                         ruleToRemove = null
+                     } else {
+                         snackbarHostState.showSnackbar("Invalid PIN")
+                     }
+                 }
             }
         )
     }
@@ -548,7 +530,7 @@ fun IndividualRuleTypeSubCard(
                         .background(Color.White.copy(alpha = 0.5f))
                         .padding(bottom = 8.dp)
                 ) {
-                    Divider(
+                    HorizontalDivider(
                         color = Slate100,
                         modifier = Modifier.padding(horizontal = 12.dp)
                     )
@@ -643,9 +625,11 @@ fun MonitorDetailRow(
 fun RemoveRuleChallengeModal(
     ruleName: String,
     onDismiss: () -> Unit,
-    onConfirm: () -> Unit
+    onConfirm: (String) -> Unit
 ) {
     var pin by remember { mutableStateOf("") }
+    var isChecking by remember { mutableStateOf(false) }
+    
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(24.dp),
@@ -726,7 +710,8 @@ fun RemoveRuleChallengeModal(
                 }
                 Spacer(modifier = Modifier.height(24.dp))
                 Button(
-                    onClick = { if (pin == "1234") onConfirm() },
+                    onClick = { if (pin.length == 4) { isChecking = true; onConfirm(pin) } },
+                    enabled = !isChecking,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
@@ -736,10 +721,14 @@ fun RemoveRuleChallengeModal(
                     ),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text(
-                        text = "Confirm Removal",
-                        fontWeight = FontWeight.Bold
-                    )
+                    if (isChecking) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                    } else {
+                        Text(
+                            text = "Confirm Removal",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
                 TextButton(
                     onClick = onDismiss,
@@ -761,10 +750,15 @@ fun RemoveRuleChallengeModal(
 @Composable
 fun PauseSystemModal(
     onDismiss: () -> Unit,
-    onConfirm: () -> Unit
+    onConfirm: (String) -> Unit,
+    viewModel: pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel
 ) {
     var pin by remember { mutableStateOf("") }
     var selectedDuration by remember { mutableStateOf("15 Min") }
+    var isChecking by remember { mutableStateOf(false) }
+    var errorText by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(24.dp),
@@ -850,6 +844,7 @@ fun PauseSystemModal(
                         onValueChange = {
                             if (it.length <= 4 && it.all { c -> c.isDigit() }) {
                                 pin = it
+                                errorText = null
                             }
                         },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -877,9 +872,34 @@ fun PauseSystemModal(
                         )
                     )
                 }
+                if (errorText != null) {
+                    Text(errorText!!, color = Red600, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 4.dp))
+                }
                 Spacer(modifier = Modifier.height(24.dp))
                 Button(
-                    onClick = { if (pin.length == 4) onConfirm() },
+                    onClick = { 
+                        if (pin.length == 4) {
+                            isChecking = true
+                            scope.launch {
+                                if (viewModel.verifyPin(pin)) {
+                                    val durationMillis = when(selectedDuration) {
+                                        "15 Min" -> 15 * 60 * 1000L
+                                        "30 Min" -> 30 * 60 * 1000L
+                                        "1 Hour" -> 60 * 60 * 1000L
+                                        "8 Hours" -> 8 * 60 * 60 * 1000L
+                                        "Indefinite" -> -1L
+                                        else -> 0L
+                                    }
+                                    viewModel.pauseAllRules(durationMillis)
+                                    onConfirm(pin)
+                                } else {
+                                    errorText = "Invalid PIN"
+                                    isChecking = false
+                                }
+                            }
+                        }
+                    },
+                    enabled = !isChecking,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
@@ -889,11 +909,15 @@ fun PauseSystemModal(
                     ),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text(
-                        text = "Confirm Pause",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
+                    if (isChecking) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                    } else {
+                        Text(
+                            text = "Confirm Pause",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
                 }
                 TextButton(
                     onClick = onDismiss,

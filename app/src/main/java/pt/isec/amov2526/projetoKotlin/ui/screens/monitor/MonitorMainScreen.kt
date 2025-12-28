@@ -62,7 +62,7 @@ private val Red600 = Color(0xFFDC2626)
 @Composable
 fun MonitorMainScreen(
     onLogout: () -> Unit = {},
-    onProtegeClick: (String) -> Unit = {},
+    onProtegeClick: (String, String) -> Unit = { _, _ -> }, // name, uid
     viewModel: AuthViewModel = viewModel(),
     monitorViewModel: MonitorMainViewModel = viewModel()
 ) {
@@ -162,7 +162,7 @@ fun MonitorMainScreen(
                                 items(items = proteges) { protege ->
                                     ProtegeCard(
                                         protege = protege,
-                                        onClick = { onProtegeClick(protege.name) }
+                                        onClick = { onProtegeClick(protege.name, protege.uid) }
                                     )
                                 }
                             } else {
