@@ -35,10 +35,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.platform.LocalContext // Added
+import androidx.compose.ui.platform.LocalContext
 import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.data.model.*
+import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
+import pt.isec.amov2526.projetoKotlin.utils.StatusResult
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 // --- CORES ---
 private val Slate50 = Color(0xFFF8FAFC)
@@ -77,17 +80,56 @@ fun GuardScreen(
 
     val isActive by viewModel.isActive.collectAsState()
     val protectionGroups by viewModel.protectionGroups.collectAsState()
+    val globalSchedule by viewModel.globalSchedule.collectAsState()
+    val globalPausedUntil by viewModel.globalPausedUntil.collectAsState()
+    
+    // UI Refresh Timer for Countdowns
+    var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            currentTime = System.currentTimeMillis()
+            kotlinx.coroutines.delay(1000L) // Update every second
+        }
+    }
     
     // Local UI states
     var showPauseModal by remember { mutableStateOf(false) }
+    var showGlobalScheduleModal by remember { mutableStateOf(false) }
     var showScheduleModal by remember { mutableStateOf(false) }
     var showAlertScreen by remember { mutableStateOf(false) }
     var ruleToRemove by remember { mutableStateOf<MonitorRule?>(null) }
+    var selectedTypeToPause by remember { mutableStateOf<RuleType?>(null) }
+    var selectedRuleToPause by remember { mutableStateOf<MonitorRule?>(null) }
+    var selectedGroupToSchedule by remember { mutableStateOf<ProtectionGroup?>(null) }
+    var selectedRuleToSchedule by remember { mutableStateOf<MonitorRule?>(null) }
     
-    // Coroutine scope for async operations (PIN verification)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // --- CALCULATE GLOBAL STATUS ---
+    // Check Global Pause (from isActive / systemStatus in VM, but let's check manually if we had access to pausedUntil, 
+    // but VM handles 'isActive' boolean based on string. We need more detail if it's paused with timer.)
+    // Note: VM exposes 'isActive' boolean. If false, we check why.
+    // Ideally VM should expose 'globalPausedUntil' or we infer it. 
+    // Assuming 'isActive' == false means Offline OR Paused.
+    // But 'isActive' is just a boolean. 
+    // We will rely on the UI logic to show "PAUSED" if explicitly set.
+    
+    // Actually, let's use the helper to check schedule first.
+    val globalScheduleStatus = TimeUtils.calculateStatus(
+        isEnabled = true, // Base system is "enabled"
+        pausedUntil = globalPausedUntil, // We don't have globalPausedUntil exposed directly as StateFlow in VM yet, assuming 0 for now unless we update VM
+        isScheduleEnabled = globalSchedule.isEnabled,
+        days = globalSchedule.days,
+        start = globalSchedule.start,
+        end = globalSchedule.end,
+        now = currentTime
+    )
+    
+    // Overrule if system is manually set to "PAUSED" or "OFFLINE" via VM status text
+    // (VM should ideally expose the precise state)
+    // For now we assume if isActive is false, it's manually off/paused.
+    
     if (showAlertScreen) {
         Dialog(
             onDismissRequest = { showAlertScreen = false },
@@ -120,11 +162,11 @@ fun GuardScreen(
                     .fillMaxWidth()
                     .padding(top = 8.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (isActive) Color.White else Slate100
+                    containerColor = if (isActive && globalScheduleStatus.isActive) Color.White else Slate100
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                 shape = RoundedCornerShape(24.dp),
-                border = if (!isActive) androidx.compose.foundation.BorderStroke(1.dp, Slate200) else null
+                border = if (!isActive || !globalScheduleStatus.isActive) androidx.compose.foundation.BorderStroke(1.dp, Slate200) else null
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(
@@ -148,7 +190,9 @@ fun GuardScreen(
                                     .border(1.dp, Slate200, RoundedCornerShape(20.dp))
                                     .background(Color.White, RoundedCornerShape(20.dp))
                                     .clip(RoundedCornerShape(20.dp))
-                                    .clickable { showScheduleModal = true }
+                                    .clickable {
+                                        showGlobalScheduleModal = true
+                                    }
                                     .padding(horizontal = 10.dp, vertical = 4.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -168,21 +212,31 @@ fun GuardScreen(
                                     )
                                 }
                             }
+                            
+                            // Status Pill
+                            val statusLabel = when {
+                                globalScheduleStatus.label == "PAUSED" -> "PAUSED"
+                                !isActive -> "OFFLINE"
+                                else -> "ACTIVE"
+                            }
+                            
+                            val statusColor = if (statusLabel == "ACTIVE") Emerald700 else Slate400
+                            val statusBg = if (statusLabel == "ACTIVE") Emerald50 else Slate200
+                            val statusBorder = if (statusLabel == "ACTIVE") Emerald200 else Slate200
+                            
                             Box(
                                 modifier = Modifier
                                     .height(28.dp)
-                                    .border(
-                                        width = 1.dp,
-                                        color = if (isActive) Emerald200 else Slate200,
-                                        shape = RoundedCornerShape(20.dp)
-                                    )
-                                    .background(
-                                        color = if (isActive) Emerald50 else Color.White,
-                                        shape = RoundedCornerShape(20.dp)
-                                    )
+                                    .border(width = 1.dp, color = statusBorder, shape = RoundedCornerShape(20.dp))
+                                    .background(color = statusBg, shape = RoundedCornerShape(20.dp))
                                     .clip(RoundedCornerShape(20.dp))
                                     .clickable {
-                                        if (isActive) showPauseModal = true else viewModel.setSystemStatus("ACTIVE")
+                                        if (isActive) {
+                                            selectedTypeToPause = null // Reset for global pause
+                                            showPauseModal = true 
+                                        } else {
+                                            viewModel.setSystemStatus("ACTIVE")
+                                        }
                                     }
                                     .padding(start = 8.dp, end = 4.dp)
                             ) {
@@ -191,9 +245,9 @@ fun GuardScreen(
                                     modifier = Modifier.fillMaxHeight()
                                 ) {
                                     Text(
-                                        text = if (isActive) "ACTIVE" else "OFFLINE",
+                                        text = statusLabel,
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = if (isActive) Emerald700 else Slate400,
+                                        color = statusColor,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 10.sp
                                     )
@@ -202,14 +256,14 @@ fun GuardScreen(
                                         modifier = Modifier
                                             .size(width = 32.dp, height = 16.dp)
                                             .background(
-                                                color = if (isActive) Emerald500 else Slate200,
+                                                color = if (statusLabel == "ACTIVE") Emerald500 else Slate400,
                                                 shape = RoundedCornerShape(10.dp)
                                             )
                                     ) {
                                         Box(
                                             modifier = Modifier
                                                 .size(12.dp)
-                                                .align(if (isActive) Alignment.CenterEnd else Alignment.CenterStart)
+                                                .align(if (statusLabel == "ACTIVE") Alignment.CenterEnd else Alignment.CenterStart)
                                                 .padding(2.dp)
                                                 .background(Color.White, CircleShape)
                                         )
@@ -224,30 +278,46 @@ fun GuardScreen(
                             modifier = Modifier
                                 .size(52.dp)
                                 .background(
-                                    color = if (isActive) Slate900 else Slate200,
+                                    color = if (isActive && globalScheduleStatus.isActive) Slate900 else Slate200,
                                     shape = RoundedCornerShape(16.dp)
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Shield,
+                                imageVector = if(!globalScheduleStatus.isActive) Icons.Default.Schedule else Icons.Default.Shield,
                                 contentDescription = null,
-                                tint = if (isActive) Color.White else Slate500,
+                                tint = if (isActive && globalScheduleStatus.isActive) Color.White else Slate500,
                                 modifier = Modifier.size(26.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
+                            val titleText = when {
+                                globalScheduleStatus.label == "PAUSED" -> "System Paused"
+                                !isActive -> "System Offline"
+                                !globalScheduleStatus.isActive -> "Scheduled Off"
+                                else -> "Protected"
+                            }
+                            
                             Text(
-                                text = if (isActive) "Protected" else "System Paused",
+                                text = titleText,
                                 style = MaterialTheme.typography.titleLarge,
-                                color = if (isActive) Slate900 else Slate500,
+                                color = if (isActive && globalScheduleStatus.isActive) Slate900 else Slate500,
                                 fontWeight = FontWeight.Bold
                             )
+                            
+                            val subText = when {
+                                globalScheduleStatus.label == "PAUSED" -> globalScheduleStatus.subLabel ?: "Paused"
+                                !isActive -> "Turn on to enable protections"
+                                !globalScheduleStatus.isActive -> globalScheduleStatus.subLabel ?: "Outside active hours"
+                                else -> globalScheduleStatus.subLabel ?: "Active security by multiple monitors"
+                            }
+                                          
                             Text(
-                                text = "Active security by multiple monitors",
+                                text = subText,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Slate500
+                                color = if (!globalScheduleStatus.isActive || globalScheduleStatus.label == "PAUSED") Amber500 else Slate500,
+                                fontWeight = if (!globalScheduleStatus.isActive || globalScheduleStatus.label == "PAUSED") FontWeight.Bold else FontWeight.Normal
                             )
                         }
                     }
@@ -364,33 +434,38 @@ fun GuardScreen(
                             protectionGroups.forEach { group ->
                                 IndividualRuleTypeSubCard(
                                     group = group,
+                                    currentTime = currentTime,
                                     onToggleGroup = { expanded ->
                                         viewModel.toggleGroupExpansion(group.type, expanded)
                                     },
                                     onToggleGlobal = { enabled ->
-                                        if (!enabled) showPauseModal = true
-                                        else {
-                                            // Enable all rules in group
-                                            group.rules.forEach { viewModel.toggleRule(it, true) }
+                                        if (enabled) {
+                                            viewModel.setProtectionStatus(group.type, true)
+                                        } else {
+                                            selectedTypeToPause = group.type
+                                            showPauseModal = true
                                         }
                                     },
                                     onUpdateRule = { ruleId, enabled ->
                                         val rule = group.rules.find { it.id == ruleId }
                                         if (rule != null) {
-                                            if (!enabled) {
-                                                 // Check if we want pin for single rule disable? Mockup implies yes for "Remove", maybe not for toggle?
-                                                 // The logic: if (!enabled) showPauseModal = true -> This pauses SYSTEM.
-                                                 // Let's assume toggle simply toggles for now, unless we want strict mode.
-                                                 // Mockup logic was: onToggleGlobal(!enabled) -> showPause.
-                                                 // For single rule:
-                                                 viewModel.toggleRule(rule, enabled)
+                                            if (enabled) {
+                                                viewModel.toggleRule(rule, true)
                                             } else {
-                                                 viewModel.toggleRule(rule, enabled)
+                                                selectedRuleToPause = rule
+                                                showPauseModal = true
                                             }
                                         }
                                     },
                                     onRemoveRule = { rule -> ruleToRemove = rule },
-                                    onGlobalSchedule = { showScheduleModal = true }
+                                    onGlobalSchedule = {
+                                        selectedGroupToSchedule = group
+                                        showScheduleModal = true
+                                    },
+                                    onRuleSchedule = { rule ->
+                                        selectedRuleToSchedule = rule
+                                        showScheduleModal = true
+                                    }
                                 )
                             }
                         }
@@ -402,20 +477,96 @@ fun GuardScreen(
     }
 
     if (showPauseModal) {
+        val title = when {
+            selectedRuleToPause != null -> "Pause ${selectedRuleToPause!!.monitorName}'s Rule"
+            selectedTypeToPause != null -> "Pause ${selectedTypeToPause!!.title}"
+            else -> "Pause Protection"
+        }
+        
         PauseSystemModal(
-            onDismiss = { showPauseModal = false },
-            onConfirm = { pin ->
+            title = title,
+            onDismiss = { 
                 showPauseModal = false
+                selectedTypeToPause = null
+                selectedRuleToPause = null
             },
-            viewModel = viewModel // Pass VM to modal
+            onConfirm = { pin, duration ->
+                showPauseModal = false
+                if (selectedRuleToPause != null) {
+                    viewModel.setRulePaused(selectedRuleToPause!!.id, selectedRuleToPause!!.monitorId, duration)
+                    selectedRuleToPause = null
+                } else if (selectedTypeToPause != null) {
+                    viewModel.setProtectionStatus(selectedTypeToPause!!, false, duration)
+                    selectedTypeToPause = null
+                } else {
+                    viewModel.pauseAllRules(duration)
+                }
+            },
+            viewModel = viewModel
         )
     }
+    
+    // Determine context for Schedule Modal
     if (showScheduleModal) {
+        val scheduleCtx = when {
+            selectedRuleToSchedule != null -> Triple(
+                Triple("Schedule Rule", selectedRuleToSchedule!!.isScheduleEnabled, selectedRuleToSchedule!!.scheduleDays.ifEmpty { listOf(1, 2, 3, 4, 5) }),
+                selectedRuleToSchedule!!.scheduleStart.ifEmpty { "09:00" },
+                selectedRuleToSchedule!!.scheduleEnd.ifEmpty { "18:00" }
+            )
+            selectedGroupToSchedule != null -> Triple(
+                Triple("Schedule ${selectedGroupToSchedule!!.type.title}", selectedGroupToSchedule!!.isScheduleEnabled, selectedGroupToSchedule!!.scheduleDays.ifEmpty { listOf(1, 2, 3, 4, 5) }),
+                selectedGroupToSchedule!!.scheduleStart.ifEmpty { "09:00" },
+                selectedGroupToSchedule!!.scheduleEnd.ifEmpty { "18:00" }
+            )
+            else -> null
+        }
+
+        if (scheduleCtx != null) {
+            val (meta, start, end) = scheduleCtx
+            val (title, isEnabled, days) = meta
+            ScheduleSystemModal(
+                title = title,
+                initialEnabled = isEnabled,
+                initialDays = days,
+                initialStart = start,
+                initialEnd = end,
+                onDismiss = { 
+                    showScheduleModal = false 
+                    selectedGroupToSchedule = null
+                    selectedRuleToSchedule = null
+                },
+                onSave = { newDays, newStart, newEnd, newEnabled ->
+                    if (selectedRuleToSchedule != null) {
+                        viewModel.setRuleSchedule(selectedRuleToSchedule!!, newDays, newStart, newEnd, newEnabled)
+                    } else if (selectedGroupToSchedule != null) {
+                        viewModel.setProtectionSchedule(selectedGroupToSchedule!!.type, newDays, newStart, newEnd, newEnabled)
+                    }
+                    showScheduleModal = false
+                    selectedGroupToSchedule = null
+                    selectedRuleToSchedule = null
+                },
+                viewModel = viewModel
+            )
+        }
+    }
+    
+    if (showGlobalScheduleModal) {
         ScheduleSystemModal(
-            onDismiss = { showScheduleModal = false },
-            onSave = { showScheduleModal = false }
+            title = "Global Schedule",
+            initialEnabled = globalSchedule.isEnabled,
+            initialDays = globalSchedule.days,
+            initialStart = globalSchedule.start,
+            initialEnd = globalSchedule.end,
+            onDismiss = { showGlobalScheduleModal = false },
+            onSave = { newDays, newStart, newEnd, newEnabled ->
+                viewModel.setGlobalSchedule(newDays, newStart, newEnd, newEnabled)
+                showGlobalScheduleModal = false
+            },
+            viewModel = viewModel
         )
     }
+
     if (ruleToRemove != null) {
         RemoveRuleChallengeModal(
             ruleName = ruleToRemove!!.monitorName,
@@ -437,77 +588,117 @@ fun GuardScreen(
 @Composable
 fun IndividualRuleTypeSubCard(
     group: ProtectionGroup,
+    currentTime: Long,
     onToggleGroup: (Boolean) -> Unit,
     onToggleGlobal: (Boolean) -> Unit,
     onUpdateRule: (String, Boolean) -> Unit,
     onRemoveRule: (MonitorRule) -> Unit,
-    onGlobalSchedule: () -> Unit
+    onGlobalSchedule: () -> Unit,
+    onRuleSchedule: (MonitorRule) -> Unit
 ) {
-    val isAnyActive = group.rules.any { it.isEnabled }
+    // Check Status for the whole group
+    // 1. Manually Paused (via toggle)
+    val isPaused = group.pausedUntil > currentTime || group.pausedUntil == -1L
+    
+    // 2. Scheduled Off
+    val status = TimeUtils.calculateStatus(
+        isEnabled = !isPaused, // If paused, it overrides schedule check for "active" but we want to show specific status
+        pausedUntil = group.pausedUntil,
+        isScheduleEnabled = group.isScheduleEnabled,
+        days = group.scheduleDays,
+        start = group.scheduleStart,
+        end = group.scheduleEnd,
+        now = currentTime
+    )
+    
+    // Determine the summary text
+    val summaryText = status.subLabel ?: if (status.isActive) "${group.rules.size} monitor(s)" else status.label
+
+    // Visuals for inactive state
+    val containerColor = if (status.isActive) Slate50 else Red50
+    val textColor = if (status.isActive) Slate400 else Red600
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Slate50),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
         shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Slate100),
+        border = androidx.compose.foundation.BorderStroke(1.dp, if(status.isActive) Slate100 else Red100),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onToggleGroup(!group.isExpanded) }
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
+                // Clickable area for expansion (Icon + Text)
+                Row(
                     modifier = Modifier
-                        .size(36.dp)
-                        .background(group.type.color.copy(alpha = 0.1f), CircleShape),
-                    contentAlignment = Alignment.Center
+                        .clickable { onToggleGroup(!group.isExpanded) }
+                        .weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = group.type.icon,
-                        contentDescription = null,
-                        tint = group.type.color,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(group.type.color.copy(alpha = 0.1f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = group.type.icon,
+                            contentDescription = null,
+                            tint = group.type.color,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .background(
+                                        color = if (group.isEffectivelyActive) Emerald500 else Slate400,
+                                        shape = CircleShape
+                                    )
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = group.type.title,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate900
+                            )
+                        }
+                        Text(
+                            text = summaryText,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = textColor,
+                            fontWeight = if(!status.isActive) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = group.type.title,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Slate900
-                    )
-                    Text(
-                        text = "${group.rules.size} monitor(s)",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Slate400
-                    )
-                }
+                
+                // Actions (Schedule + Toggle) - Not part of expansion click
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     // Small Circle Schedule Button
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(Slate100)
-                            .clickable { onGlobalSchedule() },
-                        contentAlignment = Alignment.Center
+                    IconButton(
+                        onClick = { onGlobalSchedule() },
+                        modifier = Modifier.size(36.dp),
+                        colors = IconButtonDefaults.iconButtonColors(containerColor = if(status.isActive) Slate100 else Color.White, contentColor = Slate400)
                     ) {
                         Icon(
                             imageVector = Icons.Default.CalendarMonth,
-                            contentDescription = null,
-                            tint = Slate400,
-                            modifier = Modifier.size(14.dp)
+                            contentDescription = "Schedule",
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                     Switch(
-                        checked = isAnyActive,
+                        checked = group.isEnabled && !isPaused,
                         onCheckedChange = { onToggleGlobal(it) },
                         modifier = Modifier.scale(0.6f),
                         colors = SwitchDefaults.colors(checkedTrackColor = Emerald500)
@@ -535,12 +726,15 @@ fun IndividualRuleTypeSubCard(
                         modifier = Modifier.padding(horizontal = 12.dp)
                     )
                     group.rules.forEach { rule ->
-                        MonitorDetailRow(
-                            rule = rule,
-                            onToggle = { onUpdateRule(rule.id, it) },
-                            onRemove = { onRemoveRule(rule) },
-                            onSchedule = onGlobalSchedule
-                        )
+                        key(rule.id) {
+                            MonitorDetailRow(
+                                rule = rule,
+                                currentTime = currentTime,
+                                onToggle = { onUpdateRule(rule.id, it) },
+                                onRemove = { onRemoveRule(rule) },
+                                onSchedule = { onRuleSchedule(rule) }
+                            )
+                        }
                     }
                 }
             }
@@ -551,10 +745,22 @@ fun IndividualRuleTypeSubCard(
 @Composable
 fun MonitorDetailRow(
     rule: MonitorRule,
+    currentTime: Long,
     onToggle: (Boolean) -> Unit,
     onRemove: () -> Unit,
     onSchedule: () -> Unit
 ) {
+    // Calculate Rule Status
+    val status = TimeUtils.calculateStatus(
+        isEnabled = rule.isEnabled && !rule.isDisabledByProtege,
+        pausedUntil = rule.pausedUntil,
+        isScheduleEnabled = rule.isScheduleEnabled,
+        days = rule.scheduleDays,
+        start = rule.scheduleStart,
+        end = rule.scheduleEnd,
+        now = currentTime
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -564,17 +770,39 @@ fun MonitorDetailRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "by ${rule.monitorName}",
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Bold,
-                color = Indigo600
-            )
-            Text(
-                text = rule.parameter,
-                style = MaterialTheme.typography.labelSmall,
-                color = Slate500
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Effective Status Indicator (Dot)
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .background(
+                            color = if (rule.isEffectivelyActive) Emerald500 else Slate400,
+                            shape = CircleShape
+                        )
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "by ${rule.monitorName}",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Indigo600
+                )
+            }
+            // Show Parameter OR Status if inactive
+            if (status.isActive) {
+                Text(
+                    text = rule.parameter,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Slate500
+                )
+            } else {
+                Text(
+                    text = status.subLabel ?: status.label, // "Paused: 14m"
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Red600,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -600,26 +828,44 @@ fun MonitorDetailRow(
                 modifier = Modifier
                     .size(26.dp)
                     .clip(CircleShape)
-                    .background(Slate100)
+                    .background(if (rule.isScheduleEnabled) Indigo600.copy(alpha = 0.1f) else Slate100)
                     .clickable { onSchedule() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.CalendarMonth,
                     contentDescription = null,
-                    tint = Slate400,
+                    tint = if (rule.isScheduleEnabled) Indigo600 else Slate400,
                     modifier = Modifier.size(13.dp)
                 )
             }
+            
+            // Switch reflects "Enabled by Monitor" generally, but Protege can toggle
+            // If it's paused or scheduled, switch state:
+            // The switch is the main "Toggle" control.
+            // If "Paused", user can toggle to "Off" (permanently disabled).
+            // If "Scheduled", user can toggle to "Off".
+            // So switch state tracks 'isEnabled' && '!isDisabledByProtege'.
+            // Even if paused/scheduled, the *intent* is ON.
+            val switchChecked = rule.isEnabled && !rule.isDisabledByProtege && rule.pausedUntil <= currentTime
+            
             Switch(
-                checked = rule.isEnabled,
+                checked = switchChecked,
+                enabled = rule.isEnabled,
                 onCheckedChange = { onToggle(it) },
                 modifier = Modifier.scale(0.55f),
-                colors = SwitchDefaults.colors(checkedTrackColor = Emerald500)
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = Emerald500,
+                    disabledCheckedTrackColor = Emerald500.copy(alpha = 0.5f),
+                    disabledUncheckedTrackColor = Slate200
+                )
             )
         }
     }
 }
+
+// --- HELPER FUNCTIONS ---
+// Moved to TimeUtils.kt
 
 @Composable
 fun RemoveRuleChallengeModal(
@@ -750,8 +996,9 @@ fun RemoveRuleChallengeModal(
 @Composable
 fun PauseSystemModal(
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
-    viewModel: pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel
+    onConfirm: (String, Long) -> Unit, // Updated signature
+    viewModel: pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel,
+    title: String // Generic Title
 ) {
     var pin by remember { mutableStateOf("") }
     var selectedDuration by remember { mutableStateOf("15 Min") }
@@ -778,7 +1025,7 @@ fun PauseSystemModal(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "Pause Protection",
+                        text = title,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = Slate900
@@ -890,8 +1137,7 @@ fun PauseSystemModal(
                                         "Indefinite" -> -1L
                                         else -> 0L
                                     }
-                                    viewModel.pauseAllRules(durationMillis)
-                                    onConfirm(pin)
+                                    onConfirm(pin, durationMillis)
                                 } else {
                                     errorText = "Invalid PIN"
                                     isChecking = false
@@ -938,14 +1184,30 @@ fun PauseSystemModal(
 
 @Composable
 fun ScheduleSystemModal(
+    title: String,
+    initialEnabled: Boolean,
+    initialDays: List<Int>,
+    initialStart: String,
+    initialEnd: String,
     onDismiss: () -> Unit,
-    onSave: () -> Unit
+    onSave: (List<Int>, String, String, Boolean) -> Unit,
+    viewModel: pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel
 ) {
     var pin by remember { mutableStateOf("") }
-    var startTime by remember { mutableStateOf("09:00") }
-    var endTime by remember { mutableStateOf("18:00") }
+    var scheduleEnabled by remember { mutableStateOf(initialEnabled) }
+    var startTime by remember { mutableStateOf(initialStart) }
+    var endTime by remember { mutableStateOf(initialEnd) }
     val days = listOf("S", "M", "T", "W", "T", "F", "S")
-    val selectedDays = remember { mutableStateListOf(1, 2, 3, 4, 5) }
+    val selectedDays = remember {
+        mutableStateListOf<Int>().apply {
+            if (initialDays.isNotEmpty()) addAll(initialDays)
+            else addAll(listOf(1, 2, 3, 4, 5))
+        }
+    }
+    
+    var isChecking by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(24.dp),
@@ -965,112 +1227,125 @@ fun ScheduleSystemModal(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "Schedule Plan",
+                        text = title,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = Slate900
+                        color = Slate900,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = scheduleEnabled,
+                        onCheckedChange = { scheduleEnabled = it },
+                        colors = SwitchDefaults.colors(checkedTrackColor = Indigo600)
                     )
                 }
-                Text(
-                    text = "ACTIVE DAYS",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate400
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    days.forEachIndexed { i, d ->
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .background(
-                                    color = if (selectedDays.contains(i)) Slate900 else Slate100,
-                                    shape = CircleShape
+                
+                AnimatedVisibility(visible = scheduleEnabled) {
+                    Column {
+                        Text(
+                            text = "ACTIVE DAYS",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate400
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            days.forEachIndexed { i, d ->
+                                val isSelected = selectedDays.contains(i)
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .background(
+                                            color = if (isSelected) Slate900 else Slate100,
+                                            shape = CircleShape
+                                        )
+                                        .clip(CircleShape)
+                                        .clickable {
+                                            if (isSelected) selectedDays.remove(i)
+                                            else selectedDays.add(i)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = d,
+                                        color = if (isSelected) Color.White else Slate400,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "START",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Slate400
                                 )
-                                .clip(CircleShape)
-                                .clickable {
-                                    if (selectedDays.contains(i)) selectedDays.remove(i)
-                                    else selectedDays.add(i)
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = d,
-                                color = if (selectedDays.contains(i)) Color.White else Slate400,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(56.dp)
+                                        .background(Slate50, RoundedCornerShape(12.dp))
+                                        .border(1.dp, Slate200, RoundedCornerShape(12.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    BasicTextField(
+                                        value = startTime,
+                                        onValueChange = { if (it.length <= 5) startTime = it },
+                                        textStyle = TextStyle(
+                                            textAlign = TextAlign.Center,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Slate900,
+                                            fontSize = 16.sp
+                                        ),
+                                        decorationBox = { it() }
+                                    )
+                                }
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "END",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Slate400
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(56.dp)
+                                        .background(Slate50, RoundedCornerShape(12.dp))
+                                        .border(1.dp, Slate200, RoundedCornerShape(12.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    BasicTextField(
+                                        value = endTime,
+                                        onValueChange = { if (it.length <= 5) endTime = it },
+                                        textStyle = TextStyle(
+                                            textAlign = TextAlign.Center,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Slate900,
+                                            fontSize = 16.sp
+                                        ),
+                                        decorationBox = { it() }
+                                    )
+                                }
+                            }
                         }
+                        Spacer(modifier = Modifier.height(24.dp))
                     }
                 }
-                Spacer(modifier = Modifier.height(24.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "START",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Slate400
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp)
-                                .background(Slate50, RoundedCornerShape(12.dp))
-                                .border(1.dp, Slate200, RoundedCornerShape(12.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            BasicTextField(
-                                value = startTime,
-                                onValueChange = { startTime = it },
-                                textStyle = TextStyle(
-                                    textAlign = TextAlign.Center,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Slate900,
-                                    fontSize = 16.sp
-                                ),
-                                decorationBox = { it() }
-                            )
-                        }
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "END",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Slate400
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp)
-                                .background(Slate50, RoundedCornerShape(12.dp))
-                                .border(1.dp, Slate200, RoundedCornerShape(12.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            BasicTextField(
-                                value = endTime,
-                                onValueChange = { endTime = it },
-                                textStyle = TextStyle(
-                                    textAlign = TextAlign.Center,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Slate900,
-                                    fontSize = 16.sp
-                                ),
-                                decorationBox = { it() }
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(24.dp))
+
                 Text(
                     text = "SECURITY PIN TO SAVE",
                     style = MaterialTheme.typography.labelSmall,
@@ -1137,7 +1412,19 @@ fun ScheduleSystemModal(
                         )
                     }
                     Button(
-                        onClick = { if (pin.length == 4) onSave() },
+                        onClick = {
+                            if (pin.length == 4) {
+                                isChecking = true
+                                scope.launch {
+                                    if (viewModel.verifyPin(pin)) {
+                                        onSave(selectedDays.toList(), startTime, endTime, scheduleEnabled)
+                                    } else {
+                                        isChecking = false
+                                    }
+                                }
+                            }
+                        },
+                        enabled = !isChecking,
                         modifier = Modifier
                             .weight(1f)
                             .height(56.dp),
@@ -1147,10 +1434,14 @@ fun ScheduleSystemModal(
                         ),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text(
-                            text = "Save",
-                            fontWeight = FontWeight.Bold
-                        )
+                        if (isChecking) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                        } else {
+                            Text(
+                                text = "Save",
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }

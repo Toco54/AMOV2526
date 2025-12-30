@@ -26,12 +26,21 @@ data class MonitorRule(
     val scheduleDays: List<Int> = emptyList(), // 0=Sunday, 1=Monday...
     val scheduleStart: String = "", // "HH:mm"
     val scheduleEnd: String = "",   // "HH:mm"
+    val isScheduleEnabled: Boolean = false,
     val pausedUntil: Long = 0L,     // Timestamp in millis
-    val isDisabledByProtege: Boolean = false
+    val isDisabledByProtege: Boolean = false,
+    val isEffectivelyActive: Boolean = true // Added
 )
 
 data class ProtectionGroup(
     val type: RuleType,
     val rules: List<MonitorRule>,
-    val isExpanded: Boolean = false
+    val isExpanded: Boolean = false,
+    val isEnabled: Boolean = true,
+    val pausedUntil: Long = 0L,
+    val scheduleDays: List<Int> = emptyList(),
+    val scheduleStart: String = "",
+    val scheduleEnd: String = "",
+    val isScheduleEnabled: Boolean = false,
+    val isEffectivelyActive: Boolean = true // Added
 )
