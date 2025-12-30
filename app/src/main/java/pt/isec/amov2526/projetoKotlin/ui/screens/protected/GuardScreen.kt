@@ -42,6 +42,7 @@ import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
 import pt.isec.amov2526.projetoKotlin.utils.StatusResult
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
 
 // --- CORES ---
 private val Slate50 = Color(0xFFF8FAFC)
@@ -65,12 +66,17 @@ private val Amber500 = Color(0xFFF59E0B)
 
 @Composable
 fun GuardScreen(
-    onPanic: () -> Unit = {}
+    onPanic: () -> Unit = {},
+    protectedViewModel: ProtectedMainViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val context = LocalContext.current
     val viewModel: pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         factory = pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModelFactory()
     )
+
+    LaunchedEffect(Unit) {
+        protectedViewModel.refreshServiceState() // Verifica se o serviço já está a correr
+    }
 
     // Init Location Tracking
     LaunchedEffect(Unit) {
@@ -114,7 +120,10 @@ fun GuardScreen(
     // Assuming 'isActive' == false means Offline OR Paused.
     // But 'isActive' is just a boolean. 
     // We will rely on the UI logic to show "PAUSED" if explicitly set.
-    
+
+
+    val isServiceRunning = protectedViewModel.isProtectionActive
+
     // Actually, let's use the helper to check schedule first.
     val globalScheduleStatus = TimeUtils.calculateStatus(
         isEnabled = true, // Base system is "enabled"
@@ -125,6 +134,8 @@ fun GuardScreen(
         end = globalSchedule.end,
         now = currentTime
     )
+
+    val finalSystemLabel = if (!isServiceRunning) "OFFLINE" else if (globalScheduleStatus.label == "PAUSED") "PAUSED" else "ACTIVE"
     
     // Overrule if system is manually set to "PAUSED" or "OFFLINE" via VM status text
     // (VM should ideally expose the precise state)
@@ -214,11 +225,12 @@ fun GuardScreen(
                             }
                             
                             // Status Pill
-                            val statusLabel = when {
-                                globalScheduleStatus.label == "PAUSED" -> "PAUSED"
-                                !isActive -> "OFFLINE"
-                                else -> "ACTIVE"
-                            }
+//                            val statusLabel = when {
+//                                globalScheduleStatus.label == "PAUSED" -> "PAUSED"
+//                                !isActive -> "OFFLINE"
+//                                else -> "ACTIVE"
+//                            }
+                            val statusLabel = finalSystemLabel
                             
                             val statusColor = if (statusLabel == "ACTIVE") Emerald700 else Slate400
                             val statusBg = if (statusLabel == "ACTIVE") Emerald50 else Slate200
@@ -231,11 +243,15 @@ fun GuardScreen(
                                     .background(color = statusBg, shape = RoundedCornerShape(20.dp))
                                     .clip(RoundedCornerShape(20.dp))
                                     .clickable {
-                                        if (isActive) {
-                                            selectedTypeToPause = null // Reset for global pause
-                                            showPauseModal = true 
+                                        // Se o serviço estiver ativo (a variável que definimos no passo 2)
+                                        // Nota: Se ainda não definiste a variável 'isServiceRunning' do passo anterior,
+                                        // usa 'protectedViewModel.isProtectionActive' aqui.
+                                        if (protectedViewModel.isProtectionActive) {
+                                            selectedTypeToPause = null
+                                            showPauseModal = true
                                         } else {
-                                            viewModel.setSystemStatus("ACTIVE")
+                                            // Se estiver OFFLINE, chamamos o nosso novo metodo para ligar o Serviço!
+                                            protectedViewModel.toggleProtection()
                                         }
                                     }
                                     .padding(start = 8.dp, end = 4.dp)
@@ -292,10 +308,16 @@ fun GuardScreen(
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
-                            val titleText = when {
-                                globalScheduleStatus.label == "PAUSED" -> "System Paused"
-                                !isActive -> "System Offline"
-                                !globalScheduleStatus.isActive -> "Scheduled Off"
+//                            val titleText = when {
+//                                globalScheduleStatus.label == "PAUSED" -> "System Paused"
+//                                !isActive -> "System Offline"
+//                                !globalScheduleStatus.isActive -> "Scheduled Off"
+//                                else -> "Protected"
+//                            }
+
+                            val titleText = when(finalSystemLabel) {
+                                "PAUSED" -> "System Paused"
+                                "OFFLINE" -> "System Offline" // Agora reage ao Serviço
                                 else -> "Protected"
                             }
                             
