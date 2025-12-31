@@ -88,7 +88,12 @@ fun MonitorDashboardScreen(
         }
     ) { innerPadding ->
         Column(
-            modifier = Modifier.fillMaxSize().background(Slate50).padding(innerPadding).verticalScroll(rememberScrollState()).padding(16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Slate50)
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             LiveLocationMapCard(userLocation = userLocation, rules = rules)
@@ -108,26 +113,54 @@ fun MonitorDashboardScreen(
                 shape = RoundedCornerShape(20.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(painterResource(id = R.drawable.ic_shield_check), null, tint = Emerald500, modifier = Modifier.size(20.dp))
+                            Icon(
+                                painterResource(id = R.drawable.ic_shield_check),
+                                null,
+                                tint = Emerald500,
+                                modifier = Modifier.size(20.dp)
+                            )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Manage Protection Rules", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
+                            Text(
+                                "Manage Protection Rules",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate900
+                            )
                         }
-                        IconButton(onClick = { showAddRuleSelection = true }, modifier = Modifier.size(28.dp).background(Slate100, CircleShape)) {
-                            Icon(Icons.Default.Add, "Add", tint = Slate900, modifier = Modifier.size(18.dp))
+                        IconButton(
+                            onClick = { showAddRuleSelection = true },
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(Slate100, CircleShape)
+                        ) {
+                            Icon(
+                                Icons.Default.Add,
+                                "Add",
+                                tint = Slate900,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                     if (rules.isEmpty()) {
-                        Text("No active rules. Tap + to add.", style = MaterialTheme.typography.bodySmall, color = Slate400, modifier = Modifier.padding(vertical = 12.dp))
+                        Text(
+                            "No active rules. Tap + to add.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Slate400,
+                            modifier = Modifier.padding(vertical = 12.dp)
+                        )
                     } else {
                         // Group rules by Type and sort by enum ordinal
                         val groupedRules = rules.groupBy { it.type }.toList().sortedBy { it.first.ordinal }
-                        
+
                         groupedRules.forEach { (type, typeRules) ->
                             if (type.isMultiInstance) {
-                                // Multi-instance: Use Expandable Group
                                 MonitorRuleGroup(
                                     type = type,
                                     rules = typeRules,
@@ -138,10 +171,8 @@ fun MonitorDashboardScreen(
                                     onToggleRule = { id, enabled -> viewModel.toggleRule(id, enabled) }
                                 )
                             } else {
-                                // Single-instance: Render standalone card
                                 val rule = typeRules.firstOrNull()
                                 if (rule != null) {
-                                    // Use a simplified version of the row logic wrapped in a Card
                                     Card(
                                         modifier = Modifier.fillMaxWidth(),
                                         colors = CardDefaults.cardColors(containerColor = Slate50),
@@ -155,7 +186,6 @@ fun MonitorDashboardScreen(
                                                 .padding(12.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            // Icon
                                             Box(
                                                 modifier = Modifier
                                                     .size(36.dp)
@@ -166,7 +196,6 @@ fun MonitorDashboardScreen(
                                             }
                                             Spacer(modifier = Modifier.width(12.dp))
                                             
-                                            // Text
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text(
                                                     text = type.title,
@@ -181,14 +210,12 @@ fun MonitorDashboardScreen(
                                                 )
                                             }
                                             
-                                            // Delete (optional for singleton? Maybe just toggle is enough, but keeping consistency)
                                             IconButton(onClick = { ruleIdToDelete = rule.id }, modifier = Modifier.size(32.dp)) {
                                                 Icon(Icons.Default.Delete, null, tint = Slate400, modifier = Modifier.size(18.dp))
                                             }
 
                                             Spacer(modifier = Modifier.width(4.dp))
 
-                                            // Switch
                                             if (rule.isDisabledByProtege) {
                                                 Icon(Icons.Default.PersonOff, "Disabled by User", tint = Red600, modifier = Modifier.size(24.dp))
                                             } else if (rule.pausedUntil > System.currentTimeMillis()) {
@@ -211,34 +238,49 @@ fun MonitorDashboardScreen(
                 }
             }
 
-            RecentActivityCard(activities = mockMonitorActivities, onActivityClick = { selectedActivity = it })
+            RecentActivityCard(
+                activities = mockMonitorActivities,
+                onActivityClick = { selectedActivity = it }
+            )
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
 
     if (showAddRuleSelection) {
-        AddRuleTypeDialog(existingRules = rules, onDismiss = { showAddRuleSelection = false }, onTypeSelected = { type ->
-            showAddRuleSelection = false
-            editingRule = ProtectionRule(
-                id = "NEW_${java.util.UUID.randomUUID()}",
-                type = type,
-                icon = when (type) {
-                    MonitorRuleType.FALL -> Icons.Default.MonitorHeart
-                    MonitorRuleType.ACCIDENT -> Icons.Default.CarCrash
-                    MonitorRuleType.GEOFENCING -> Icons.Default.LocationOn
-                    MonitorRuleType.SPEED -> Icons.Default.Speed
-                    else -> Icons.Default.Schedule
-                },
-                iconColor = when (type) {
-                    MonitorRuleType.FALL -> Color(0xFFFF7043)
-                    MonitorRuleType.ACCIDENT -> Color(0xFFEF4444)
-                    MonitorRuleType.GEOFENCING -> Color(0xFF7E57C2)
-                    MonitorRuleType.SPEED -> Color(0xFF42A5F5)
-                    else -> Slate400
-                },
-                isEnabled = true
-            )
-        })
+        AddRuleTypeDialog(
+            existingRules = rules,
+            onDismiss = { showAddRuleSelection = false },
+            onTypeSelected = { type ->
+                showAddRuleSelection = false
+                val newRule = ProtectionRule(
+                    id = "NEW_${java.util.UUID.randomUUID()}",
+                    type = type,
+                    icon = when (type) {
+                        MonitorRuleType.FALL -> Icons.Default.MonitorHeart
+                        MonitorRuleType.ACCIDENT -> Icons.Default.CarCrash
+                        MonitorRuleType.GEOFENCING -> Icons.Default.LocationOn
+                        MonitorRuleType.SPEED -> Icons.Default.Speed
+                        else -> Icons.Default.Schedule
+                    },
+                    iconColor = when (type) {
+                        MonitorRuleType.FALL -> Color(0xFFFF7043)
+                        MonitorRuleType.ACCIDENT -> Color(0xFFEF4444)
+                        MonitorRuleType.GEOFENCING -> Color(0xFF7E57C2)
+                        MonitorRuleType.SPEED -> Color(0xFF42A5F5)
+                        else -> Slate400
+                    },
+                    isEnabled = true
+                )
+                
+                if (!type.isMultiInstance) {
+                    // Directly add single-instance/parameter-less rules
+                    viewModel.addRule(newRule)
+                } else {
+                    // Open dialog for parameterized rules
+                    editingRule = newRule
+                }
+            }
+        )
     }
 
     if (editingRule != null) {
@@ -247,7 +289,10 @@ fun MonitorDashboardScreen(
             isNew = editingRule!!.id.startsWith("NEW_"),
             existingRules = rules,
             onDismiss = { editingRule = null },
-            onSave = { if (editingRule!!.id.startsWith("NEW_")) viewModel.addRule(it) else viewModel.updateRule(it); editingRule = null },
+            onSave = {
+                if (editingRule!!.id.startsWith("NEW_")) viewModel.addRule(it) else viewModel.updateRule(it)
+                editingRule = null
+            },
             onDelete = { ruleIdToDelete = it }
         )
     }
@@ -276,6 +321,9 @@ fun MonitorDashboardScreen(
     }
 
     if (selectedActivity != null) {
-        MonitorAlertDetailModal(activity = selectedActivity!!, onDismiss = { selectedActivity = null })
+        MonitorAlertDetailModal(
+            activity = selectedActivity!!,
+            onDismiss = { selectedActivity = null }
+        )
     }
 }

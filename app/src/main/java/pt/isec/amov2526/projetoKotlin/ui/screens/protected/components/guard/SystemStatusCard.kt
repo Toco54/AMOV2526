@@ -100,10 +100,25 @@ fun SystemStatusCard(
                     }
 
                     // Status Pill
-                    val statusLabel = finalSystemLabel
-                    val statusColor = if (statusLabel == "ACTIVE") Emerald700 else Slate400
-                    val statusBg = if (statusLabel == "ACTIVE") Emerald50 else Slate200
-                    val statusBorder = if (statusLabel == "ACTIVE") Emerald200 else Slate200
+                    // If the system is in SCHEDULED mode, the manual pause switch should still show ACTIVE (Green),
+                    // because the user hasn't manually paused it.
+                    val statusLabel = if (finalSystemLabel == "SCHEDULED") "ACTIVE" else finalSystemLabel
+                    
+                    val statusColor = when (statusLabel) {
+                        "ACTIVE" -> Emerald700
+                        "PAUSED" -> Amber500
+                        else -> Slate400
+                    }
+                    val statusBg = when (statusLabel) {
+                        "ACTIVE" -> Emerald50
+                        "PAUSED" -> Color(0xFFFFFBEB) // Amber50
+                        else -> Slate200
+                    }
+                    val statusBorder = when (statusLabel) {
+                        "ACTIVE" -> Emerald200
+                        "PAUSED" -> Color(0xFFFDE68A) // Amber200
+                        else -> Slate200
+                    }
 
                     Box(
                         modifier = Modifier
@@ -130,7 +145,7 @@ fun SystemStatusCard(
                                 modifier = Modifier
                                     .size(width = 32.dp, height = 16.dp)
                                     .background(
-                                        color = if (statusLabel == "ACTIVE") Emerald500 else Slate400,
+                                        color = if (statusLabel == "ACTIVE") Emerald500 else if (statusLabel == "PAUSED") Amber500 else Slate400,
                                         shape = RoundedCornerShape(10.dp)
                                     )
                             ) {
@@ -169,6 +184,7 @@ fun SystemStatusCard(
                     val titleText = when (finalSystemLabel) {
                         "PAUSED" -> "System Paused"
                         "OFFLINE" -> "System Offline"
+                        "SCHEDULED" -> "Scheduled Pause"
                         else -> "Protected"
                     }
 

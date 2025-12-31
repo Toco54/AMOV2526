@@ -82,7 +82,10 @@ fun GuardScreen(
         now = currentTime
     )
 
-    val finalSystemLabel = if (!isServiceRunning) "OFFLINE" else if (globalScheduleStatus.label == "PAUSED") "PAUSED" else "ACTIVE"
+    val finalSystemLabel = if (!isServiceRunning) "OFFLINE" 
+    else if (globalScheduleStatus.label == "PAUSED") "PAUSED" 
+    else if (globalScheduleStatus.label == "SCHEDULED") "SCHEDULED"
+    else "ACTIVE"
 
     if (showAlertScreen) {
         Dialog(
@@ -116,7 +119,10 @@ fun GuardScreen(
                 finalSystemLabel = finalSystemLabel,
                 onPlanClick = { showGlobalScheduleModal = true },
                 onStatusClick = {
-                    if (protectedViewModel.isProtectionActive) {
+                    if (globalScheduleStatus.label == "PAUSED") {
+                        viewModel.setSystemStatus("ACTIVE")
+                    } else if (protectedViewModel.isProtectionActive) {
+                        // Whether ACTIVE or SCHEDULED, clicking allows setting a manual Pause
                         selectedTypeToPause = null
                         showPauseModal = true
                     } else {

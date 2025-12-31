@@ -94,3 +94,15 @@ fun ProtegeCard(
         }
     }
 }
+
+@Composable
+fun SectionHeader(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Bold,
+        color = Slate400,
+        letterSpacing = 1.sp,
+        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+    )
+}

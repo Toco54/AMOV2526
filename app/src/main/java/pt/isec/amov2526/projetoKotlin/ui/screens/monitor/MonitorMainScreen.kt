@@ -15,9 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import pt.isec.amov2526.projetoKotlin.ui.components.EditProfileView
 import pt.isec.amov2526.projetoKotlin.ui.screens.monitor.components.main.*
@@ -214,16 +212,4 @@ fun MonitorMainScreen(
             onDismiss = { showEnterCodeModal = false }
         )
     }
-}
-
-@Composable
-fun SectionHeader(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.Bold,
-        color = Slate400,
-        letterSpacing = 1.sp,
-        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-    )
 }
