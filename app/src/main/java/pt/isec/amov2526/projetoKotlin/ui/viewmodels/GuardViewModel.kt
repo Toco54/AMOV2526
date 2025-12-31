@@ -123,14 +123,27 @@ class GuardViewModel(
     
     private fun updateEffectiveStatus() {
         val schedule = _globalSchedule.value
+        val now = System.currentTimeMillis()
+
+        val currentStatusText = _systemStatusText.value
+        val pausedUntil = _globalPausedUntil.value
+
+
+        if (currentStatusText == "PAUSED" && pausedUntil > 0 && pausedUntil < now) {
+            // O tempo de pausa acabou! Forçar o sistema a voltar a ACTIVE na Cloud.
+            setSystemStatus("ACTIVE")
+            return // A função será chamada novamente quando a DB atualizar
+        }
+
+
         val status = TimeUtils.calculateStatus(
             isEnabled = _isActive.value,
-            pausedUntil = _globalPausedUntil.value,
+            pausedUntil = pausedUntil,
             isScheduleEnabled = schedule.isEnabled,
             days = schedule.days,
             start = schedule.start,
             end = schedule.end,
-            now = System.currentTimeMillis()
+            now = now
         )
         _isEffectiveGlobalActive.value = status.isActive
         rebuildProtectionGroups()

@@ -11,16 +11,18 @@ import java.util.Locale
 import java.util.UUID
 
 class AlertRepository {
+    // Estas variáveis pertencem à classe
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
 
-    // Função para criar um alerta na Cloud
+    // A função TEM de estar dentro da classe para ver o 'db' e o 'auth'
     suspend fun createAlert(
         type: ActivityAlertType,
         title: String,
         latitude: Double? = null,
         longitude: Double? = null
     ) {
+        // Se 'auth' der erro aqui, é porque a função está fora da classe!
         val currentUser = auth.currentUser ?: return
         val uid = currentUser.uid
 
@@ -43,8 +45,7 @@ class AlertRepository {
         )
 
         try {
-            // Guardamos na coleção do próprio utilizador (Protegido)
-            // O Monitor vai "escutar" esta coleção
+            // Se o .await() der erro aqui, falta adicionar a dependência no build.gradle
             db.collection("users").document(uid)
                 .collection("alerts").document(alertId)
                 .set(alertData)
@@ -53,4 +54,4 @@ class AlertRepository {
             e.printStackTrace()
         }
     }
-}
+} // <--- A classe SÓ fecha aqui!

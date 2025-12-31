@@ -20,7 +20,11 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import pt.isec.amov2526.projetoKotlin.R
 
+import com.google.firebase.firestore.FirebaseFirestore
+
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
+import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
+
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 import pt.isec.amov2526.projetoKotlin.ui.components.EditProfileView
@@ -30,11 +34,15 @@ fun ProtectedMainScreen(
     navController: NavHostController = rememberNavController(),
     onLogout: () -> Unit = {},
     onSwitchToMonitor: () -> Unit = {},
-    viewModel: AuthViewModel = viewModel()
+    viewModel: AuthViewModel = viewModel(),
+    protectedViewModel: ProtectedMainViewModel = viewModel()
 ) {
     // Observe user state to trigger navigation after logout
     LaunchedEffect(viewModel.user) {
         if (viewModel.user == null) {
+            if (protectedViewModel.isProtectionActive) {
+                protectedViewModel.toggleProtection()
+            }
             onLogout()
         }
     }
@@ -100,7 +108,21 @@ fun ProtectedMainScreen(
                         name = viewModel.userName,
                         email = viewModel.userEmail,
                         onEditProfile = { isEditingProfile = true },
-                        onLogout = { viewModel.logout() }
+                        onLogout = {
+                            val uid = viewModel.user?.uid
+                            if (uid != null) {
+                                FirebaseFirestore.getInstance().collection("users").document(uid)
+                                    .update("systemStatus", "OFFLINE")
+                            }
+
+                            // 2. Desliga o Serviço localmente (mata a notificação e sensores)
+                            if (protectedViewModel.isProtectionActive) {
+                                protectedViewModel.toggleProtection()
+                            }
+
+                            // 3. Faz o Logout da conta (Auth)
+                            viewModel.logout()
+                        }
                     )
                 }
             }
