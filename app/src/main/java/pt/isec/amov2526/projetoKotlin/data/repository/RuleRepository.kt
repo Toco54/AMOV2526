@@ -7,8 +7,8 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
-import pt.isec.amov2526.projetoKotlin.ui.screens.monitor.ProtectionRule
-import pt.isec.amov2526.projetoKotlin.ui.screens.monitor.RuleType
+import pt.isec.amov2526.projetoKotlin.data.model.ProtectionRule
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType
 
 class RuleRepository {
     private val db = FirebaseFirestore.getInstance()
@@ -77,7 +77,7 @@ class RuleRepository {
                 val rules = snapshot.documents.mapNotNull { doc ->
                     try {
                         val typeStr = doc.getString("type") ?: return@mapNotNull null
-                        val type = RuleType.valueOf(typeStr)
+                        val type = MonitorRuleType.valueOf(typeStr)
                         
                         ProtectionRule(
                             id = doc.id,

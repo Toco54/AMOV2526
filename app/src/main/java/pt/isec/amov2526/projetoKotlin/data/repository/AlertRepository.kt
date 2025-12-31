@@ -3,8 +3,8 @@ package pt.isec.amov2526.projetoKotlin.data.repository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
-import pt.isec.amov2526.projetoKotlin.ui.screens.monitor.ActivityAlertStatus
-import pt.isec.amov2526.projetoKotlin.ui.screens.monitor.ActivityAlertType
+import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertStatus
+import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

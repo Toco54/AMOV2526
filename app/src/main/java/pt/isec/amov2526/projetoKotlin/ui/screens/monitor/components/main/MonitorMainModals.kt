@@ -1,0 +1,295 @@
+package pt.isec.amov2526.projetoKotlin.ui.screens.monitor.components.main
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import pt.isec.amov2526.projetoKotlin.ui.viewmodels.MonitorMainViewModel
+
+private val Slate50 = Color(0xFFF8FAFC)
+private val Slate100 = Color(0xFFF1F5F9)
+private val Slate200 = Color(0xFFE2E8F0)
+private val Slate400 = Color(0xFF94A3B8)
+private val Slate500 = Color(0xFF64748B)
+private val Slate900 = Color(0xFF0F172A)
+private val Emerald500 = Color(0xFF10B981)
+private val Emerald700 = Color(0xFF047857)
+private val Red600 = Color(0xFFDC2626)
+
+@Composable
+fun ConfirmConnectionDialog(
+    candidate: pt.isec.amov2526.projetoKotlin.data.repository.ConnectionCodeInfo,
+    onAccept: () -> Unit,
+    onReject: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onReject,
+        title = {
+            Text(text = "Confirm Connection", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column {
+                Text(text = "Do you want to connect with this user?")
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(text = "NAME", style = MaterialTheme.typography.labelSmall, color = Slate500, fontWeight = FontWeight.Bold)
+                Text(text = candidate.protegeName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(text = "EMAIL", style = MaterialTheme.typography.labelSmall, color = Slate500, fontWeight = FontWeight.Bold)
+                Text(text = candidate.protegeEmail, style = MaterialTheme.typography.bodyMedium)
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(text = "ACCESS LEVEL", style = MaterialTheme.typography.labelSmall, color = Slate500, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.Shield, 
+                        contentDescription = null, 
+                        tint = Emerald500, 
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = candidate.accessLevel, style = MaterialTheme.typography.bodyMedium, color = Emerald700, fontWeight = FontWeight.Bold)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onAccept,
+                colors = ButtonDefaults.buttonColors(containerColor = Slate900)
+            ) {
+                Text("Accept")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onReject) {
+                Text("Reject", color = Slate500)
+            }
+        }
+    )
+}
+
+@Composable
+fun ConfigureProtectedModal(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var pin by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.Shield,
+                        contentDescription = null,
+                        tint = Emerald500,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Enable Protection",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate900
+                    )
+                }
+
+                Text(
+                    text = "Create a protected profile for yourself. You will need a PIN to cancel false alarms.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Slate500,
+                    modifier = Modifier.padding(vertical = 16.dp)
+                )
+
+                Text(
+                    text = "CREATE SAFETY PIN (4 DIGITS)",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate400
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                TextField(
+                    value = pin,
+                    onValueChange = {
+                        if (it.length <= 4 && it.all { c -> c.isDigit() }) {
+                            pin = it
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    placeholder = {
+                        Text(
+                            text = "0000"
+                        )
+                    },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Slate50,
+                        unfocusedContainerColor = Slate50,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        letterSpacing = 8.sp
+                    ),
+                    visualTransformation = PasswordVisualTransformation()
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
+                            .background(Slate100, RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { onDismiss() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Cancel", color = Slate500, fontWeight = FontWeight.Bold)
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
+                            .background(
+                                color = if (pin.length == 4) Emerald500 else Slate200,
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable(enabled = pin.length == 4) { onConfirm(pin) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Create Profile", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EnterCodeModal(
+    viewModel: MonitorMainViewModel,
+    onDismiss: () -> Unit
+) {
+    var code by remember { mutableStateOf("") }
+    val isLoading = viewModel.isLoading
+    val errorMsg = viewModel.errorMsg
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp)
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    text = "Add Protege",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate900
+                )
+                Text(
+                    text = "Enter the 6-digit pairing code from the Protected user.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Slate500
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TextField(
+                    value = code,
+                    onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) code = it },
+                    placeholder = {
+                        Text(
+                            text = "000000",
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Slate50,
+                        unfocusedContainerColor = Slate50,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        letterSpacing = 8.sp
+                    )
+                )
+
+                if (errorMsg != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = errorMsg ?: "", color = Red600, fontSize = 14.sp)
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(containerColor = Slate100, contentColor = Slate900),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).height(50.dp)
+                    ) {
+                        Text("Cancel")
+                    }
+
+                    Button(
+                        onClick = { viewModel.validateCode(code) },
+                        enabled = code.length == 6 && !isLoading,
+                        colors = ButtonDefaults.buttonColors(containerColor = Slate900),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).height(50.dp)
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                        } else {
+                            Text("Connect")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -312,15 +312,15 @@ class GuardViewModel(
                 val newRules = snapshot.documents.mapNotNull { doc ->
                     try {
                         val typeStr = doc.getString("type") ?: return@mapNotNull null
-                        val type = pt.isec.amov2526.projetoKotlin.ui.screens.monitor.RuleType.valueOf(typeStr) // Use shared enum mapping if possible
+                        val type = pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType.valueOf(typeStr) // Use shared enum mapping if possible
                         
                         // Map internal RuleType to UI RuleType
                         val uiType = when(type) {
-                            pt.isec.amov2526.projetoKotlin.ui.screens.monitor.RuleType.FALL -> RuleType.FALL
-                            pt.isec.amov2526.projetoKotlin.ui.screens.monitor.RuleType.ACCIDENT -> RuleType.ACCIDENT
-                            pt.isec.amov2526.projetoKotlin.ui.screens.monitor.RuleType.GEOFENCING -> RuleType.GEOFENCING
-                            pt.isec.amov2526.projetoKotlin.ui.screens.monitor.RuleType.SPEED -> RuleType.SPEED
-                            pt.isec.amov2526.projetoKotlin.ui.screens.monitor.RuleType.INACTIVITY -> RuleType.INACTIVITY
+                            pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType.FALL -> RuleType.FALL
+                            pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType.ACCIDENT -> RuleType.ACCIDENT
+                            pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType.GEOFENCING -> RuleType.GEOFENCING
+                            pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType.SPEED -> RuleType.SPEED
+                            pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType.INACTIVITY -> RuleType.INACTIVITY
                         }
 
                         val param1 = doc.getString("param1") ?: ""

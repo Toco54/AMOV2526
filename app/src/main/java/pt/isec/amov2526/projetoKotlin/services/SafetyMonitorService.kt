@@ -12,7 +12,7 @@ import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.*
 import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.data.repository.AlertRepository
-import pt.isec.amov2526.projetoKotlin.ui.screens.monitor.ActivityAlertType
+import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
 import pt.isec.amov2526.projetoKotlin.utils.*
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore

@@ -17,8 +17,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import pt.isec.amov2526.projetoKotlin.data.repository.RuleRepository
-import pt.isec.amov2526.projetoKotlin.ui.screens.monitor.ProtectionRule
-import pt.isec.amov2526.projetoKotlin.ui.screens.monitor.RuleType
+import pt.isec.amov2526.projetoKotlin.data.model.ProtectionRule
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType
 
 class MonitorDashboardViewModel(
     private val ruleRepository: RuleRepository,
@@ -64,19 +64,19 @@ class MonitorDashboardViewModel(
                 val uiRules = rawRules.map { rule ->
                     rule.copy(
                         icon = when (rule.type) {
-                            RuleType.FALL -> Icons.Default.MonitorHeart
-                            RuleType.ACCIDENT -> Icons.Default.CarCrash
-                            RuleType.GEOFENCING -> Icons.Default.LocationOn
-                            RuleType.SPEED -> Icons.Default.Speed
-                            RuleType.INACTIVITY -> Icons.Default.Schedule
+                            MonitorRuleType.FALL -> Icons.Default.MonitorHeart
+                            MonitorRuleType.ACCIDENT -> Icons.Default.CarCrash
+                            MonitorRuleType.GEOFENCING -> Icons.Default.LocationOn
+                            MonitorRuleType.SPEED -> Icons.Default.Speed
+                            MonitorRuleType.INACTIVITY -> Icons.Default.Schedule
                             else -> Icons.Default.Shield
                         },
                         iconColor = when (rule.type) {
-                            RuleType.FALL -> Color(0xFFFF7043)
-                            RuleType.ACCIDENT -> Color(0xFFEF4444)
-                            RuleType.GEOFENCING -> Color(0xFF7E57C2)
-                            RuleType.SPEED -> Color(0xFF42A5F5)
-                            RuleType.INACTIVITY -> Color(0xFFFFA726)
+                            MonitorRuleType.FALL -> Color(0xFFFF7043)
+                            MonitorRuleType.ACCIDENT -> Color(0xFFEF4444)
+                            MonitorRuleType.GEOFENCING -> Color(0xFF7E57C2)
+                            MonitorRuleType.SPEED -> Color(0xFF42A5F5)
+                            MonitorRuleType.INACTIVITY -> Color(0xFFFFA726)
                             else -> Color.Gray
                         }
                     )
