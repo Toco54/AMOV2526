@@ -102,6 +102,7 @@ class SafetyMonitorService : Service() {
             .setContentText("Estamos a proteger-te em segundo plano.")
             .setSmallIcon(R.drawable.ic_shield_check) // Usa o teu ícone de escudo
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
             .build()
 
         // Inicia o serviço em modo Foreground (com tipo location para Android 14)

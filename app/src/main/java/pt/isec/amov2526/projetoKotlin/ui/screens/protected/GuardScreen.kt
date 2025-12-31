@@ -1059,7 +1059,7 @@ fun PauseSystemModal(
                     color = Slate500,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
-                listOf("15 Min", "30 Min", "1 Hour", "8 Hours", "Indefinite").forEach { dur ->
+                listOf("1 Min","15 Min", "30 Min", "1 Hour", "8 Hours", "Indefinite").forEach { dur ->
                     val isSelected = selectedDuration == dur
                     Row(
                         modifier = Modifier
@@ -1152,6 +1152,7 @@ fun PauseSystemModal(
                             scope.launch {
                                 if (viewModel.verifyPin(pin)) {
                                     val durationMillis = when(selectedDuration) {
+                                        "1 Min" -> 1 * 60 * 1000L
                                         "15 Min" -> 15 * 60 * 1000L
                                         "30 Min" -> 30 * 60 * 1000L
                                         "1 Hour" -> 60 * 60 * 1000L
