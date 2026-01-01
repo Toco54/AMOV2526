@@ -206,10 +206,13 @@ fun MonitorDashboardScreen(
                         val groupedRules = rules.groupBy { it.type }.toList().sortedBy { it.first.ordinal }
                         groupedRules.forEach { (type, typeRules) ->
                             if (type.isMultiInstance) {
-                                MonitorRuleGroup(
-                                    type = type,
-                                    rules = typeRules,
-                                    onToggleGroup = { enabled -> typeRules.forEach { if (it.isEnabled != enabled) viewModel.toggleRule(it.id, enabled) } },
+                                                                MonitorRuleGroup(
+                                                                    type = type,
+                                                                    rules = typeRules,
+                                                                    currentTime = currentTime,
+                                                                    onToggleGroup = { enabled ->
+                                                                        typeRules.forEach { if (it.isEnabled != enabled) viewModel.toggleRule(it.id, enabled) }
+                                                                    },
                                     onEditRule = { if (it.deletedByProtege) viewModel.deleteRule(it.id) else editingRule = it },
                                     onToggleRule = { id, enabled -> viewModel.toggleRule(id, enabled) }
                                 )
@@ -222,8 +225,35 @@ fun MonitorDashboardScreen(
                                             }
                                             Spacer(modifier = Modifier.width(12.dp))
                                             Column(modifier = Modifier.weight(1f)) {
-                                                Text(text = type.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
-                                                Text(text = if (rule.deletedByProtege) "Deleted by User" else if(rule.isEnabled) "Monitoring Active" else "Disabled", style = MaterialTheme.typography.labelSmall, color = if (rule.deletedByProtege) Red600 else Slate400)
+                                                Text(
+                                                    text = type.title,
+                                                    style = MaterialTheme.typography.titleSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Slate900
+                                                )
+                                                val detailText = when {
+                                                    rule.deletedByProtege -> "Deleted by User"
+                                                    rule.pausedUntil > currentTime -> "Paused"
+                                                    rule.isDisabledByProtege -> "Disabled by User"
+                                                    !rule.isEnabled -> "Disabled by Monitor"
+                                                    else -> "Monitoring Active"
+                                                }
+                                                Text(
+                                                    text = detailText,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = if (detailText != "Monitoring Active") Red600 else Slate400
+                                                )
+                                                
+                                                // Show Schedule Info
+                                                val schedText = pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatSchedule(rule.scheduleDays, rule.scheduleStart, rule.scheduleEnd)
+                                                if (schedText.isNotEmpty()) {
+                                                    Text(
+                                                        text = schedText,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = Slate400,
+                                                        modifier = Modifier.padding(top = 2.dp)
+                                                    )
+                                                }
                                             }
                                             IconButton(onClick = { if (rule.deletedByProtege) viewModel.deleteRule(rule.id) else ruleIdToDelete = rule.id }, modifier = Modifier.size(32.dp)) {
                                                 Icon(imageVector = Icons.Default.Delete, contentDescription = null, tint = if (rule.deletedByProtege) Red600 else Slate400, modifier = Modifier.size(18.dp))

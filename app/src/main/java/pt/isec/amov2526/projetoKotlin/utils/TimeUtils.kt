@@ -81,6 +81,13 @@ object TimeUtils {
         return "${minutes}m ${seconds}s"
     }
 
+    fun formatSchedule(days: List<Int>, start: String, end: String): String {
+        if (days.isEmpty() || start.isEmpty() || end.isEmpty()) return ""
+        val dayNames = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+        val activeDays = days.sorted().joinToString(", ") { dayNames[it] }
+        return "🕒 $activeDays • $start - $end"
+    }
+
     fun getNextActiveTime(days: List<Int>, startH: Int, startM: Int, now: Long): String {
         val cal = Calendar.getInstance()
         cal.timeInMillis = now

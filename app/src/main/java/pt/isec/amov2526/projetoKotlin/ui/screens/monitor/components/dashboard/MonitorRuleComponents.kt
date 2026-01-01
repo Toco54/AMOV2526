@@ -32,6 +32,7 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType
 import pt.isec.amov2526.projetoKotlin.data.model.ProtectionRule
+import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
 
 private val Slate50 = Color(0xFFF8FAFC)
 private val Slate100 = Color(0xFFF1F5F9)
@@ -45,7 +46,14 @@ private val Emerald500 = Color(0xFF10B981)
 private val Red600 = Color(0xFFDC2626)
 
 @Composable
-fun MonitorRuleGroup(type: MonitorRuleType, rules: List<ProtectionRule>, onToggleGroup: (Boolean) -> Unit, onEditRule: (ProtectionRule) -> Unit, onToggleRule: (String, Boolean) -> Unit) {
+fun MonitorRuleGroup(
+    type: MonitorRuleType, 
+    rules: List<ProtectionRule>, 
+    currentTime: Long,
+    onToggleGroup: (Boolean) -> Unit, 
+    onEditRule: (ProtectionRule) -> Unit, 
+    onToggleRule: (String, Boolean) -> Unit
+) {
     var isExpanded by remember { mutableStateOf(false) }
     val isAnyActive = rules.any { it.isEnabled }
     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Slate50), shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Slate100)) {
@@ -77,10 +85,40 @@ fun MonitorRuleGroup(type: MonitorRuleType, rules: List<ProtectionRule>, onToggl
                                     MonitorRuleType.INACTIVITY -> "Limit: ${rule.param1} min"
                                     else -> "Always Active"
                                 }
-                                val detail = if (isDeleted) "$baseDetail (Deleted)" else baseDetail
+                                
+                                val status = TimeUtils.calculateStatus(
+                                    isEnabled = true, 
+                                    pausedUntil = rule.pausedUntil,
+                                    isScheduleEnabled = rule.scheduleDays.isNotEmpty() || rule.scheduleStart.isNotEmpty(),
+                                    days = rule.scheduleDays,
+                                    start = rule.scheduleStart,
+                                    end = rule.scheduleEnd,
+                                    now = currentTime
+                                )
+                                val isScheduledOff = status.label == "SCHEDULED"
+                                
+                                val detail = when {
+                                    isDeleted -> "$baseDetail (Deleted)"
+                                    rule.pausedUntil > currentTime -> "Paused"
+                                    isScheduledOff -> "Scheduled Off"
+                                    rule.isDisabledByProtege -> "Disabled by User"
+                                    !rule.isEnabled -> "Disabled by Monitor"
+                                    else -> baseDetail
+                                }
                                 
                                 Text(if(rule.type.isMultiInstance) "Custom Rule" else "Standard Rule", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = Indigo600)
-                                Text(detail, style = MaterialTheme.typography.labelSmall, color = if (isDeleted) Red600 else Slate500)
+                                Text(detail, style = MaterialTheme.typography.labelSmall, color = if (detail != baseDetail) Red600 else Slate500)
+                                
+                                // Show Schedule Info
+                                val schedText = TimeUtils.formatSchedule(rule.scheduleDays, rule.scheduleStart, rule.scheduleEnd)
+                                if (schedText.isNotEmpty()) {
+                                    Text(
+                                        text = schedText,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Slate400,
+                                        modifier = Modifier.padding(top = 2.dp)
+                                    )
+                                }
                             }
                             
                             if (!isDeleted) {
@@ -88,11 +126,7 @@ fun MonitorRuleGroup(type: MonitorRuleType, rules: List<ProtectionRule>, onToggl
                                     Icon(Icons.Default.Settings, null, tint = Slate400, modifier = Modifier.size(16.dp))
                                 }
                             } else {
-                                // If deleted, show Delete button here instead of Settings
-                                IconButton(onClick = { onEditRule(rule) }, modifier = Modifier.size(24.dp)) { // Reusing onEditRule to trigger delete flow? No, MonitorDashboardScreen handles delete via ruleIdToDelete. But here we have onEditRule callback.
-                                    // Actually, the main screen handles delete via `ruleIdToDelete`. The group component doesn't have an explicit onDelete callback for individual rules, it assumes edit/toggle.
-                                    // But wait, the `onEditRule` callback in `MonitorDashboardScreen` opens `EditRuleDialog`, which HAS a delete button.
-                                    // So we can let them open the dialog to delete it permanently.
+                                IconButton(onClick = { onEditRule(rule) }, modifier = Modifier.size(24.dp)) {
                                     Icon(Icons.Default.Delete, null, tint = Red600, modifier = Modifier.size(16.dp))
                                 }
                             }
@@ -106,7 +140,7 @@ fun MonitorRuleGroup(type: MonitorRuleType, rules: List<ProtectionRule>, onToggl
                                     Icon(Icons.Default.PersonOff, "Disabled by User", tint = Red600, modifier = Modifier.size(20.dp))
                                     Spacer(modifier = Modifier.width(8.dp))
                                 }
-                                if (rule.pausedUntil > System.currentTimeMillis()) {
+                                if (rule.pausedUntil > currentTime) {
                                     Icon(Icons.Default.PauseCircle, "Paused", tint = Color(0xFFF59E0B), modifier = Modifier.size(20.dp))
                                     Spacer(modifier = Modifier.width(8.dp))
                                 }
@@ -134,7 +168,6 @@ fun AddRuleTypeDialog(existingRules: List<ProtectionRule>, onDismiss: () -> Unit
                 Text("Protection Type", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Slate900)
                 Spacer(modifier = Modifier.height(16.dp))
                 MonitorRuleType.entries.forEach { type ->
-                    // Ignore soft-deleted rules when checking availability
                     val isAlreadyDefined = !type.isMultiInstance && existingRules.any { it.type == type && !it.deletedByProtege }
                     
                     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).background(if (isAlreadyDefined) Slate100 else Slate50, RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).clickable(enabled = !isAlreadyDefined) { onTypeSelected(type) }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -155,13 +188,6 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
     val p2 = remember { object { var value = rule.param2 } }
     
     // Schedule States
-    var scheduleEnabled by remember { mutableStateOf(rule.pausedUntil <= 0 && rule.scheduleDays.isNotEmpty() || (rule.id.contains("NEW") && false)) } // Simplified init or use a dedicated flag
-    // Actually, ProtectionRule has fields. Let's use them.
-    var isSchedActive by remember { mutableStateOf(if(isNew) false else (rule.scheduleStart.isNotEmpty())) } // Assuming non-empty start time means schedule was at least touched
-    // Correction: Let's follow the model's intent.
-    var schedEnabled by remember { mutableStateOf(if(isNew) false else true) } // In this simple model, let's just use a local toggle
-    
-    // Let's stick to the model fields:
     var startTime by remember { mutableStateOf(if(rule.scheduleStart.isEmpty()) "09:00" else rule.scheduleStart) }
     var endTime by remember { mutableStateOf(if(rule.scheduleEnd.isEmpty()) "18:00" else rule.scheduleEnd) }
     val daysList = listOf("S", "M", "T", "W", "T", "F", "S")
@@ -263,7 +289,6 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                                 overlays.add(poly); currentPoly = poly
                                 addMapListener(object : org.osmdroid.events.MapListener {
                                     override fun onScroll(e: org.osmdroid.events.ScrollEvent?): Boolean {
-                                        // Disable center update if soft deleted (read-only view)
                                         if (!isSoftDeleted) {
                                             val center = mapCenter as GeoPoint; p2.value = "${center.latitude}, ${center.longitude}"
                                             poly.points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(center, p1.toDoubleOrNull() ?: 100.0); invalidate()

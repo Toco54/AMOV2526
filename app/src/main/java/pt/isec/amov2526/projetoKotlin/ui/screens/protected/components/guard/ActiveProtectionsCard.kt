@@ -325,11 +325,27 @@ fun MonitorDetailRow(
                     color = Slate500
                 )
             } else {
+                val displayLabel = when {
+                    rule.isDisabledByProtege -> "Disabled by User"
+                    !rule.isEnabled -> "Disabled by Monitor"
+                    else -> status.subLabel ?: status.label
+                }
                 Text(
-                    text = status.subLabel ?: status.label, // "Paused: 14m"
+                    text = displayLabel,
                     style = MaterialTheme.typography.labelSmall,
                     color = Red600,
                     fontWeight = FontWeight.Bold
+                )
+            }
+            
+            // Show Schedule Info (Extra Info)
+            val schedText = TimeUtils.formatSchedule(rule.scheduleDays, rule.scheduleStart, rule.scheduleEnd)
+            if (schedText.isNotEmpty()) {
+                Text(
+                    text = schedText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Slate400,
+                    modifier = Modifier.padding(top = 2.dp)
                 )
             }
         }
