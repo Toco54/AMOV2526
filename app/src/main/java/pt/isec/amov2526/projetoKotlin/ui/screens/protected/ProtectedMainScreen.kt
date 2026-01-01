@@ -7,10 +7,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import pt.isec.amov2526.projetoKotlin.ui.components.EditProfileView
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.ProtectedBottomBar
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.ProtectedTopBar
@@ -28,6 +31,7 @@ fun ProtectedMainScreen(
     // Observe user state to trigger navigation after logout
     LaunchedEffect(viewModel.user) {
         if (viewModel.user == null) {
+            // Ensure service is stopped if somehow still running (fail-safe)
             if (protectedViewModel.isProtectionActive) {
                 protectedViewModel.toggleProtection()
             }
@@ -38,6 +42,40 @@ fun ProtectedMainScreen(
     val context = LocalContext.current
     var isEditingProfile by remember { mutableStateOf(false) }
     val currentUserData = viewModel.currentUserData
+
+    // Estado para controlar o diálogo de "Go Online" no login
+    var showGoOnlineDialog by remember { mutableStateOf(false) }
+    
+    // Verificar apenas uma vez ao iniciar se a proteção está desligada
+    LaunchedEffect(Unit) {
+        if (!protectedViewModel.isProtectionActive) {
+            showGoOnlineDialog = true
+        }
+    }
+
+    if (showGoOnlineDialog) {
+        AlertDialog(
+            onDismissRequest = { showGoOnlineDialog = false },
+            title = { Text(text = "Activate Protection?") },
+            text = { Text("Do you want to go ONLINE and start monitoring your safety now?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        protectedViewModel.toggleProtection()
+                        showGoOnlineDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.ui.graphics.Color(0xFF10B981)) // Emerald500
+                ) {
+                    Text("Go Online")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showGoOnlineDialog = false }) {
+                    Text("Stay Offline")
+                }
+            }
+        )
+    }
 
     if (isEditingProfile) {
         EditProfileView(
@@ -83,7 +121,9 @@ fun ProtectedMainScreen(
                 modifier = Modifier.padding(innerPadding)
             ) {
                 composable("guard") {
-                    GuardScreen()
+                    GuardScreen(
+                        protectedViewModel = protectedViewModel
+                    )
                 }
                 composable("monitors") {
                     MonitorsScreen()
@@ -98,18 +138,28 @@ fun ProtectedMainScreen(
                         onEditProfile = { isEditingProfile = true },
                         onLogout = {
                             val uid = viewModel.user?.uid
-                            if (uid != null) {
-                                FirebaseFirestore.getInstance().collection("users").document(uid)
-                                    .update("systemStatus", "OFFLINE")
-                            }
+                            
+                            // Usar o Scope do ViewModel para garantir execução sequencial e robusta
+                            viewModel.viewModelScope.launch {
+                                try {
+                                    if (uid != null) {
+                                        // 1. Atualizar Firestore (OFFLINE) e esperar confirmação
+                                        FirebaseFirestore.getInstance().collection("users").document(uid)
+                                            .update("systemStatus", "OFFLINE")
+                                            .await()
+                                    }
+                                } catch (e: Exception) {
+                                    // Falha silenciosa de rede, prosseguir logout
+                                }
 
-                            // 2. Desliga o Serviço localmente (mata a notificação e sensores)
-                            if (protectedViewModel.isProtectionActive) {
-                                protectedViewModel.toggleProtection()
-                            }
+                                // 2. Desliga o Serviço localmente (mata a notificação e sensores)
+                                if (protectedViewModel.isProtectionActive) {
+                                    protectedViewModel.toggleProtection()
+                                }
 
-                            // 3. Faz o Logout da conta (Auth)
-                            viewModel.logout()
+                                // 3. Faz o Logout final (que limpa o user e dispara a navegação)
+                                viewModel.logout()
+                            }
                         }
                     )
                 }

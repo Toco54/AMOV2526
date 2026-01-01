@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import org.osmdroid.config.Configuration
@@ -68,22 +69,39 @@ fun MonitorRuleGroup(type: MonitorRuleType, rules: List<ProtectionRule>, onToggl
                     HorizontalDivider(color = Slate100, modifier = Modifier.padding(horizontal = 12.dp))
                     rules.forEach { rule ->
                         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            val isDeleted = rule.deletedByProtege
                             Column(modifier = Modifier.weight(1f)) {
-                                val detail = when (rule.type) {
+                                val baseDetail = when (rule.type) {
                                     MonitorRuleType.GEOFENCING -> if (rule.param1.isEmpty()) "Pending" else "Radius: ${rule.param1}m"
                                     MonitorRuleType.SPEED -> "Limit: ${rule.param1} km/h"
                                     MonitorRuleType.INACTIVITY -> "Limit: ${rule.param1} min"
                                     else -> "Always Active"
                                 }
+                                val detail = if (isDeleted) "$baseDetail (Deleted)" else baseDetail
+                                
                                 Text(if(rule.type.isMultiInstance) "Custom Rule" else "Standard Rule", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = Indigo600)
-                                Text(detail, style = MaterialTheme.typography.labelSmall, color = Slate500)
+                                Text(detail, style = MaterialTheme.typography.labelSmall, color = if (isDeleted) Red600 else Slate500)
                             }
-                            IconButton(onClick = { onEditRule(rule) }, modifier = Modifier.size(24.dp)) {
-                                Icon(Icons.Default.Settings, null, tint = Slate400, modifier = Modifier.size(16.dp))
+                            
+                            if (!isDeleted) {
+                                IconButton(onClick = { onEditRule(rule) }, modifier = Modifier.size(24.dp)) {
+                                    Icon(Icons.Default.Settings, null, tint = Slate400, modifier = Modifier.size(16.dp))
+                                }
+                            } else {
+                                // If deleted, show Delete button here instead of Settings
+                                IconButton(onClick = { onEditRule(rule) }, modifier = Modifier.size(24.dp)) { // Reusing onEditRule to trigger delete flow? No, MonitorDashboardScreen handles delete via ruleIdToDelete. But here we have onEditRule callback.
+                                    // Actually, the main screen handles delete via `ruleIdToDelete`. The group component doesn't have an explicit onDelete callback for individual rules, it assumes edit/toggle.
+                                    // But wait, the `onEditRule` callback in `MonitorDashboardScreen` opens `EditRuleDialog`, which HAS a delete button.
+                                    // So we can let them open the dialog to delete it permanently.
+                                    Icon(Icons.Default.Delete, null, tint = Red600, modifier = Modifier.size(16.dp))
+                                }
                             }
+                            
                             Spacer(modifier = Modifier.width(8.dp))
                             
-                            if (rule.isDisabledByProtege) {
+                            if (isDeleted) {
+                                Icon(Icons.Default.Warning, "Deleted", tint = Red600, modifier = Modifier.size(20.dp))
+                            } else if (rule.isDisabledByProtege) {
                                 Icon(Icons.Default.PersonOff, "Disabled by User", tint = Red600, modifier = Modifier.size(20.dp))
                             } else if (rule.pausedUntil > System.currentTimeMillis()) {
                                 Icon(Icons.Default.PauseCircle, "Paused", tint = Color(0xFFF59E0B), modifier = Modifier.size(20.dp))
@@ -111,7 +129,9 @@ fun AddRuleTypeDialog(existingRules: List<ProtectionRule>, onDismiss: () -> Unit
                 Text("Protection Type", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Slate900)
                 Spacer(modifier = Modifier.height(16.dp))
                 MonitorRuleType.entries.forEach { type ->
-                    val isAlreadyDefined = !type.isMultiInstance && existingRules.any { it.type == type }
+                    // Ignore soft-deleted rules when checking availability
+                    val isAlreadyDefined = !type.isMultiInstance && existingRules.any { it.type == type && !it.deletedByProtege }
+                    
                     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).background(if (isAlreadyDefined) Slate100 else Slate50, RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).clickable(enabled = !isAlreadyDefined) { onTypeSelected(type) }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(type.title, fontWeight = FontWeight.Bold, color = if (isAlreadyDefined) Slate400 else Slate700)
                         Spacer(modifier = Modifier.weight(1f))
@@ -128,6 +148,26 @@ fun AddRuleTypeDialog(existingRules: List<ProtectionRule>, onDismiss: () -> Unit
 fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<ProtectionRule>, onDismiss: () -> Unit, onSave: (ProtectionRule) -> Unit, onDelete: (String) -> Unit) {
     var p1 by remember { mutableStateOf(if(rule.param1.isEmpty()) "500" else rule.param1) }
     val p2 = remember { object { var value = rule.param2 } }
+    
+    // Schedule States
+    var scheduleEnabled by remember { mutableStateOf(rule.pausedUntil <= 0 && rule.scheduleDays.isNotEmpty() || (rule.id.contains("NEW") && false)) } // Simplified init or use a dedicated flag
+    // Actually, ProtectionRule has fields. Let's use them.
+    var isSchedActive by remember { mutableStateOf(if(isNew) false else (rule.scheduleStart.isNotEmpty())) } // Assuming non-empty start time means schedule was at least touched
+    // Correction: Let's follow the model's intent.
+    var schedEnabled by remember { mutableStateOf(if(isNew) false else true) } // In this simple model, let's just use a local toggle
+    
+    // Let's stick to the model fields:
+    var startTime by remember { mutableStateOf(if(rule.scheduleStart.isEmpty()) "09:00" else rule.scheduleStart) }
+    var endTime by remember { mutableStateOf(if(rule.scheduleEnd.isEmpty()) "18:00" else rule.scheduleEnd) }
+    val daysList = listOf("S", "M", "T", "W", "T", "F", "S")
+    val selectedDays = remember {
+        mutableStateListOf<Int>().apply {
+            if (rule.scheduleDays.isNotEmpty()) addAll(rule.scheduleDays)
+            else if (isNew) addAll(listOf(1, 2, 3, 4, 5))
+        }
+    }
+    var useSchedule by remember { mutableStateOf(rule.scheduleDays.isNotEmpty() || !isNew && rule.scheduleStart.isNotEmpty()) }
+
     var searchQuery by remember { mutableStateOf("") }
     val context = LocalContext.current
     val locationHelper = remember { pt.isec.amov2526.projetoKotlin.utils.LocationHelper(context) }
@@ -135,6 +175,8 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
     var hasInitializedMap by remember { mutableStateOf(false) }
     var mapViewRef by remember { mutableStateOf<MapView?>(null) }
     var currentPoly by remember { mutableStateOf<org.osmdroid.views.overlay.Polygon?>(null) }
+    
+    val isSoftDeleted = rule.deletedByProtege
 
     fun zoomToRadius(map: MapView, center: GeoPoint, radiusMeters: Double) {
         val delta = (radiusMeters * 1.5) / 111000.0
@@ -159,11 +201,36 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                         Icon(rule.icon, null, tint = rule.iconColor, modifier = Modifier.size(24.dp))
                     }
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text(rule.type.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Slate900)
+                    Column {
+                        Text(rule.type.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Slate900)
+                        if (isSoftDeleted) {
+                            Text("Marked for deletion by User", style = MaterialTheme.typography.labelSmall, color = Red600, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
+                
+                if (isSoftDeleted) {
+                    Text(
+                        "This rule was removed by the user. Details are shown below for review.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Slate500
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                // Content (Map/Params) shown for both active and deleted rules
                 if (rule.type == MonitorRuleType.GEOFENCING) {
-                    OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, placeholder = { Text("Search address...") }, leadingIcon = { Icon(Icons.Default.Search, null) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), singleLine = true)
+                    OutlinedTextField(
+                        value = searchQuery, 
+                        onValueChange = { searchQuery = it }, 
+                        placeholder = { Text("Search address...") }, 
+                        leadingIcon = { Icon(Icons.Default.Search, null) }, 
+                        modifier = Modifier.fillMaxWidth(), 
+                        shape = RoundedCornerShape(12.dp), 
+                        singleLine = true,
+                        enabled = !isSoftDeleted
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
                     Box(modifier = Modifier.fillMaxWidth().height(250.dp).clip(RoundedCornerShape(16.dp)).border(1.dp, Slate200, RoundedCornerShape(16.dp))) {
                         AndroidView(factory = { ctx ->
@@ -191,8 +258,12 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                                 overlays.add(poly); currentPoly = poly
                                 addMapListener(object : org.osmdroid.events.MapListener {
                                     override fun onScroll(e: org.osmdroid.events.ScrollEvent?): Boolean {
-                                        val center = mapCenter as GeoPoint; p2.value = "${center.latitude}, ${center.longitude}"
-                                        poly.points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(center, p1.toDoubleOrNull() ?: 100.0); invalidate(); return true
+                                        // Disable center update if soft deleted (read-only view)
+                                        if (!isSoftDeleted) {
+                                            val center = mapCenter as GeoPoint; p2.value = "${center.latitude}, ${center.longitude}"
+                                            poly.points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(center, p1.toDoubleOrNull() ?: 100.0); invalidate()
+                                        }
+                                        return true
                                     }
                                     override fun onZoom(e: org.osmdroid.events.ZoomEvent?): Boolean {
                                         poly.points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(mapCenter as GeoPoint, p1.toDoubleOrNull() ?: 100.0); return true
@@ -221,41 +292,155 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                         Box(modifier = Modifier.align(Alignment.Center)) {
                             Icon(Icons.Default.LocationOn, null, tint = Indigo600, modifier = Modifier.size(44.dp).offset(y = (-22).dp))
                         }
-                        SmallFloatingActionButton(onClick = { locationHelper.getLastLocation(); userLocation?.let { mapViewRef?.controller?.animateTo(GeoPoint(it.latitude, it.longitude)) } }, modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp), containerColor = Color.White, contentColor = Indigo600) {
-                            Icon(Icons.Default.MyLocation, null, modifier = Modifier.size(20.dp))
+                        if (!isSoftDeleted) {
+                            SmallFloatingActionButton(onClick = { locationHelper.getLastLocation(); userLocation?.let { mapViewRef?.controller?.animateTo(GeoPoint(it.latitude, it.longitude)) } }, modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp), containerColor = Color.White, contentColor = Indigo600) {
+                                Icon(Icons.Default.MyLocation, null, modifier = Modifier.size(20.dp))
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("RADIUS: ${p1} METERS", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate500)
-                    Slider(value = p1.toFloatOrNull() ?: 500f, onValueChange = { p1 = it.toInt().toString() }, valueRange = 100f..5000f, steps = 49, colors = SliderDefaults.colors(thumbColor = Indigo600, activeTrackColor = Indigo600))
+                    Slider(
+                        value = p1.toFloatOrNull() ?: 500f, 
+                        onValueChange = { p1 = it.toInt().toString() }, 
+                        valueRange = 100f..5000f, 
+                        steps = 49, 
+                        colors = SliderDefaults.colors(thumbColor = Indigo600, activeTrackColor = Indigo600),
+                        enabled = !isSoftDeleted
+                    )
                 }
                 if (rule.type.isMultiInstance && rule.type != MonitorRuleType.GEOFENCING) {
                     Text(if (rule.type == MonitorRuleType.SPEED) "MAX SPEED (KM/H)" else "TIME LIMIT (MINUTES)", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
-                    TextField(value = p1, onValueChange = { p1 = it }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth().padding(top = 4.dp), shape = RoundedCornerShape(12.dp), colors = TextFieldDefaults.colors(focusedContainerColor = Slate50, unfocusedContainerColor = Slate50))
+                    TextField(
+                        value = p1, 
+                        onValueChange = { p1 = it }, 
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp), 
+                        shape = RoundedCornerShape(12.dp), 
+                        colors = TextFieldDefaults.colors(focusedContainerColor = Slate50, unfocusedContainerColor = Slate50),
+                        enabled = !isSoftDeleted
+                    )
                 } else if (!rule.type.isMultiInstance) {
                     Text("This rule automatically detects events and notifies you. No parameters required.", color = Slate500, style = MaterialTheme.typography.bodyMedium)
                 }
+                
                 Spacer(modifier = Modifier.height(24.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                HorizontalDivider(color = Slate100)
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // --- SCHEDULE SECTION ---
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.CalendarMonth, null, tint = Indigo600, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Rule Schedule", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900, modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = useSchedule, 
+                        onCheckedChange = { useSchedule = it },
+                        colors = SwitchDefaults.colors(checkedTrackColor = Indigo600),
+                        enabled = !isSoftDeleted,
+                        modifier = Modifier.scale(0.8f)
+                    )
+                }
+                
+                AnimatedVisibility(visible = useSchedule) {
+                    Column(modifier = Modifier.padding(top = 16.dp)) {
+                        Text("ACTIVE DAYS", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            daysList.forEachIndexed { i, d ->
+                                val isSelected = selectedDays.contains(i)
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .background(color = if (isSelected) Slate900 else Slate100, shape = CircleShape)
+                                        .clip(CircleShape)
+                                        .clickable(enabled = !isSoftDeleted) {
+                                            if (isSelected) selectedDays.remove(i) else selectedDays.add(i)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(text = d, color = if (isSelected) Color.White else Slate400, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("START", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+                                OutlinedTextField(
+                                    value = startTime, 
+                                    onValueChange = { if(it.length <= 5) startTime = it }, 
+                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                    textStyle = androidx.compose.ui.text.TextStyle(textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontWeight = FontWeight.Bold),
+                                    enabled = !isSoftDeleted,
+                                    singleLine = true
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("END", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+                                OutlinedTextField(
+                                    value = endTime, 
+                                    onValueChange = { if(it.length <= 5) endTime = it }, 
+                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                    textStyle = androidx.compose.ui.text.TextStyle(textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontWeight = FontWeight.Bold),
+                                    enabled = !isSoftDeleted,
+                                    singleLine = true
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                // Footer Buttons
+                if (isSoftDeleted) {
                     Button(
-                        onClick = { if (isNew) onDismiss() else onDelete(rule.id) },
-                        modifier = Modifier.weight(1f).height(52.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isNew) Slate100 else Red600,
-                            contentColor = if (isNew) Slate500 else Color.White
-                        ),
+                        onClick = { onDelete(rule.id) },
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Red600),
                         shape = RoundedCornerShape(14.dp)
-                    ) { Text(if (isNew) "Cancel" else "Delete", fontWeight = FontWeight.Bold) }
+                    ) { Text("Permanently Delete", fontWeight = FontWeight.Bold) }
                     
-                    Button(
-                        onClick = { onSave(rule.copy(param1 = p1, param2 = p2.value, isEnabled = true)) },
-                        modifier = Modifier.weight(1f).height(52.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Indigo600,
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(14.dp)
-                    ) { Text(if (isNew) "Add" else "Save", fontWeight = FontWeight.Bold) }
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                    ) { Text("Cancel", color = Slate500) }
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Button(
+                            onClick = { if (isNew) onDismiss() else onDelete(rule.id) },
+                            modifier = Modifier.weight(1f).height(52.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isNew) Slate100 else Red600,
+                                contentColor = if (isNew) Slate500 else Color.White
+                            ),
+                            shape = RoundedCornerShape(14.dp)
+                        ) { Text(if (isNew) "Cancel" else "Delete", fontWeight = FontWeight.Bold) }
+                        
+                        Button(
+                            onClick = { 
+                                val updatedRule = rule.copy(
+                                    param1 = p1, 
+                                    param2 = p2.value, 
+                                    isEnabled = true,
+                                    scheduleDays = if (useSchedule) selectedDays.toList() else emptyList(),
+                                    scheduleStart = if (useSchedule) startTime else "",
+                                    scheduleEnd = if (useSchedule) endTime else ""
+                                )
+                                onSave(updatedRule) 
+                            },
+                            modifier = Modifier.weight(1f).height(52.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Indigo600,
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(14.dp)
+                        ) { Text(if (isNew) "Add" else "Save", fontWeight = FontWeight.Bold) }
+                    }
                 }
             }
         }

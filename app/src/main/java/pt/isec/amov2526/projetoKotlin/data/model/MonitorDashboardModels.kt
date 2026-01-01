@@ -24,7 +24,8 @@ data class ProtectionRule(
     val scheduleStart: String = "",
     val scheduleEnd: String = "",
     val pausedUntil: Long = 0L,
-    val isDisabledByProtege: Boolean = false
+    val isDisabledByProtege: Boolean = false,
+    val deletedByProtege: Boolean = false
 )
 
 data class AlertStat(val label: String, val count: Int)

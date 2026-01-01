@@ -60,6 +60,18 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
             val result = repository.login(email, pass)
             if (result.isSuccess) {
                 user = repository.currentUser
+                
+                // Initial Ping: Set lastUpdate immediately so Monitor sees user as Online
+                if (user != null) {
+                    try {
+                        com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                            .collection("users").document(user!!.uid)
+                            .update("lastUpdate", System.currentTimeMillis())
+                    } catch (e: Exception) {
+                        // Ignore network error on initial ping
+                    }
+                }
+                
                 loadUserData(user!!.uid, user!!.email ?: "")
             } else {
                 val exception = result.exceptionOrNull()

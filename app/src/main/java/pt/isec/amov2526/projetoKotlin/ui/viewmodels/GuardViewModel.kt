@@ -23,16 +23,12 @@ import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
 class GuardViewModel(
     private val ruleRepository: RuleRepository,
     private val connectionRepository: ConnectionRepository,
-    // Note: Ideally inject this, but for now we instantiate or pass via factory
 ) : ViewModel() {
 
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
     private val currentUserUid = auth.currentUser?.uid ?: ""
     
-    // Will be initialized in init if possible, or we need context. 
-    // Since ViewModel shouldn't hold context, we might need to pass LocationHelper from Factory.
-    // I'll update Factory below.
     private var locationHelper: LocationHelper? = null
 
     // System Status
@@ -89,7 +85,6 @@ class GuardViewModel(
         
         viewModelScope.launch {
             locationHelper?.currentLocation?.collect { loc ->
-                // Check Effective Status (Schedule + Pause + Manual)
                 if (loc != null && _isEffectiveGlobalActive.value) { 
                     db.collection("users").document(currentUserUid)
                         .update(
@@ -128,13 +123,10 @@ class GuardViewModel(
         val currentStatusText = _systemStatusText.value
         val pausedUntil = _globalPausedUntil.value
 
-
         if (currentStatusText == "PAUSED" && pausedUntil > 0 && pausedUntil < now) {
-            // O tempo de pausa acabou! Forçar o sistema a voltar a ACTIVE na Cloud.
             setSystemStatus("ACTIVE")
-            return // A função será chamada novamente quando a DB atualizar
+            return 
         }
-
 
         val status = TimeUtils.calculateStatus(
             isEnabled = _isActive.value,
@@ -159,7 +151,6 @@ class GuardViewModel(
                 _systemStatusText.value = status
                 _globalPausedUntil.value = snapshot.getLong("globalPausedUntil") ?: 0L
                 
-                // Fetch Global Schedule
                 val gDays = (snapshot.get("globalScheduleDays") as? List<Number>)?.map { it.toInt() } ?: listOf(1, 2, 3, 4, 5)
                 val gStart = snapshot.getString("globalScheduleStart") ?: "09:00"
                 val gEnd = snapshot.getString("globalScheduleEnd") ?: "18:00"
@@ -168,8 +159,6 @@ class GuardViewModel(
                 
                 updateEffectiveStatus()
                 
-                // Fetch active protection types
-                // Structure: activeProtections = { "FALL": { "enabled": true, "pausedUntil": 0, "scheduleDays": [], ... } }
                 val rawMap = snapshot.get("activeProtections") as? Map<String, Any>
                 if (rawMap != null) {
                     val newTypeStatus = mutableMapOf<RuleType, ProtectionStatus>()
@@ -186,7 +175,6 @@ class GuardViewModel(
                                 
                                 newTypeStatus[type] = ProtectionStatus(enabled, pausedUntil, days, start, end, schedEnabled)
                             } else if (value is Boolean) {
-                                // Backward compatibility for boolean-only map
                                 newTypeStatus[type] = ProtectionStatus(value, 0L)
                             }
                         } catch (_: Exception) {}
@@ -194,7 +182,6 @@ class GuardViewModel(
                     _typeStatus.value = newTypeStatus
                     rebuildProtectionGroups()
                 } else {
-                     // Default to all true if not set
                      _typeStatus.value = RuleType.values().associateWith { ProtectionStatus(true, 0L) }
                      rebuildProtectionGroups()
                 }
@@ -202,9 +189,12 @@ class GuardViewModel(
         })
     }
     
-    fun setSystemStatus(status: String) { // ACTIVE, PAUSED, SCHEDULED
+    fun setSystemStatus(status: String) {
         viewModelScope.launch {
-            val updates = mutableMapOf<String, Any>("systemStatus" to status)
+            val updates = mutableMapOf<String, Any>(
+                "systemStatus" to status,
+                "lastUpdate" to System.currentTimeMillis()
+            )
             if (status == "ACTIVE") {
                 updates["globalPausedUntil"] = 0L
             }
@@ -230,7 +220,7 @@ class GuardViewModel(
         val currentStatus = _typeStatus.value[type] ?: ProtectionStatus(true, 0L)
         
         val pausedUntil = if (enabled) 0L else {
-            if (duration == -1L) -1L // Indefinite
+            if (duration == -1L) -1L 
             else System.currentTimeMillis() + duration
         }
         
@@ -306,15 +296,16 @@ class GuardViewModel(
         val registration = query.addSnapshotListener { snapshot, e ->
             if (e != null) return@addSnapshotListener
             if (snapshot != null) {
-                // Remove old rules for this monitor
                 allRules.removeAll { it.monitorId == monitor.uid }
 
                 val newRules = snapshot.documents.mapNotNull { doc ->
                     try {
+                        // Ignore rules deleted by Protege (Soft Delete)
+                        if (doc.getBoolean("deletedByProtege") == true) return@mapNotNull null
+
                         val typeStr = doc.getString("type") ?: return@mapNotNull null
-                        val type = pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType.valueOf(typeStr) // Use shared enum mapping if possible
+                        val type = pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType.valueOf(typeStr)
                         
-                        // Map internal RuleType to UI RuleType
                         val uiType = when(type) {
                             pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType.FALL -> RuleType.FALL
                             pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType.ACCIDENT -> RuleType.ACCIDENT
@@ -333,7 +324,7 @@ class GuardViewModel(
 
                         MonitorRule(
                             id = doc.id,
-                            monitorId = monitor.uid, // Store ID for logic
+                            monitorId = monitor.uid,
                             monitorName = monitor.name,
                             parameter = parameterDisplay,
                             isEnabled = doc.getBoolean("isEnabled") ?: true,
@@ -366,7 +357,6 @@ class GuardViewModel(
         val newGroups = RuleType.values().map { type ->
             val status = typeStatus[type] ?: ProtectionStatus(true, 0L)
             
-            // Local Group Status
             val localGroupStatus = TimeUtils.calculateStatus(
                 isEnabled = status.isEnabled,
                 pausedUntil = status.pausedUntil,
@@ -379,7 +369,6 @@ class GuardViewModel(
             
             val isGroupEffectivelyActive = isGlobalActive && localGroupStatus.isActive
 
-            // Map Rules with their effective status
             val rulesForType = (grouped[type] ?: emptyList()).map { rule ->
                 val localRuleStatus = TimeUtils.calculateStatus(
                     isEnabled = rule.isEnabled && !rule.isDisabledByProtege,
@@ -419,25 +408,15 @@ class GuardViewModel(
         }
     }
 
-    // When Protege toggles a rule off, we set isDisabledByProtege = true.
-    // If they toggle it ON, we set isDisabledByProtege = false (re-enabling it).
-    // Note: 'enabled' param here comes from the Switch checked state.
-    // If Switch is ON -> rule is Active. If OFF -> rule is Disabled.
     fun toggleRule(rule: MonitorRule, enabled: Boolean) {
         val isDisabled = !enabled
         
         viewModelScope.launch {
-            // We use direct Firestore update here for specific field to avoid overwriting monitor params if possible,
-            // but consistency is key. Since we have local copy, we can reconstruct.
-            // But 'param1' and 'param2' might change from Monitor side?
-            // Safer to just update the specific field for Protege control.
-            
             val updates = mutableMapOf<String, Any>(
                 "isDisabledByProtege" to isDisabled
             )
             
             if (enabled) {
-                // If re-enabling, clear any pause timer
                 updates["pausedUntil"] = 0L
             }
             
@@ -465,7 +444,7 @@ class GuardViewModel(
         }
     }
 
-    fun pauseAllRules(durationMillis: Long) {
+    fun pauseGlobalProtection(durationMillis: Long) {
         viewModelScope.launch {
             val pausedUntil = if (durationMillis == -1L) 0L else (System.currentTimeMillis() + durationMillis)
             
@@ -481,7 +460,11 @@ class GuardViewModel(
 
     fun deleteRule(rule: MonitorRule) {
         viewModelScope.launch {
-            ruleRepository.deleteRule(rule.id, rule.monitorId, currentUserUid)
+            db.collection("users").document(currentUserUid)
+                .collection("connections").document(rule.monitorId)
+                .collection("rules").document(rule.id)
+                .update("deletedByProtege", true)
+                .await()
         }
     }
 

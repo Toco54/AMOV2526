@@ -36,10 +36,12 @@ private val Emerald200 = Color(0xFFA7F3D0)
 private val Emerald500 = Color(0xFF10B981)
 private val Emerald700 = Color(0xFF047857)
 private val Amber500 = Color(0xFFF59E0B)
+private val Indigo600 = Color(0xFF4F46E5)
 
 @Composable
 fun SystemStatusCard(
     isActive: Boolean,
+    isGlobalScheduleEnabled: Boolean,
     globalScheduleStatus: StatusResult,
     finalSystemLabel: String,
     onPlanClick: () -> Unit,
@@ -73,10 +75,23 @@ fun SystemStatusCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    val isScheduleActiveNow = globalScheduleStatus.label == "SCHEDULED"
+                    
                     Box(
                         modifier = Modifier
-                            .border(1.dp, Slate200, RoundedCornerShape(20.dp))
-                            .background(Color.White, RoundedCornerShape(20.dp))
+                            .border(
+                                1.dp, 
+                                if (isScheduleActiveNow) Indigo600
+                                else if (isGlobalScheduleEnabled) Indigo600.copy(alpha = 0.2f) 
+                                else Slate200, 
+                                RoundedCornerShape(20.dp)
+                            )
+                            .background(
+                                if (isScheduleActiveNow) Indigo600
+                                else if (isGlobalScheduleEnabled) Indigo600.copy(alpha = 0.1f) 
+                                else Color.White, 
+                                RoundedCornerShape(20.dp)
+                            )
                             .clip(RoundedCornerShape(20.dp))
                             .clickable { onPlanClick() }
                             .padding(horizontal = 10.dp, vertical = 4.dp)
@@ -85,14 +100,14 @@ fun SystemStatusCard(
                             Icon(
                                 imageVector = Icons.Default.CalendarMonth,
                                 contentDescription = null,
-                                tint = Slate500,
+                                tint = if (isScheduleActiveNow) Color.White else if (isGlobalScheduleEnabled) Indigo600 else Slate500,
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "PLAN",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Slate500,
+                                color = if (isScheduleActiveNow) Color.White else if (isGlobalScheduleEnabled) Indigo600 else Slate500,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 10.sp
                             )

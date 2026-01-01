@@ -63,6 +63,9 @@ class SafetyMonitorService : Service() {
     private fun observeSystemStatus() {
         val uid = auth.currentUser?.uid ?: return
 
+        // 0. Iniciar Heartbeat (Ping) para sinalizar que estamos online
+        startHeartbeat(uid)
+
         // 1. Verificar se o utilizador Pausou a aplicação
         serviceScope.launch {
             db.collection("users").document(uid)
@@ -97,6 +100,22 @@ class SafetyMonitorService : Service() {
                     )
                     db.collection("users").document(uid).update(updates)
                 }
+            }
+        }
+    }
+
+    private fun startHeartbeat(uid: String) {
+        serviceScope.launch {
+            while (isActive) {
+                // Se a proteção estiver ativa ou se a app estiver apenas aberta (Service Running), enviamos sinal.
+                // Atualizar APENAS o timestamp para não gastar muita quota ou re-escrever localização antiga.
+                try {
+                    db.collection("users").document(uid)
+                        .update("lastUpdate", System.currentTimeMillis())
+                } catch (e: Exception) {
+                    // Falha silenciosa de rede
+                }
+                delay(60000L) // Ping a cada 60 segundos
             }
         }
     }

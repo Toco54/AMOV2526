@@ -92,7 +92,8 @@ class RuleRepository {
                             scheduleStart = doc.getString("scheduleStart") ?: "",
                             scheduleEnd = doc.getString("scheduleEnd") ?: "",
                             pausedUntil = doc.getLong("pausedUntil") ?: 0L,
-                            isDisabledByProtege = doc.getBoolean("isDisabledByProtege") ?: false
+                            isDisabledByProtege = doc.getBoolean("isDisabledByProtege") ?: false,
+                            deletedByProtege = doc.getBoolean("deletedByProtege") ?: false
                         )
                     } catch (e: Exception) {
                         null

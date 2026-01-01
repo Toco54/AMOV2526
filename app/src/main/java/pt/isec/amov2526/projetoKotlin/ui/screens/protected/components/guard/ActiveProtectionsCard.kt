@@ -200,12 +200,24 @@ fun IndividualRuleTypeSubCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     // Small Circle Schedule Button
+                    val isScheduleEnabled = group.isScheduleEnabled
+                    val isScheduleActiveNow = status.label == "SCHEDULED"
+                    
                     IconButton(
                         onClick = { onGlobalSchedule() },
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(
+                                color = if (isScheduleActiveNow) Indigo600
+                                        else if (isScheduleEnabled) Indigo600.copy(alpha = 0.1f)
+                                        else if (status.isActive) Slate100 else Color.White,
+                                shape = CircleShape
+                            ),
                         colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = if (status.isActive) Slate100 else Color.White,
-                            contentColor = Slate400
+                            containerColor = Color.Transparent, // Managed by background modifier
+                            contentColor = if (isScheduleActiveNow) Color.White 
+                                           else if (isScheduleEnabled) Indigo600 
+                                           else Slate400
                         )
                     ) {
                         Icon(
@@ -326,6 +338,7 @@ fun MonitorDetailRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             // Smaller Circular Buttons
+            val isRuleScheduleActive = status.label == "SCHEDULED"
             Box(
                 modifier = Modifier
                     .size(26.dp)
@@ -345,14 +358,20 @@ fun MonitorDetailRow(
                 modifier = Modifier
                     .size(26.dp)
                     .clip(CircleShape)
-                    .background(if (rule.isScheduleEnabled) Indigo600.copy(alpha = 0.1f) else Slate100)
+                    .background(
+                        if (isRuleScheduleActive) Indigo600
+                        else if (rule.isScheduleEnabled) Indigo600.copy(alpha = 0.1f) 
+                        else Slate100
+                    )
                     .clickable { onSchedule() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.CalendarMonth,
                     contentDescription = null,
-                    tint = if (rule.isScheduleEnabled) Indigo600 else Slate400,
+                    tint = if (isRuleScheduleActive) Color.White 
+                           else if (rule.isScheduleEnabled) Indigo600 
+                           else Slate400,
                     modifier = Modifier.size(13.dp)
                 )
             }

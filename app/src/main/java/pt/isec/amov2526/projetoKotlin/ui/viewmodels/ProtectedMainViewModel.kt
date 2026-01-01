@@ -11,6 +11,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import pt.isec.amov2526.projetoKotlin.data.model.ConnectedUser
 import pt.isec.amov2526.projetoKotlin.data.repository.ConnectionRepository
 import pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService
@@ -41,19 +42,85 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
     fun toggleProtection() {
         val context = getApplication<Application>().applicationContext
         val intent = Intent(context, SafetyMonitorService::class.java)
+        val uid = auth.currentUser?.uid ?: return
+        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
 
         if (isProtectionActive) {
-            // Desligar
+            // --- DESLIGAR (OFFLINE) ---
             context.stopService(intent)
             isProtectionActive = false
+            
+            viewModelScope.launch {
+                try {
+                    val doc = db.collection("users").document(uid).get().await()
+                    val status = doc.getString("systemStatus")
+                    val pausedUntil = doc.getLong("globalPausedUntil") ?: 0L
+                    val now = System.currentTimeMillis()
+                    
+                    val updates = mutableMapOf<String, Any>("systemStatus" to "OFFLINE")
+                    
+                    // Se estava em Pausa, guardar o tempo restante
+                    if (status == "PAUSED" && pausedUntil > now) {
+                        val remaining = pausedUntil - now
+                        updates["storedRemainingPause"] = remaining
+                        updates["globalPausedUntil"] = 0L // Limpar timer ativo
+                    } else if (status == "PAUSED" && pausedUntil == -1L) {
+                         // Pausa indefinida
+                         updates["storedRemainingPause"] = -1L
+                         updates["globalPausedUntil"] = 0L
+                    } else {
+                        // Limpar qualquer lixo anterior
+                         updates["storedRemainingPause"] = 0L
+                         updates["globalPausedUntil"] = 0L
+                    }
+                    
+                    db.collection("users").document(uid).update(updates).await()
+                } catch (e: Exception) {
+                    // Fail silent
+                }
+            }
+
         } else {
-            // Ligar (Adaptado para versões recentes do Android)
+            // --- LIGAR (ONLINE) ---
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {
                 context.startService(intent)
             }
             isProtectionActive = true
+            
+            viewModelScope.launch {
+                try {
+                    val doc = db.collection("users").document(uid).get().await()
+                    val storedRemaining = doc.getLong("storedRemainingPause") ?: 0L
+                    val now = System.currentTimeMillis()
+                    
+                    val updates = mutableMapOf<String, Any>(
+                        "lastUpdate" to now
+                    )
+                    
+                    if (storedRemaining > 0) {
+                        // Restaurar Pausa
+                        updates["systemStatus"] = "PAUSED"
+                        updates["globalPausedUntil"] = now + storedRemaining
+                        updates["storedRemainingPause"] = 0L
+                    } else if (storedRemaining == -1L) {
+                        // Restaurar Pausa Indefinida
+                        updates["systemStatus"] = "PAUSED"
+                        updates["globalPausedUntil"] = -1L
+                        updates["storedRemainingPause"] = 0L
+                    } else {
+                        // Ativar Normal
+                        updates["systemStatus"] = "ACTIVE"
+                        updates["globalPausedUntil"] = 0L
+                        updates["storedRemainingPause"] = 0L
+                    }
+                    
+                    db.collection("users").document(uid).update(updates).await()
+                } catch (e: Exception) {
+                    // Fail silent
+                }
+            }
         }
     }
 

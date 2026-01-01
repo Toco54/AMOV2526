@@ -95,7 +95,8 @@ fun GuardScreen(
             Box(modifier = Modifier.fillMaxSize()) {
                 AlertScreen(
                     onCancel = { showAlertScreen = false },
-                    onConfirm = { }
+                    onConfirm = { },
+                    onValidatePin = { viewModel.verifyPin(it) }
                 )
             }
         }
@@ -114,7 +115,8 @@ fun GuardScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             SystemStatusCard(
-                isActive = isActive,
+                isActive = isServiceRunning,
+                isGlobalScheduleEnabled = globalSchedule.isEnabled,
                 globalScheduleStatus = globalScheduleStatus,
                 finalSystemLabel = finalSystemLabel,
                 onPlanClick = { showGlobalScheduleModal = true },
@@ -215,7 +217,7 @@ fun GuardScreen(
                     viewModel.setProtectionStatus(selectedTypeToPause!!, false, duration)
                     selectedTypeToPause = null
                 } else {
-                    viewModel.pauseAllRules(duration)
+                    viewModel.pauseGlobalProtection(duration)
                 }
             },
             viewModel = viewModel

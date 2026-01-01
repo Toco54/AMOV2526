@@ -15,15 +15,26 @@ private val DarkBackground = Color(0xFF0F172A)
 fun AlertScreen(
     alertType: String = "SOS",
     onCancel: () -> Unit,
-    onConfirm: () -> Unit
+    onConfirm: () -> Unit,
+    onValidatePin: suspend (String) -> Boolean
 ) {
     var isConfirmed by remember { mutableStateOf(false) }
     var pinInput by remember { mutableStateOf("") }
-    val correctPin = "1234"
+    
+    // Feedback visual de erro
+    var isPinError by remember { mutableStateOf(false) }
 
     LaunchedEffect(pinInput) {
-        if (!isConfirmed && pinInput == correctPin) {
-            onCancel()
+        if (!isConfirmed && pinInput.length == 4) {
+            val isValid = onValidatePin(pinInput)
+            if (isValid) {
+                onCancel()
+            } else {
+                isPinError = true
+                kotlinx.coroutines.delay(500)
+                pinInput = ""
+                isPinError = false
+            }
         }
     }
 

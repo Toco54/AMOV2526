@@ -19,6 +19,14 @@ import kotlinx.coroutines.launch
 import pt.isec.amov2526.projetoKotlin.data.repository.RuleRepository
 import pt.isec.amov2526.projetoKotlin.data.model.ProtectionRule
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType
+import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
+
+data class GlobalScheduleInfo(
+    val isEnabled: Boolean,
+    val days: List<Int>,
+    val start: String,
+    val end: String
+)
 
 class MonitorDashboardViewModel(
     private val ruleRepository: RuleRepository,
@@ -34,14 +42,32 @@ class MonitorDashboardViewModel(
     private val _userLocation = MutableStateFlow<org.osmdroid.util.GeoPoint?>(null)
     val userLocation: StateFlow<org.osmdroid.util.GeoPoint?> = _userLocation.asStateFlow()
 
+    private val _systemStatus = MutableStateFlow("OFFLINE")
+    val systemStatus: StateFlow<String> = _systemStatus.asStateFlow()
+
+    private val _statusDetail = MutableStateFlow<String?>(null)
+    val statusDetail: StateFlow<String?> = _statusDetail.asStateFlow()
+
+    private val _pausedUntil = MutableStateFlow(0L)
+    val pausedUntil: StateFlow<Long> = _pausedUntil.asStateFlow()
+    
+    private val _globalSchedule = MutableStateFlow<GlobalScheduleInfo?>(null)
+    val globalSchedule: StateFlow<GlobalScheduleInfo?> = _globalSchedule.asStateFlow()
+
+    private val _isDisconnected = MutableStateFlow(false)
+    val isDisconnected: StateFlow<Boolean> = _isDisconnected.asStateFlow()
+
+    private val _protegeEmail = MutableStateFlow("")
+    val protegeEmail: StateFlow<String> = _protegeEmail.asStateFlow()
+
     init {
         if (currentMonitorId.isNotEmpty() && protegeUid.isNotEmpty()) {
             startListeningRules()
-            startListeningLocation()
+            startListeningUserStatus()
         }
     }
 
-    private fun startListeningLocation() {
+    private fun startListeningUserStatus() {
         val docRef = com.google.firebase.firestore.FirebaseFirestore.getInstance()
             .collection("users").document(protegeUid)
             
@@ -49,11 +75,55 @@ class MonitorDashboardViewModel(
             if (e != null) return@addSnapshotListener
             
             if (snapshot != null && snapshot.exists()) {
+                // Email
+                _protegeEmail.value = snapshot.getString("email") ?: ""
+
+                // Location
                 val lat = snapshot.getDouble("lastLat")
                 val lng = snapshot.getDouble("lastLng")
                 if (lat != null && lng != null) {
                     _userLocation.value = org.osmdroid.util.GeoPoint(lat, lng)
                 }
+
+                // Status & Connectivity
+                val dbStatus = snapshot.getString("systemStatus") ?: "OFFLINE"
+                val lastUpdate = snapshot.getLong("lastUpdate") ?: 0L
+                val now = System.currentTimeMillis()
+                
+                // Read Schedule & Pause Data
+                val globalPausedUntil = snapshot.getLong("globalPausedUntil") ?: 0L
+                val gDays = (snapshot.get("globalScheduleDays") as? List<Number>)?.map { it.toInt() } ?: listOf(1, 2, 3, 4, 5)
+                val gStart = snapshot.getString("globalScheduleStart") ?: "09:00"
+                val gEnd = snapshot.getString("globalScheduleEnd") ?: "18:00"
+                val gEnabled = snapshot.getBoolean("isGlobalScheduleEnabled") ?: false
+                
+                _globalSchedule.value = GlobalScheduleInfo(gEnabled, gDays, gStart, gEnd)
+
+                // Calculate Effective Status if not OFFLINE
+                var finalStatus = dbStatus
+                var detail: String? = null
+                
+                if (dbStatus != "OFFLINE") {
+                    val calculated = TimeUtils.calculateStatus(
+                        isEnabled = (dbStatus == "ACTIVE" || dbStatus == "PAUSED"), // Assuming system is technically 'enabled' if not offline
+                        pausedUntil = globalPausedUntil,
+                        isScheduleEnabled = gEnabled,
+                        days = gDays,
+                        start = gStart,
+                        end = gEnd,
+                        now = now
+                    )
+                    finalStatus = calculated.label
+                    detail = calculated.subLabel
+                }
+                
+                _systemStatus.value = finalStatus
+                _statusDetail.value = detail
+                _pausedUntil.value = globalPausedUntil
+                
+                // If status is not OFFLINE but last update was > 2 mins ago, consider DISCONNECTED
+                val isActuallyDisconnected = dbStatus != "OFFLINE" && (now - lastUpdate > 120000L)
+                _isDisconnected.value = isActuallyDisconnected
             }
         }
     }
