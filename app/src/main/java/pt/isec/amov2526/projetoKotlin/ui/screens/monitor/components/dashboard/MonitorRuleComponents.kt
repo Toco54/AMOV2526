@@ -101,11 +101,16 @@ fun MonitorRuleGroup(type: MonitorRuleType, rules: List<ProtectionRule>, onToggl
                             
                             if (isDeleted) {
                                 Icon(Icons.Default.Warning, "Deleted", tint = Red600, modifier = Modifier.size(20.dp))
-                            } else if (rule.isDisabledByProtege) {
-                                Icon(Icons.Default.PersonOff, "Disabled by User", tint = Red600, modifier = Modifier.size(20.dp))
-                            } else if (rule.pausedUntil > System.currentTimeMillis()) {
-                                Icon(Icons.Default.PauseCircle, "Paused", tint = Color(0xFFF59E0B), modifier = Modifier.size(20.dp))
                             } else {
+                                if (rule.isDisabledByProtege) {
+                                    Icon(Icons.Default.PersonOff, "Disabled by User", tint = Red600, modifier = Modifier.size(20.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+                                if (rule.pausedUntil > System.currentTimeMillis()) {
+                                    Icon(Icons.Default.PauseCircle, "Paused", tint = Color(0xFFF59E0B), modifier = Modifier.size(20.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+                                
                                 Switch(
                                     checked = rule.isEnabled,
                                     onCheckedChange = { onToggleRule(rule.id, it) },

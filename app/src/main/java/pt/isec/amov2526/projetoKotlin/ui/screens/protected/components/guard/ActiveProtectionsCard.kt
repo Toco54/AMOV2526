@@ -376,18 +376,25 @@ fun MonitorDetailRow(
                 )
             }
 
-            // Switch reflects "Enabled by Monitor" generally, but Protege can toggle
-            // If it's paused or scheduled, switch state:
-            // The switch is the main "Toggle" control.
-            // If "Paused", user can toggle to "Off" (permanently disabled).
-            // If "Scheduled", user can toggle to "Off".
-            // So switch state tracks 'isEnabled' && '!isDisabledByProtege'.
-            // Even if paused/scheduled, the *intent* is ON.
-            val switchChecked = rule.isEnabled && !rule.isDisabledByProtege && rule.pausedUntil <= currentTime
+            // Switch logic for Protege side:
+            // Controls 'isDisabledByProtege'. If checked (ON) -> isDisabledByProtege = false.
+            // Also reflects PAUSE state: If paused (temporarily or indefinitely), switch appears OFF.
+            val switchChecked = !rule.isDisabledByProtege && rule.pausedUntil <= currentTime
+
+            // Status warning if Monitor disabled it
+            if (!rule.isEnabled) {
+                 Icon(
+                     imageVector = Icons.Default.AdminPanelSettings, 
+                     contentDescription = "Disabled by Monitor", 
+                     tint = Red600, 
+                     modifier = Modifier.size(20.dp)
+                 )
+                 Spacer(modifier = Modifier.width(4.dp))
+            }
 
             Switch(
                 checked = switchChecked,
-                enabled = rule.isEnabled,
+                enabled = true, // Always enabled so Protege can set their preference
                 onCheckedChange = { onToggle(it) },
                 modifier = Modifier.scale(0.55f),
                 colors = SwitchDefaults.colors(
