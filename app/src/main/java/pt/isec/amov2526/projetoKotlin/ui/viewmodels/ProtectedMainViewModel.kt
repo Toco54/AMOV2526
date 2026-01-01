@@ -16,11 +16,17 @@ import pt.isec.amov2526.projetoKotlin.data.model.ConnectedUser
 import pt.isec.amov2526.projetoKotlin.data.repository.ConnectionRepository
 import pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService
 
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.tasks.await
+
 // MUDANÇA 1: Herdar de 'AndroidViewModel(application)' para ter acesso ao Contexto (necessário para iniciar Serviços)
 class ProtectedMainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = ConnectionRepository()
     private val auth = FirebaseAuth.getInstance()
+    private val db = FirebaseFirestore.getInstance()
+    private var monitorListener: ListenerRegistration? = null
 
     // --- ESTADOS EXISTENTES (Do teu colega) ---
     var isLoading by mutableStateOf(false)
@@ -34,8 +40,48 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
         private set
 
     init {
-        fetchMonitors()
+        startListeningMonitors()
         refreshServiceState()
+    }
+    
+    private fun startListeningMonitors() {
+        val currentUser = auth.currentUser ?: return
+        isLoading = true
+        
+        val query = db.collection("users").document(currentUser.uid)
+            .collection("connections")
+            .whereEqualTo("role", "Monitor")
+            
+        monitorListener = query.addSnapshotListener { snapshot, e ->
+            isLoading = false
+            if (e != null) {
+                errorMsg = e.message
+                return@addSnapshotListener
+            }
+            
+            if (snapshot != null) {
+                viewModelScope.launch {
+                    val newList = snapshot.documents.mapNotNull { doc ->
+                        val uid = doc.getString("uid") ?: ""
+                        val accessLevel = doc.getString("accessLevel") ?: "Full Monitoring"
+                        try {
+                            val userDoc = db.collection("users").document(uid).get().await()
+                            ConnectedUser(
+                                uid = uid,
+                                name = userDoc.getString("name") ?: "Unknown",
+                                email = userDoc.getString("email") ?: "",
+                                role = "Monitor",
+                                accessLevel = accessLevel
+                            )
+                        } catch (ex: Exception) {
+                            null
+                        }
+                    }
+                    monitors.clear()
+                    monitors.addAll(newList)
+                }
+            }
+        }
     }
 
     // --- NOVA FUNÇÃO: Ligar/Desligar Proteção ---
@@ -129,21 +175,18 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
         isProtectionActive = SafetyMonitorService.isServiceRunning
     }
 
+    // Used when GuardViewModel handles the DB update (e.g. Indefinite Pause)
+    fun stopServiceOnly() {
+        val context = getApplication<Application>().applicationContext
+        val intent = Intent(context, SafetyMonitorService::class.java)
+        context.stopService(intent)
+        isProtectionActive = false
+    }
+
     // --- FUNÇÕES EXISTENTES (Lógica do teu colega mantida a 100%) ---
 
     fun fetchMonitors() {
-        val currentUser = auth.currentUser ?: return
-        isLoading = true
-        viewModelScope.launch {
-            val result = repository.getMonitors(currentUser.uid)
-            if (result.isSuccess) {
-                monitors.clear()
-                monitors.addAll(result.getOrDefault(emptyList()))
-            } else {
-                errorMsg = result.exceptionOrNull()?.message ?: "Failed to fetch monitors"
-            }
-            isLoading = false
-        }
+        // Kept for compatibility but effectively replaced by listener
     }
 
     fun removeMonitor(targetUid: String) {
@@ -152,7 +195,7 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch {
             val result = repository.removeConnection(currentUser.uid, targetUid)
             if (result.isSuccess) {
-                fetchMonitors()
+                // fetchMonitors() // Listener updates automatically
             } else {
                 errorMsg = result.exceptionOrNull()?.message ?: "Failed to remove monitor"
             }
@@ -183,5 +226,10 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
 
     fun clearError() {
         errorMsg = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        monitorListener?.remove()
     }
 }

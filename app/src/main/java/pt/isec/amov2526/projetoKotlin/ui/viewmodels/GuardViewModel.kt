@@ -102,7 +102,7 @@ class GuardViewModel(
     init {
         if (currentUserUid.isNotEmpty()) {
             fetchSystemStatus()
-            fetchMonitorsAndRules()
+            startListeningMonitorsAndRules()
             startScheduleChecker()
         }
     }
@@ -275,28 +275,59 @@ class GuardViewModel(
         }
     }
 
-    private fun fetchMonitorsAndRules() {
-        viewModelScope.launch {
-            val monitorsResult = connectionRepository.getMonitors(currentUserUid)
-            if (monitorsResult.isSuccess) {
-                val monitors = monitorsResult.getOrDefault(emptyList())
-                monitors.forEach { monitor ->
-                    monitorNameMap[monitor.uid] = monitor.name
-                    listenToRulesForMonitor(monitor)
+    private fun startListeningMonitorsAndRules() {
+        val query = db.collection("users").document(currentUserUid)
+            .collection("connections")
+            .whereEqualTo("role", "Monitor")
+
+        listeners.add(query.addSnapshotListener { snapshot, e ->
+            if (e != null) return@addSnapshotListener
+            if (snapshot != null) {
+                // Get current UIDs in snapshot
+                val currentMonitorUids = snapshot.documents.mapNotNull { it.getString("uid") }.toSet()
+                
+                // 1. Identify and remove listeners for monitors that are no longer connected
+                val monitorsToRemove = monitorNameMap.keys.filter { it !in currentMonitorUids }
+                monitorsToRemove.forEach { uid ->
+                    // Remove from name map and rules
+                    monitorNameMap.remove(uid)
+                    allRules.removeAll { it.monitorId == uid }
+                    // Note: Rule listeners are managed via registrations in 'listeners' 
+                    // and 'monitorRuleListeners' map below
+                }
+
+                // 2. Add listeners for NEW monitors
+                viewModelScope.launch {
+                    snapshot.documents.forEach { doc ->
+                        val uid = doc.getString("uid") ?: return@forEach
+                        if (!monitorNameMap.containsKey(uid)) {
+                            // Fetch name once
+                            val userDoc = db.collection("users").document(uid).get().await()
+                            val name = userDoc.getString("name") ?: "Unknown"
+                            monitorNameMap[uid] = name
+                            listenToRulesForMonitor(uid, name)
+                        }
+                    }
+                    rebuildProtectionGroups()
                 }
             }
-        }
+        })
     }
 
-    private fun listenToRulesForMonitor(monitor: ConnectedUser) {
+    private val monitorRuleListeners = mutableMapOf<String, ListenerRegistration>()
+
+    private fun listenToRulesForMonitor(monitorUid: String, monitorName: String) {
+        // Remove existing listener for this monitor if any
+        monitorRuleListeners[monitorUid]?.remove()
+
         val query = db.collection("users").document(currentUserUid)
-            .collection("connections").document(monitor.uid)
+            .collection("connections").document(monitorUid)
             .collection("rules")
 
         val registration = query.addSnapshotListener { snapshot, e ->
             if (e != null) return@addSnapshotListener
             if (snapshot != null) {
-                allRules.removeAll { it.monitorId == monitor.uid }
+                allRules.removeAll { it.monitorId == monitorUid }
 
                 val newRules = snapshot.documents.mapNotNull { doc ->
                     try {
@@ -324,8 +355,8 @@ class GuardViewModel(
 
                         MonitorRule(
                             id = doc.id,
-                            monitorId = monitor.uid,
-                            monitorName = monitor.name,
+                            monitorId = monitorUid,
+                            monitorName = monitorName,
                             parameter = parameterDisplay,
                             isEnabled = doc.getBoolean("isEnabled") ?: true,
                             type = uiType,
@@ -345,7 +376,7 @@ class GuardViewModel(
                 rebuildProtectionGroups()
             }
         }
-        listeners.add(registration)
+        monitorRuleListeners[monitorUid] = registration
     }
 
     private fun rebuildProtectionGroups() {
@@ -446,15 +477,23 @@ class GuardViewModel(
 
     fun pauseGlobalProtection(durationMillis: Long) {
         viewModelScope.launch {
-            val pausedUntil = if (durationMillis == -1L) 0L else (System.currentTimeMillis() + durationMillis)
-            
-            // Also update system status for UI consistency
-            val globalUpdates = mapOf(
-                "systemStatus" to (if (durationMillis == -1L) "OFFLINE" else "PAUSED"),
-                "globalPausedUntil" to pausedUntil
-            )
-            db.collection("users").document(currentUserUid)
-                .update(globalUpdates)
+            if (durationMillis == -1L) {
+                // Indefinite Pause -> Switch to OFFLINE but save state as Indefinite (-1)
+                db.collection("users").document(currentUserUid)
+                    .update(mapOf(
+                        "systemStatus" to "OFFLINE",
+                        "globalPausedUntil" to 0L,
+                        "storedRemainingPause" to -1L
+                    ))
+            } else {
+                val pausedUntil = System.currentTimeMillis() + durationMillis
+                val globalUpdates = mapOf(
+                    "systemStatus" to "PAUSED",
+                    "globalPausedUntil" to pausedUntil
+                )
+                db.collection("users").document(currentUserUid)
+                    .update(globalUpdates)
+            }
         }
     }
 

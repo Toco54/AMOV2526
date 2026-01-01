@@ -28,6 +28,15 @@ data class GlobalScheduleInfo(
     val end: String
 )
 
+data class CategoryStatus(
+    val isEnabled: Boolean,
+    val pausedUntil: Long,
+    val isScheduleEnabled: Boolean,
+    val days: List<Int>,
+    val start: String,
+    val end: String
+)
+
 class MonitorDashboardViewModel(
     private val ruleRepository: RuleRepository,
     private val protegeUid: String // Changed from email to UID
@@ -54,8 +63,14 @@ class MonitorDashboardViewModel(
     private val _globalSchedule = MutableStateFlow<GlobalScheduleInfo?>(null)
     val globalSchedule: StateFlow<GlobalScheduleInfo?> = _globalSchedule.asStateFlow()
 
+    private val _categoryStatuses = MutableStateFlow<Map<String, CategoryStatus>>(emptyMap())
+    val categoryStatuses: StateFlow<Map<String, CategoryStatus>> = _categoryStatuses.asStateFlow()
+
     private val _isDisconnected = MutableStateFlow(false)
     val isDisconnected: StateFlow<Boolean> = _isDisconnected.asStateFlow()
+
+    private val _shouldExitDashboard = MutableStateFlow(false)
+    val shouldExitDashboard: StateFlow<Boolean> = _shouldExitDashboard.asStateFlow()
 
     private val _protegeEmail = MutableStateFlow("")
     val protegeEmail: StateFlow<String> = _protegeEmail.asStateFlow()
@@ -64,6 +79,22 @@ class MonitorDashboardViewModel(
         if (currentMonitorId.isNotEmpty() && protegeUid.isNotEmpty()) {
             startListeningRules()
             startListeningUserStatus()
+            startListeningConnectionStatus()
+        }
+    }
+
+    private fun startListeningConnectionStatus() {
+        val docRef = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            .collection("users").document(protegeUid)
+            .collection("connections").document(currentMonitorId)
+
+        docRef.addSnapshotListener { snapshot, e ->
+            if (e != null) return@addSnapshotListener
+            
+            // If document doesn't exist (Hard Delete) OR revokedByProtege is true (Soft Delete)
+            if (snapshot == null || !snapshot.exists() || snapshot.getBoolean("revokedByProtege") == true) {
+                _shouldExitDashboard.value = true
+            }
         }
     }
 
@@ -84,6 +115,19 @@ class MonitorDashboardViewModel(
                 if (lat != null && lng != null) {
                     _userLocation.value = org.osmdroid.util.GeoPoint(lat, lng)
                 }
+
+                // Read Active Protections (Category Status)
+                val activeProtectionsMap = snapshot.get("activeProtections") as? Map<String, Map<String, Any>> ?: emptyMap()
+                val parsedStatuses = activeProtectionsMap.mapValues { (_, value) ->
+                    val enabled = value["enabled"] as? Boolean ?: true
+                    val paused = (value["pausedUntil"] as? Number)?.toLong() ?: 0L
+                    val schedEnabled = value["isScheduleEnabled"] as? Boolean ?: false
+                    val schedDays = (value["scheduleDays"] as? List<Number>)?.map { it.toInt() } ?: emptyList()
+                    val schedStart = value["scheduleStart"] as? String ?: ""
+                    val schedEnd = value["scheduleEnd"] as? String ?: ""
+                    CategoryStatus(enabled, paused, schedEnabled, schedDays, schedStart, schedEnd)
+                }
+                _categoryStatuses.value = parsedStatuses
 
                 // Status & Connectivity
                 val dbStatus = snapshot.getString("systemStatus") ?: "OFFLINE"

@@ -32,6 +32,7 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType
 import pt.isec.amov2526.projetoKotlin.data.model.ProtectionRule
+import pt.isec.amov2526.projetoKotlin.ui.viewmodels.CategoryStatus
 import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
 
 private val Slate50 = Color(0xFFF8FAFC)
@@ -49,13 +50,39 @@ private val Red600 = Color(0xFFDC2626)
 fun MonitorRuleGroup(
     type: MonitorRuleType, 
     rules: List<ProtectionRule>, 
+    categoryStatus: CategoryStatus?,
     currentTime: Long,
+    isGlobalActive: Boolean, // New Parameter
     onToggleGroup: (Boolean) -> Unit, 
     onEditRule: (ProtectionRule) -> Unit, 
     onToggleRule: (String, Boolean) -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(false) }
     val isAnyActive = rules.any { it.isEnabled }
+    
+    // Calculate Category Status Result
+    val catStatusResult = TimeUtils.calculateStatus(
+        isEnabled = categoryStatus?.isEnabled ?: true,
+        pausedUntil = categoryStatus?.pausedUntil ?: 0L,
+        isScheduleEnabled = categoryStatus?.isScheduleEnabled ?: false,
+        days = categoryStatus?.days ?: emptyList(),
+        start = categoryStatus?.start ?: "",
+        end = categoryStatus?.end ?: "",
+        now = currentTime
+    )
+
+    // Requirement 4: Hierarchy in Categories - Monitor
+    val categoryStatusText = when {
+        catStatusResult.label == "PAUSED" && (categoryStatus?.pausedUntil ?: 0L) > currentTime -> "Category Paused (${TimeUtils.formatDuration((categoryStatus?.pausedUntil ?: 0L) - currentTime)})"
+        catStatusResult.label == "SCHEDULED" -> catStatusResult.subLabel ?: "Scheduled Off"
+        !(categoryStatus?.isEnabled ?: true) || (categoryStatus?.pausedUntil ?: 0L) == -1L -> "Category Disabled by User"
+        else -> "Active"
+    }
+    
+    val categoryScheduleText = if (categoryStatus?.isScheduleEnabled == true) {
+        TimeUtils.formatSchedule(categoryStatus?.days ?: emptyList(), categoryStatus?.start ?: "", categoryStatus?.end ?: "")
+    } else ""
+
     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Slate50), shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Slate100)) {
         Column {
             Row(modifier = Modifier.fillMaxWidth().clickable { isExpanded = !isExpanded }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -66,8 +93,28 @@ fun MonitorRuleGroup(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(type.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
-                    Text("${rules.count { it.isEnabled }} active / ${rules.size} total", style = MaterialTheme.typography.labelSmall, color = Slate400)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Category Dot: Must be Global Active + Category Active + Category Enabled
+                        val isCategoryEffective = isGlobalActive && catStatusResult.isActive && (categoryStatus?.isEnabled ?: true)
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(
+                                    color = if (isCategoryEffective) Emerald500 else Slate400,
+                                    shape = CircleShape
+                                )
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(type.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
+                    }
+                    
+                    // Show Category Level Status (Protege)
+                    val statusColor = if (categoryStatusText == "Active") Slate400 else Red600
+                    Text(categoryStatusText, style = MaterialTheme.typography.labelSmall, color = statusColor, fontWeight = if(categoryStatusText == "Active") FontWeight.Normal else FontWeight.Bold)
+                    
+                    if (categoryScheduleText.isNotEmpty()) {
+                        Text("Plan: $categoryScheduleText", style = MaterialTheme.typography.labelSmall, color = Indigo600)
+                    }
                 }
                 Switch(checked = isAnyActive, onCheckedChange = onToggleGroup, modifier = Modifier.scale(0.6f), colors = SwitchDefaults.colors(checkedTrackColor = Emerald500))
                 Icon(if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null, tint = Slate200)
@@ -76,40 +123,67 @@ fun MonitorRuleGroup(
                 Column(modifier = Modifier.background(Color.White.copy(alpha = 0.5f)).padding(bottom = 8.dp)) {
                     HorizontalDivider(color = Slate100, modifier = Modifier.padding(horizontal = 12.dp))
                     rules.forEach { rule ->
+                        // Hoist Status Calculation for Dot
+                        val status = TimeUtils.calculateStatus(
+                            isEnabled = true, 
+                            pausedUntil = rule.pausedUntil,
+                            isScheduleEnabled = rule.isScheduleEnabled,
+                            days = rule.scheduleDays,
+                            start = rule.scheduleStart,
+                            end = rule.scheduleEnd,
+                            now = currentTime
+                        )
+                        // Rule Dot: Must be Global Active + Rule Enabled + Not Deleted + Not User Disabled + Rule Active + Category Active (Implicit in Global, but good to check context if needed, though Global covers it usually)
+                        // Actually, Category status should also impact rule effective status.
+                        val isRuleActive = isGlobalActive && rule.isEnabled && !rule.deletedByProtege && !rule.isDisabledByProtege && status.isActive && (categoryStatus?.isEnabled ?: true) && catStatusResult.isActive
+
                         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             val isDeleted = rule.deletedByProtege
+                            
+                            // Dot Indicator
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(
+                                        color = if (isRuleActive) Emerald500 else Slate400,
+                                        shape = CircleShape
+                                    )
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+
                             Column(modifier = Modifier.weight(1f)) {
+                                // Line 1: Parameter (Only for rules with parameters - MultiInstance always have params in this context)
                                 val baseDetail = when (rule.type) {
                                     MonitorRuleType.GEOFENCING -> if (rule.param1.isEmpty()) "Pending" else "Radius: ${rule.param1}m"
                                     MonitorRuleType.SPEED -> "Limit: ${rule.param1} km/h"
                                     MonitorRuleType.INACTIVITY -> "Limit: ${rule.param1} min"
                                     else -> "Always Active"
                                 }
+                                Text(baseDetail, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = Indigo600)
                                 
-                                val status = TimeUtils.calculateStatus(
-                                    isEnabled = true, 
-                                    pausedUntil = rule.pausedUntil,
-                                    isScheduleEnabled = rule.scheduleDays.isNotEmpty() || rule.scheduleStart.isNotEmpty(),
-                                    days = rule.scheduleDays,
-                                    start = rule.scheduleStart,
-                                    end = rule.scheduleEnd,
-                                    now = currentTime
-                                )
                                 val isScheduledOff = status.label == "SCHEDULED"
-                                
-                                val detail = when {
-                                    isDeleted -> "$baseDetail (Deleted)"
-                                    rule.pausedUntil > currentTime -> "Paused"
-                                    isScheduledOff -> "Scheduled Off"
+
+                                // Line 2: Monitor State
+                                if (!rule.isEnabled) {
+                                    Text("Disabled by Monitor", style = MaterialTheme.typography.labelSmall, color = Red600, fontWeight = FontWeight.Bold)
+                                }
+
+                                // Line 3: Protege State
+                                // Requirement 5 & 6: Priority: Disabled > Paused > Scheduled > Active. 
+                                // "Active" only if Line 2 (Monitor) is NOT displayed (rule.isEnabled == true)
+                                val protegeState = when {
+                                    isDeleted -> "Deleted by User"
                                     rule.isDisabledByProtege -> "Disabled by User"
-                                    !rule.isEnabled -> "Disabled by Monitor"
-                                    else -> baseDetail
+                                    rule.pausedUntil > currentTime -> "Paused (${TimeUtils.formatDuration(rule.pausedUntil - currentTime)})"
+                                    isScheduledOff -> status.subLabel ?: "Scheduled Off"
+                                    else -> if (rule.isEnabled) "Active" else "" 
                                 }
                                 
-                                Text(if(rule.type.isMultiInstance) "Custom Rule" else "Standard Rule", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = Indigo600)
-                                Text(detail, style = MaterialTheme.typography.labelSmall, color = if (detail != baseDetail) Red600 else Slate500)
-                                
-                                // Show Schedule Info
+                                if (protegeState.isNotEmpty()) {
+                                    Text(protegeState, style = MaterialTheme.typography.labelSmall, color = if (protegeState == "Active") Slate500 else Red600)
+                                }
+
+                                // Line 4: Schedule Plan
                                 val schedText = TimeUtils.formatSchedule(rule.scheduleDays, rule.scheduleStart, rule.scheduleEnd)
                                 if (schedText.isNotEmpty()) {
                                     Text(
@@ -197,7 +271,7 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
             else if (isNew) addAll(listOf(1, 2, 3, 4, 5))
         }
     }
-    var useSchedule by remember { mutableStateOf(rule.scheduleDays.isNotEmpty() || !isNew && rule.scheduleStart.isNotEmpty()) }
+    var useSchedule by remember { mutableStateOf(rule.isScheduleEnabled || (isNew && rule.scheduleDays.isEmpty())) }
 
     var searchQuery by remember { mutableStateOf("") }
     val context = LocalContext.current
@@ -365,12 +439,18 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                 ) {
                     Icon(Icons.Default.CalendarMonth, null, tint = Indigo600, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Rule Schedule", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900, modifier = Modifier.weight(1f))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Rule Schedule", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
+                        Text("Managed by User (Read-Only)", style = MaterialTheme.typography.labelSmall, color = Slate400)
+                    }
                     Switch(
                         checked = useSchedule, 
-                        onCheckedChange = { useSchedule = it },
-                        colors = SwitchDefaults.colors(checkedTrackColor = Indigo600),
-                        enabled = !isSoftDeleted,
+                        onCheckedChange = { }, // Read-only
+                        colors = SwitchDefaults.colors(
+                            checkedTrackColor = Indigo600.copy(alpha = 0.5f),
+                            uncheckedTrackColor = Slate200
+                        ),
+                        enabled = false, // Monitor cannot edit
                         modifier = Modifier.scale(0.8f)
                     )
                 }
@@ -385,11 +465,9 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                                 Box(
                                     modifier = Modifier
                                         .size(32.dp)
-                                        .background(color = if (isSelected) Slate900 else Slate100, shape = CircleShape)
-                                        .clip(CircleShape)
-                                        .clickable(enabled = !isSoftDeleted) {
-                                            if (isSelected) selectedDays.remove(i) else selectedDays.add(i)
-                                        },
+                                        .background(color = if (isSelected) Slate900.copy(alpha=0.6f) else Slate100, shape = CircleShape)
+                                        .clip(CircleShape),
+                                        // No clickable
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(text = d, color = if (isSelected) Color.White else Slate400, fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -402,10 +480,10 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                                 Text("START", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
                                 OutlinedTextField(
                                     value = startTime, 
-                                    onValueChange = { if(it.length <= 5) startTime = it }, 
+                                    onValueChange = { }, 
                                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                                     textStyle = androidx.compose.ui.text.TextStyle(textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontWeight = FontWeight.Bold),
-                                    enabled = !isSoftDeleted,
+                                    enabled = false,
                                     singleLine = true
                                 )
                             }
@@ -413,10 +491,10 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                                 Text("END", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
                                 OutlinedTextField(
                                     value = endTime, 
-                                    onValueChange = { if(it.length <= 5) endTime = it }, 
+                                    onValueChange = { }, 
                                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                                     textStyle = androidx.compose.ui.text.TextStyle(textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontWeight = FontWeight.Bold),
-                                    enabled = !isSoftDeleted,
+                                    enabled = false,
                                     singleLine = true
                                 )
                             }
@@ -457,9 +535,10 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                                     param1 = p1, 
                                     param2 = p2.value, 
                                     isEnabled = true,
-                                    scheduleDays = if (useSchedule) selectedDays.toList() else emptyList(),
-                                    scheduleStart = if (useSchedule) startTime else "",
-                                    scheduleEnd = if (useSchedule) endTime else ""
+                                    isScheduleEnabled = useSchedule,
+                                    scheduleDays = selectedDays.toList(),
+                                    scheduleStart = startTime,
+                                    scheduleEnd = endTime
                                 )
                                 onSave(updatedRule) 
                             },

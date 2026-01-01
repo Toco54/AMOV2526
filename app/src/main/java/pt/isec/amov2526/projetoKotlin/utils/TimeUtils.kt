@@ -48,15 +48,15 @@ object TimeUtils {
             val startTime = startH * 60 + startM
             val endTime = endH * 60 + endM
             
-            val isActiveWindow = isTodayActive && (nowTime in startTime until endTime)
+            // Check if we are INSIDE the disabled window
+            val isInsideDisabledWindow = isTodayActive && (nowTime in startTime until endTime)
             
-            if (isActiveWindow) {
+            if (isInsideDisabledWindow) {
                 // User defined this time frame to be DISABLED
                 return StatusResult(false, "SCHEDULED", "Scheduled off until $end")
             }
             
             // Outside disabled window -> Active
-            // Optional: Show when next disabled window starts? For now just Active.
             return StatusResult(true, "ACTIVE", null)
         }
         

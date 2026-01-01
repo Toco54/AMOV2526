@@ -130,7 +130,8 @@ fun MonitorMainScreen(
                                 items(items = proteges) { protege ->
                                     ProtegeCard(
                                         protege = protege,
-                                        onClick = { onProtegeClick(protege.name, protege.uid) }
+                                        onClick = { onProtegeClick(protege.name, protege.uid) },
+                                        onDelete = { monitorViewModel.deleteConnection(protege.uid) }
                                     )
                                 }
                             } else {
@@ -187,6 +188,7 @@ fun MonitorMainScreen(
     if (connectionCandidate != null) {
         ConfirmConnectionDialog(
             candidate = connectionCandidate,
+            errorMsg = monitorViewModel.errorMsg, // Pass Error
             onAccept = {
                 monitorViewModel.acceptConnection {
                     Toast.makeText(context, "Protege Connected Successfully!", Toast.LENGTH_LONG).show()

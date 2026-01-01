@@ -36,6 +36,7 @@ private val Red600 = Color(0xFFDC2626)
 @Composable
 fun ConfirmConnectionDialog(
     candidate: pt.isec.amov2526.projetoKotlin.data.repository.ConnectionCodeInfo,
+    errorMsg: String? = null, // New Parameter
     onAccept: () -> Unit,
     onReject: () -> Unit
 ) {
@@ -69,6 +70,11 @@ fun ConfirmConnectionDialog(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(text = candidate.accessLevel, style = MaterialTheme.typography.bodyMedium, color = Emerald700, fontWeight = FontWeight.Bold)
+                }
+
+                if (errorMsg != null) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(text = errorMsg, color = Red600, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
             }
         },

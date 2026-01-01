@@ -30,6 +30,7 @@ class RuleRepository {
             "scheduleDays" to rule.scheduleDays,
             "scheduleStart" to rule.scheduleStart,
             "scheduleEnd" to rule.scheduleEnd,
+            "isScheduleEnabled" to rule.isScheduleEnabled,
             "pausedUntil" to rule.pausedUntil,
             "isDisabledByProtege" to rule.isDisabledByProtege
         )
@@ -51,6 +52,7 @@ class RuleRepository {
             "scheduleDays" to rule.scheduleDays,
             "scheduleStart" to rule.scheduleStart,
             "scheduleEnd" to rule.scheduleEnd,
+            "isScheduleEnabled" to rule.isScheduleEnabled,
             "pausedUntil" to rule.pausedUntil,
             "isDisabledByProtege" to rule.isDisabledByProtege
         )
@@ -91,6 +93,7 @@ class RuleRepository {
                             scheduleDays = (doc.get("scheduleDays") as? List<Long>)?.map { it.toInt() } ?: emptyList(),
                             scheduleStart = doc.getString("scheduleStart") ?: "",
                             scheduleEnd = doc.getString("scheduleEnd") ?: "",
+                            isScheduleEnabled = doc.getBoolean("isScheduleEnabled") ?: false,
                             pausedUntil = doc.getLong("pausedUntil") ?: 0L,
                             isDisabledByProtege = doc.getBoolean("isDisabledByProtege") ?: false,
                             deletedByProtege = doc.getBoolean("deletedByProtege") ?: false

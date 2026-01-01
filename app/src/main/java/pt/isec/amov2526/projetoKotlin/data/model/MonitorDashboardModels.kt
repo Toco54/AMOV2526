@@ -23,6 +23,7 @@ data class ProtectionRule(
     val scheduleDays: List<Int> = emptyList(),
     val scheduleStart: String = "",
     val scheduleEnd: String = "",
+    val isScheduleEnabled: Boolean = false,
     val pausedUntil: Long = 0L,
     val isDisabledByProtege: Boolean = false,
     val deletedByProtege: Boolean = false

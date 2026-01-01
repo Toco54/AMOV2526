@@ -125,8 +125,20 @@ fun IndividualRuleTypeSubCard(
         now = currentTime
     )
 
-    // Determine the summary text
-    val summaryText = status.subLabel ?: if (status.isActive) "${group.rules.size} monitor(s)" else status.label
+    // Determine the summary text with strict hierarchy:
+    // 1. Live Countdown (Pause)
+    // 2. Schedule Expiration (Schedule)
+    // 3. Active Monitor Count (Active)
+    // 4. Status Label (Inactive)
+    val summaryText = when {
+        group.pausedUntil > currentTime -> {
+            val remaining = group.pausedUntil - currentTime
+            "Paused (${TimeUtils.formatDuration(remaining)})"
+        }
+        status.label == "SCHEDULED" -> status.subLabel ?: "Scheduled Off"
+        status.isActive -> "${group.rules.size} monitor(s)"
+        else -> status.label
+    }
 
     // Visuals for inactive state
     val containerColor = if (status.isActive) Slate50 else Red50
@@ -281,7 +293,7 @@ fun MonitorDetailRow(
 ) {
     // Calculate Rule Status
     val status = TimeUtils.calculateStatus(
-        isEnabled = rule.isEnabled && !rule.isDisabledByProtege,
+        isEnabled = true, // Check schedule/pause regardless of Monitor/User disabled state for display
         pausedUntil = rule.pausedUntil,
         isScheduleEnabled = rule.isScheduleEnabled,
         days = rule.scheduleDays,
@@ -317,28 +329,43 @@ fun MonitorDetailRow(
                     color = Indigo600
                 )
             }
-            // Show Parameter OR Status if inactive
-            if (status.isActive) {
+            
+            // LINE 1: Parameter (Always visible)
+            Text(
+                text = rule.parameter,
+                style = MaterialTheme.typography.labelSmall,
+                color = Slate500
+            )
+
+            // LINE 2: Monitor State (if disabled by monitor)
+            if (!rule.isEnabled) {
                 Text(
-                    text = rule.parameter,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Slate500
-                )
-            } else {
-                val displayLabel = when {
-                    rule.isDisabledByProtege -> "Disabled by User"
-                    !rule.isEnabled -> "Disabled by Monitor"
-                    else -> status.subLabel ?: status.label
-                }
-                Text(
-                    text = displayLabel,
+                    text = "Disabled by Monitor",
                     style = MaterialTheme.typography.labelSmall,
                     color = Red600,
                     fontWeight = FontWeight.Bold
                 )
             }
+
+            // LINE 3: Protege State (Hierarchy)
+            val protegeStateText = when {
+                rule.isDisabledByProtege -> "Disabled by User"
+                rule.pausedUntil > currentTime -> "Paused (${TimeUtils.formatDuration(rule.pausedUntil - currentTime)})"
+                status.label == "SCHEDULED" -> status.subLabel ?: "Scheduled Off"
+                rule.isEffectivelyActive -> "Active"
+                else -> ""
+            }
             
-            // Show Schedule Info (Extra Info)
+            if (protegeStateText.isNotEmpty()) {
+                Text(
+                    text = protegeStateText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (rule.isEffectivelyActive) Emerald500 else Red600,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            
+            // Show Schedule Info (Extra Info - maybe kept as line 4 effectively or just auxiliary)
             val schedText = TimeUtils.formatSchedule(rule.scheduleDays, rule.scheduleStart, rule.scheduleEnd)
             if (schedText.isNotEmpty()) {
                 Text(

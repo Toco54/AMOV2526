@@ -82,6 +82,7 @@ fun GuardScreen(
         now = currentTime
     )
 
+    // Fix: Prioritize PAUSED over SCHEDULED
     val finalSystemLabel = if (!isServiceRunning) "OFFLINE" 
     else if (globalScheduleStatus.label == "PAUSED") "PAUSED" 
     else if (globalScheduleStatus.label == "SCHEDULED") "SCHEDULED"
@@ -218,6 +219,9 @@ fun GuardScreen(
                     selectedTypeToPause = null
                 } else {
                     viewModel.pauseGlobalProtection(duration)
+                    if (duration == -1L) {
+                        protectedViewModel.stopServiceOnly()
+                    }
                 }
             },
             viewModel = viewModel

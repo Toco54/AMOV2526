@@ -5,5 +5,6 @@ data class ConnectedUser(
     val name: String,
     val email: String,
     val role: String,
-    val accessLevel: String? = null
+    val accessLevel: String? = null,
+    val revokedByProtege: Boolean = false
 )

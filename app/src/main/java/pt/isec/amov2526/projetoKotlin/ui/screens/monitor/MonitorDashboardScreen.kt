@@ -71,11 +71,20 @@ fun MonitorDashboardScreen(
     val statusDetail by viewModel.statusDetail.collectAsState()
     val pausedUntil by viewModel.pausedUntil.collectAsState()
     val globalSchedule by viewModel.globalSchedule.collectAsState()
+    val categoryStatuses by viewModel.categoryStatuses.collectAsState()
     val isDisconnected by viewModel.isDisconnected.collectAsState()
+    val shouldExitDashboard by viewModel.shouldExitDashboard.collectAsState()
     val protegeEmail by viewModel.protegeEmail.collectAsState()
 
     // Timer vivo para countdowns
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    
+    LaunchedEffect(shouldExitDashboard) {
+        if (shouldExitDashboard) {
+            onBack()
+        }
+    }
+
     LaunchedEffect(Unit) {
         while (true) {
             currentTime = System.currentTimeMillis()
@@ -92,6 +101,9 @@ fun MonitorDashboardScreen(
 
     // Determine Effective Status for UI
     val displayStatus = if (isDisconnected) "DISCONNECTED" else systemStatus
+    // Global System Active Flag for dots
+    val isGlobalActive = systemStatus == "ACTIVE"
+    
     val displayStatusColor = when (displayStatus) {
         "ACTIVE" -> Emerald500
         "PAUSED", "SCHEDULED" -> Color(0xFFF59E0B)
@@ -129,16 +141,25 @@ fun MonitorDashboardScreen(
                             Text("LIVE DASHBOARD", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Indigo600, letterSpacing = 0.5.sp)
                             
                             // Show details ONLY if connected
-                            if (statusDetail != null && !isDisconnected) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                val detailColor = if (systemStatus == "PAUSED" || systemStatus == "SCHEDULED") Color(0xFFF59E0B) else Slate500
-                                Text(
-                                    text = "•  $statusDetail",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = detailColor,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                            if (!isDisconnected) {
+                                // Dynamic Countdown Logic for TopBar
+                                val dynamicDetail = if (systemStatus == "PAUSED" && pausedUntil > currentTime) {
+                                    "Paused (${pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration(pausedUntil - currentTime)})"
+                                } else {
+                                    statusDetail
+                                }
+
+                                if (dynamicDetail != null) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    val detailColor = if (systemStatus == "PAUSED" || systemStatus == "SCHEDULED") Color(0xFFF59E0B) else Slate500
+                                    Text(
+                                        text = "•  $dynamicDetail",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = detailColor,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                         }
                     }
@@ -206,18 +227,39 @@ fun MonitorDashboardScreen(
                         val groupedRules = rules.groupBy { it.type }.toList().sortedBy { it.first.ordinal }
                         groupedRules.forEach { (type, typeRules) ->
                             if (type.isMultiInstance) {
-                                                                MonitorRuleGroup(
-                                                                    type = type,
-                                                                    rules = typeRules,
-                                                                    currentTime = currentTime,
-                                                                    onToggleGroup = { enabled ->
-                                                                        typeRules.forEach { if (it.isEnabled != enabled) viewModel.toggleRule(it.id, enabled) }
-                                                                    },
+                                MonitorRuleGroup(
+                                    type = type,
+                                    rules = typeRules,
+                                    categoryStatus = categoryStatuses[type.name],
+                                    currentTime = currentTime,
+                                    isGlobalActive = isGlobalActive, // Pass Global Flag
+                                    onToggleGroup = { enabled ->
+                                        typeRules.forEach { if (it.isEnabled != enabled) viewModel.toggleRule(it.id, enabled) }
+                                    },
                                     onEditRule = { if (it.deletedByProtege) viewModel.deleteRule(it.id) else editingRule = it },
                                     onToggleRule = { id, enabled -> viewModel.toggleRule(id, enabled) }
                                 )
                             } else {
                                 typeRules.forEach { rule ->
+                                    // Calculate Category Status for Single Instance Rules (Fall/Accident)
+                                    val catStatus = categoryStatuses[type.name]
+                                    val catStatusResult = pt.isec.amov2526.projetoKotlin.utils.TimeUtils.calculateStatus(
+                                        isEnabled = catStatus?.isEnabled ?: true,
+                                        pausedUntil = catStatus?.pausedUntil ?: 0L,
+                                        isScheduleEnabled = catStatus?.isScheduleEnabled ?: false,
+                                        days = catStatus?.days ?: emptyList(),
+                                        start = catStatus?.start ?: "",
+                                        end = catStatus?.end ?: "",
+                                        now = currentTime
+                                    )
+                                    
+                                    val catStatusText = when {
+                                        catStatusResult.label == "PAUSED" && (catStatus?.pausedUntil ?: 0L) > currentTime -> "${type.title} Paused (${pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration((catStatus?.pausedUntil ?: 0L) - currentTime)})"
+                                        catStatusResult.label == "SCHEDULED" -> catStatusResult.subLabel ?: "Scheduled Off"
+                                        !(catStatus?.isEnabled ?: true) || (catStatus?.pausedUntil ?: 0L) == -1L -> "${type.title} Disabled by User"
+                                        else -> ""
+                                    }
+
                                     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Slate50), shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Slate100)) {
                                         Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Box(modifier = Modifier.size(36.dp).background(rule.iconColor.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
@@ -225,26 +267,81 @@ fun MonitorDashboardScreen(
                                             }
                                             Spacer(modifier = Modifier.width(12.dp))
                                             Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = type.title,
-                                                    style = MaterialTheme.typography.titleSmall,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Slate900
+                                                // Calculate Effective Status for Dot
+                                                val effectiveRuleActive = isGlobalActive && rule.isEnabled && !rule.deletedByProtege && !rule.isDisabledByProtege && 
+                                                    (pt.isec.amov2526.projetoKotlin.utils.TimeUtils.calculateStatus(
+                                                        isEnabled = true,
+                                                        pausedUntil = rule.pausedUntil,
+                                                        isScheduleEnabled = rule.isScheduleEnabled,
+                                                        days = rule.scheduleDays,
+                                                        start = rule.scheduleStart,
+                                                        end = rule.scheduleEnd,
+                                                        now = currentTime
+                                                    ).isActive) && (catStatus?.isEnabled ?: true) && (catStatusResult.isActive)
+
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(8.dp)
+                                                            .background(
+                                                                color = if (effectiveRuleActive) Emerald500 else Slate400,
+                                                                shape = CircleShape
+                                                            )
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text(
+                                                        text = type.title,
+                                                        style = MaterialTheme.typography.titleSmall,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Slate900
+                                                    )
+                                                }
+                                                
+                                                // Header: Category Status (Separated)
+                                                if (catStatusText.isNotEmpty()) {
+                                                    Text(
+                                                        text = catStatusText,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = if (catStatusText.contains("Disabled")) Red600 else Color(0xFFF59E0B),
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+
+                                                // Line 1: Monitor State
+                                                if (!rule.isEnabled) {
+                                                    Text("Disabled by Monitor", style = MaterialTheme.typography.labelSmall, color = Red600, fontWeight = FontWeight.Bold)
+                                                }
+
+                                                // Line 2: Protege State (Rule Only)
+                                                val ruleStatus = pt.isec.amov2526.projetoKotlin.utils.TimeUtils.calculateStatus(
+                                                    isEnabled = true,
+                                                    pausedUntil = rule.pausedUntil,
+                                                    isScheduleEnabled = rule.isScheduleEnabled,
+                                                    days = rule.scheduleDays,
+                                                    start = rule.scheduleStart,
+                                                    end = rule.scheduleEnd,
+                                                    now = currentTime
                                                 )
+                                                val isScheduledOff = ruleStatus.label == "SCHEDULED"
+
                                                 val detailText = when {
                                                     rule.deletedByProtege -> "Deleted by User"
-                                                    rule.pausedUntil > currentTime -> "Paused"
                                                     rule.isDisabledByProtege -> "Disabled by User"
-                                                    !rule.isEnabled -> "Disabled by Monitor"
-                                                    else -> "Monitoring Active"
+                                                    rule.pausedUntil > currentTime -> "Paused (${pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration(rule.pausedUntil - currentTime)})"
+                                                    isScheduledOff -> ruleStatus.subLabel ?: "Scheduled Off"
+                                                    rule.isEnabled -> "Monitoring Active" // Show Active only if Monitor enabled
+                                                    else -> ""
                                                 }
-                                                Text(
-                                                    text = detailText,
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = if (detailText != "Monitoring Active") Red600 else Slate400
-                                                )
                                                 
-                                                // Show Schedule Info
+                                                if (detailText.isNotEmpty()) {
+                                                    Text(
+                                                        text = detailText,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = if (detailText == "Monitoring Active") Slate400 else Red600
+                                                    )
+                                                }
+                                                
+                                                // Line 3: Schedule Plan
                                                 val schedText = pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatSchedule(rule.scheduleDays, rule.scheduleStart, rule.scheduleEnd)
                                                 if (schedText.isNotEmpty()) {
                                                     Text(
@@ -284,6 +381,7 @@ fun MonitorDashboardScreen(
                                     }
                                     Spacer(modifier = Modifier.height(12.dp))
                                 }
+                                Spacer(modifier = Modifier.height(12.dp))
                             }
                         }
                     }

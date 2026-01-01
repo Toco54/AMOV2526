@@ -7,9 +7,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,20 +31,25 @@ private val Slate400 = Color(0xFF94A3B8)
 private val Slate500 = Color(0xFF64748B)
 private val Slate900 = Color(0xFF0F172A)
 private val Emerald500 = Color(0xFF10B981)
+private val Red50 = Color(0xFFFEF2F2)
+private val Red600 = Color(0xFFDC2626)
 
 @Composable
 fun ProtegeCard(
     protege: ConnectedUser,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    onDelete: () -> Unit = {}
 ) {
+    val isRevoked = protege.revokedByProtege
+    
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = if(isRevoked) Red50 else Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(20.dp),
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .clickable { onClick() }
+            .clickable(enabled = !isRevoked) { onClick() }
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -50,15 +58,19 @@ fun ProtegeCard(
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(Slate100, CircleShape),
+                    .background(if(isRevoked) Red600.copy(alpha=0.1f) else Slate100, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = if (protege.name.isNotEmpty()) protege.name.first().toString() else "?",
-                    fontWeight = FontWeight.Bold,
-                    color = Slate500,
-                    fontSize = 20.sp
-                )
+                if (isRevoked) {
+                    Icon(Icons.Default.LinkOff, null, tint = Red600)
+                } else {
+                    Text(
+                        text = if (protege.name.isNotEmpty()) protege.name.first().toString() else "?",
+                        fontWeight = FontWeight.Bold,
+                        color = Slate500,
+                        fontSize = 20.sp
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(16.dp))
@@ -68,29 +80,35 @@ fun ProtegeCard(
                     text = protege.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Slate900
+                    color = if(isRevoked) Slate400 else Slate900
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
                             .size(8.dp)
-                            .background(Emerald500, CircleShape)
+                            .background(if(isRevoked) Red600 else Emerald500, CircleShape)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Active Monitoring",
+                        text = if (isRevoked) "Connection Revoked" else "Active Monitoring",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Slate500
+                        color = if(isRevoked) Red600 else Slate500
                     )
                 }
             }
-
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                contentDescription = null,
-                tint = Slate200,
-                modifier = Modifier.size(20.dp)
-            )
+            
+            if (isRevoked) {
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Default.Delete, "Remove", tint = Red600)
+                }
+            } else {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                    contentDescription = null,
+                    tint = Slate200,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }

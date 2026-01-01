@@ -27,12 +27,14 @@ class ConnectionRepository {
 
             val proteges = connections.map { doc ->
                 val uid = doc.getString("uid") ?: ""
+                val revoked = doc.getBoolean("revokedByProtege") ?: false
                 val userDoc = db.collection("users").document(uid).get().await()
                 ConnectedUser(
                     uid = uid,
                     name = userDoc.getString("name") ?: "Unknown",
                     email = userDoc.getString("email") ?: "",
-                    role = "Protege"
+                    role = "Protege",
+                    revokedByProtege = revoked
                 )
             }
             Result.success(proteges)
@@ -70,14 +72,40 @@ class ConnectionRepository {
         return try {
             val batch = db.batch()
 
-            // Remove from current user's connections
+            // 0. Delete all rules defined by this Monitor for this Protege
+            val rulesRef = db.collection("users").document(uid)
+                .collection("connections").document(targetUid)
+                .collection("rules")
+            
+            val rulesSnapshot = rulesRef.get().await()
+            for (doc in rulesSnapshot.documents) {
+                batch.delete(doc.reference)
+            }
+
+            // 1. Remove from Protege's side (Hard Delete so it disappears from list and GuardViewModel stops fetching rules)
             batch.delete(db.collection("users").document(uid).collection("connections").document(targetUid))
             batch.update(db.collection("users").document(uid), "associatedIds", FieldValue.arrayRemove(targetUid))
 
-            // Remove from target user's connections
-            batch.delete(db.collection("users").document(targetUid).collection("connections").document(uid))
-            batch.update(db.collection("users").document(targetUid), "associatedIds", FieldValue.arrayRemove(uid))
+            // 2. Update Monitor's side (Soft Delete / Status Update)
+            // We do NOT delete the document, we mark it as revoked so Monitor sees the icon.
+            val monitorConnRef = db.collection("users").document(targetUid).collection("connections").document(uid)
+            batch.update(monitorConnRef, "revokedByProtege", true)
+            // We do NOT remove from associatedIds on Monitor side yet, so it stays in the list.
 
+            batch.commit().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // New function for Monitor to finalize the deletion
+    suspend fun deleteConnection(monitorUid: String, protegeUid: String): Result<Unit> {
+        return try {
+            val batch = db.batch()
+            // Hard delete on Monitor side
+            batch.delete(db.collection("users").document(monitorUid).collection("connections").document(protegeUid))
+            batch.update(db.collection("users").document(monitorUid), "associatedIds", FieldValue.arrayRemove(protegeUid))
             batch.commit().await()
             Result.success(Unit)
         } catch (e: Exception) {
@@ -154,6 +182,15 @@ class ConnectionRepository {
             // Prevent self-connection
             if (monitorUid == protegeUid) {
                 throw Exception("Cannot connect to yourself")
+            }
+
+            // Prevent duplicate connection
+            val existingConnection = db.collection("users").document(monitorUid)
+                .collection("connections").document(protegeUid)
+                .get().await()
+            
+            if (existingConnection.exists()) {
+                throw Exception("User already in your list")
             }
 
             val batch = db.batch()
