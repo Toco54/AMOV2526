@@ -1,5 +1,6 @@
 package pt.isec.amov2526.projetoKotlin.ui.screens.protected
 
+import android.location.Location
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
@@ -16,7 +17,8 @@ fun AlertScreen(
     alertType: String = "SOS",
     onCancel: () -> Unit,
     onConfirm: () -> Unit,
-    onValidatePin: suspend (String) -> Boolean
+    onValidatePin: suspend (String) -> Boolean,
+    currentLocation: Location? = null
 ) {
     var isConfirmed by remember { mutableStateOf(false) }
     var pinInput by remember { mutableStateOf("") }
@@ -63,7 +65,7 @@ fun AlertScreen(
                 }
             )
         } else {
-            ConfirmedPanel()
+            ConfirmedPanel(currentLocation = currentLocation)
         }
     }
 }

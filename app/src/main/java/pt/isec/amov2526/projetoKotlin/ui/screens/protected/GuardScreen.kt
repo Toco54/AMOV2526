@@ -18,6 +18,7 @@ import pt.isec.amov2526.projetoKotlin.data.model.*
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.guard.*
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
 import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
+import pt.isec.amov2526.projetoKotlin.utils.LocationHelper
 
 // --- CORES ---
 private val Slate50 = Color(0xFFF8FAFC)
@@ -36,11 +37,18 @@ fun GuardScreen(
         protectedViewModel.refreshServiceState()
     }
 
+    val locationHelper = remember { LocationHelper(context) }
+
     // Init Location Tracking
     LaunchedEffect(Unit) {
-        val locationHelper = pt.isec.amov2526.projetoKotlin.utils.LocationHelper(context)
         viewModel.setLocationHelper(locationHelper)
+//        val locationHelper = pt.isec.amov2526.projetoKotlin.utils.LocationHelper(context)
+//        viewModel.setLocationHelper(locationHelper)
+
+        locationHelper.startLocationUpdates(2000L)
     }
+
+    val currentLocation by locationHelper.currentLocation.collectAsState(initial = null)
 
     val isActive by viewModel.isActive.collectAsState()
     val protectionGroups by viewModel.protectionGroups.collectAsState()
@@ -97,7 +105,8 @@ fun GuardScreen(
                 AlertScreen(
                     onCancel = { showAlertScreen = false },
                     onConfirm = { },
-                    onValidatePin = { viewModel.verifyPin(it) }
+                    onValidatePin = { viewModel.verifyPin(it) },
+                    currentLocation = currentLocation
                 )
             }
         }

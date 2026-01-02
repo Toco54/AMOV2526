@@ -1,5 +1,13 @@
 package pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.alert
 
+
+import android.location.Location
+import android.util.Log
+import android.view.ViewGroup
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,9 +28,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 
 // --- Theme Colors ---
 private val AlertRed = Color(0xFFDC2626)
@@ -32,8 +44,13 @@ private val TabSelectedColor = Color(0xFF334155)
 private val TabUnselectedColor = Color(0xFF1E293B)
 
 @Composable
-fun ConfirmedPanel() {
+fun ConfirmedPanel(currentLocation: Location?) {
+
     var selectedCameraTab by remember { mutableIntStateOf(0) } // 0 = Back, 1 = Front
+
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
 
     Column(
         modifier = Modifier
@@ -110,43 +127,48 @@ fun ConfirmedPanel() {
                 ),
             contentAlignment = Alignment.Center
         ) {
-            // Placeholder Content based on Tab
-            if (selectedCameraTab == 0) {
-                // Mock Back Camera View
-                Icon(
-                    imageVector = Icons.Default.Videocam,
-                    contentDescription = null,
-                    tint = Color.Gray,
-                    modifier = Modifier.size(48.dp)
-                )
-                Text(
-                    text = "Back Camera Feed",
-                    color = Color.Gray,
-                    modifier = Modifier.padding(top = 80.dp)
-                )
-            } else {
-                // Mock Front Camera View
-                Icon(
-                    imageVector = Icons.Default.Face,
-                    contentDescription = null,
-                    tint = Color.Gray,
-                    modifier = Modifier.size(48.dp)
-                )
-                Text(
-                    text = "Front Camera Feed",
-                    color = Color.Gray,
-                    modifier = Modifier.padding(top = 80.dp)
-                )
-            }
+            AndroidView(
+                factory = { ctx ->
+                    val previewView = PreviewView(ctx)
+                    previewView.layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                    previewView
+                },
+                modifier = Modifier.fillMaxSize(),
+                update =  {previewView ->
+                    val cameraSelector = if (selectedCameraTab == 0) CameraSelector.DEFAULT_BACK_CAMERA else CameraSelector.DEFAULT_FRONT_CAMERA
 
-            // Universal Recording Indicator (Always on top)
-            Row(
+                    cameraProviderFuture.addListener({
+                        val cameraProvider = cameraProviderFuture.get()
+                        val preview = Preview.Builder().build()
+                        preview.setSurfaceProvider(previewView.surfaceProvider)
+
+                        try {
+                            // Desliga casos de uso anteriores e liga a nova câmara
+                            cameraProvider.unbindAll()
+                            cameraProvider.bindToLifecycle(
+                                lifecycleOwner,
+                                cameraSelector,
+                                preview
+                            )
+                        } catch (e: Exception) {
+                            Log.e("CameraX", "Binding failed", e)
+                        }
+                    }, ContextCompat.getMainExecutor(context))
+
+                }
+            )
+
+            Row (
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(8.dp)
                     .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
                     .padding(horizontal = 6.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
+
             ) {
                 Box(
                     modifier = Modifier
@@ -161,6 +183,61 @@ fun ConfirmedPanel() {
                     fontSize = 12.sp
                 )
             }
+
+
+
+
+            // Placeholder Content based on Tab
+//            if (selectedCameraTab == 0) {
+//                // Mock Back Camera View
+//                Icon(
+//                    imageVector = Icons.Default.Videocam,
+//                    contentDescription = null,
+//                    tint = Color.Gray,
+//                    modifier = Modifier.size(48.dp)
+//                )
+//                Text(
+//                    text = "Back Camera Feed",
+//                    color = Color.Gray,
+//                    modifier = Modifier.padding(top = 80.dp)
+//                )
+//            } else {
+//                // Mock Front Camera View
+//                Icon(
+//                    imageVector = Icons.Default.Face,
+//                    contentDescription = null,
+//                    tint = Color.Gray,
+//                    modifier = Modifier.size(48.dp)
+//                )
+//                Text(
+//                    text = "Front Camera Feed",
+//                    color = Color.Gray,
+//                    modifier = Modifier.padding(top = 80.dp)
+//                )
+//            }
+//
+//            // Universal Recording Indicator (Always on top)
+//            Row(
+//                modifier = Modifier
+//                    .align(Alignment.TopEnd)
+//                    .padding(8.dp)
+//                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+//                    .padding(horizontal = 6.dp, vertical = 4.dp),
+//                verticalAlignment = Alignment.CenterVertically
+//            ) {
+//                Box(
+//                    modifier = Modifier
+//                        .size(8.dp)
+//                        .background(Color.Red, CircleShape)
+//                )
+//                Spacer(modifier = Modifier.width(6.dp))
+//                Text(
+//                    text = "REC",
+//                    color = Color.White,
+//                    fontWeight = FontWeight.Bold,
+//                    fontSize = 12.sp
+//                )
+//            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -220,9 +297,16 @@ fun ConfirmedPanel() {
                     .background(Color.White.copy(alpha = 0.8f), RoundedCornerShape(4.dp))
                     .padding(4.dp)
             ) {
+                // Se tivermos localização, mostramos Lat/Lng. Se não, "A adquirir..."
+                val locText = if (currentLocation != null) {
+                    "Lat: %.4f\nLng: %.4f".format(currentLocation.latitude, currentLocation.longitude)
+                } else {
+                    "A adquirir GPS..."
+                }
+
                 Text(
-                    text = "Coimbra, PT",
-                    fontSize = 10.sp,
+                    text = locText,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
                 )
