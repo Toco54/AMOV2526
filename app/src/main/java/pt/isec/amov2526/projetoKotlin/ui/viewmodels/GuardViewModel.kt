@@ -1,5 +1,6 @@
 package pt.isec.amov2526.projetoKotlin.ui.viewmodels
 
+import android.location.Location
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -11,10 +12,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
 import pt.isec.amov2526.projetoKotlin.data.model.ConnectedUser
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
 import pt.isec.amov2526.projetoKotlin.data.model.ProtectionGroup
 import pt.isec.amov2526.projetoKotlin.data.model.RuleType
+import pt.isec.amov2526.projetoKotlin.data.repository.AlertRepository
 import pt.isec.amov2526.projetoKotlin.data.repository.ConnectionRepository
 import pt.isec.amov2526.projetoKotlin.data.repository.RuleRepository
 import pt.isec.amov2526.projetoKotlin.utils.LocationHelper
@@ -23,6 +26,7 @@ import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
 class GuardViewModel(
     private val ruleRepository: RuleRepository,
     private val connectionRepository: ConnectionRepository,
+    private val alertRepository: AlertRepository
 ) : ViewModel() {
 
     private val auth = FirebaseAuth.getInstance()
@@ -30,6 +34,7 @@ class GuardViewModel(
     private val currentUserUid = auth.currentUser?.uid ?: ""
     
     private var locationHelper: LocationHelper? = null
+    private var lastLocation: Location? = null
 
     // System Status
     private val _isActive = MutableStateFlow(true)
@@ -85,17 +90,36 @@ class GuardViewModel(
         
         viewModelScope.launch {
             locationHelper?.currentLocation?.collect { loc ->
-                if (loc != null && _isEffectiveGlobalActive.value) { 
-                    db.collection("users").document(currentUserUid)
-                        .update(
-                            mapOf(
-                                "lastLat" to loc.latitude,
-                                "lastLng" to loc.longitude,
-                                "lastUpdate" to System.currentTimeMillis()
+                if (loc != null) {
+
+                    lastLocation = loc
+
+                    if(_isEffectiveGlobalActive.value){
+                        db.collection("users").document(currentUserUid)
+                            .update(
+                                mapOf(
+                                    "lastLat" to loc.latitude,
+                                    "lastLng" to loc.longitude,
+                                    "lastUpdate" to System.currentTimeMillis()
+                                )
                             )
-                        )
+                    }
                 }
             }
+        }
+    }
+
+    fun sendManualSos() {
+        viewModelScope.launch {
+            val lat = lastLocation?.latitude
+            val lng = lastLocation?.longitude
+
+            alertRepository.createAlert(
+                type = ActivityAlertType.PANIC, // Usamos PANIC conforme o teu Enum
+                title = "SOS Manual",
+                latitude = lat,
+                longitude = lng
+            )
         }
     }
 
@@ -527,7 +551,7 @@ class GuardViewModelFactory : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(GuardViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return GuardViewModel(RuleRepository(), ConnectionRepository()) as T
+            return GuardViewModel(RuleRepository(), ConnectionRepository(), AlertRepository()) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
