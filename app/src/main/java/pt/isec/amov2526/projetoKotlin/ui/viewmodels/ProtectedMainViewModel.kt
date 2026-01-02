@@ -92,9 +92,12 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
         val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
 
         if (isProtectionActive) {
+
+
             // --- DESLIGAR (OFFLINE) ---
-            context.stopService(intent)
+            //context.stopService(intent)
             isProtectionActive = false
+            //db.collection("users").document(uid).update(updates)
             
             viewModelScope.launch {
                 try {

@@ -218,13 +218,16 @@ fun GuardScreen(
                     viewModel.setProtectionStatus(selectedTypeToPause!!, false, duration)
                     selectedTypeToPause = null
                 } else {
-                    viewModel.pauseGlobalProtection(duration)
                     if (duration == -1L) {
-                        protectedViewModel.stopServiceOnly()
+                        protectedViewModel.toggleProtection()
+                    } else{
+                        viewModel.pauseGlobalProtection(duration)
+
                     }
                 }
             },
-            viewModel = viewModel
+            viewModel = viewModel,
+
         )
     }
 

@@ -73,6 +73,17 @@ class SafetyMonitorService : Service() {
                     if (snapshot != null && snapshot.exists()) {
                         val status = snapshot.getString("systemStatus") ?: "ACTIVE"
 
+
+                        if (status == "OFFLINE") {
+                            isProtectionActive = false
+                            stopForeground(STOP_FOREGROUND_REMOVE) // Remove notificação
+                            val manager = getSystemService(NotificationManager::class.java)
+                            manager?.cancel(1)
+
+                            stopSelf() // Mata o serviço
+                            return@addSnapshotListener
+                        }
+
                         //val pausedUntil = snapshot.getLong("globalPausedUntil") ?: 0L
                         pausedUntil = snapshot.getLong("globalPausedUntil") ?: 0L
 
@@ -81,8 +92,10 @@ class SafetyMonitorService : Service() {
                         // Se estiver PAUSED e o tempo ainda não acabou -> Desativar proteção
                         if (status == "PAUSED" && (pausedUntil == -1L || pausedUntil > now)) {
                             isProtectionActive = false
+                            updateNotification(isPaused = true)
                         } else {
                             isProtectionActive = true
+                            updateNotification(isPaused = false)
                         }
                     }
                 }
@@ -104,6 +117,11 @@ class SafetyMonitorService : Service() {
         }
     }
 
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Isto garante que se o serviço for morto, ele NÃO renasce sozinho.
+        // Só arranca se a App mandar explicitamente.
+        return START_NOT_STICKY
+    }
     private fun startHeartbeat(uid: String) {
         serviceScope.launch {
             while (isActive) {
@@ -189,10 +207,42 @@ class SafetyMonitorService : Service() {
         }
     }
 
+    private fun updateNotification(isPaused: Boolean) {
+        val channelId = "SafetySecChannel"
+
+        // Define o texto consoante o estado
+        val title = if (isPaused) "SafetySec em Pausa" else "SafetySec Ativo"
+        val text = if (isPaused) "A proteção está temporariamente suspensa." else "Estamos a proteger-te em segundo plano."
+        val icon = if (isPaused) R.drawable.ic_shield_check else R.drawable.ic_shield_check // Podes mudar o ícone se tiveres outro (ex: ic_pause)
+
+        val notification: Notification = NotificationCompat.Builder(this, channelId)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setSmallIcon(icon)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true) // Mantém a notificação fixa
+            .setOnlyAlertOnce(true) // Evita que o telemóvel vibre/toque a cada atualização
+            .build()
+
+        // O ID '1' tem de ser o mesmo que usaste no startForeground
+        getSystemService(NotificationManager::class.java).notify(1, notification)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         isServiceRunning = false
-        // Limpar tudo ao fechar
+
+        // 1. Parar o estado Foreground e remover a notificação
+        // Como o teu minSdk é >= 24, usamos a flag direta sem 'if'.
+        // STOP_FOREGROUND_REMOVE remove a notificação da barra de status.
+        stopForeground(STOP_FOREGROUND_REMOVE)
+
+        // 2. Garantia Extra ("Double Tap")
+        // Dizemos explicitamente ao NotificationManager para cancelar o ID 1.
+        val manager = getSystemService(NotificationManager::class.java)
+        manager?.cancel(1)
+
+        // 3. Limpar sensores e corrotinas
         locationHelper.stopLocationUpdates()
         accelerometerHandler.stopMonitoring()
         inactivityHandler.stopMonitoring()

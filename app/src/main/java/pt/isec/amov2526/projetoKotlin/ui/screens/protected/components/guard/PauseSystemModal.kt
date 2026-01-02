@@ -43,7 +43,7 @@ fun PauseSystemModal(
     onDismiss: () -> Unit,
     onConfirm: (String, Long) -> Unit,
     viewModel: GuardViewModel,
-    title: String
+    title: String,
 ) {
     var pin by remember { mutableStateOf("") }
     var selectedDuration by remember { mutableStateOf("15 Min") }
@@ -76,6 +76,7 @@ fun PauseSystemModal(
                         color = Slate900
                     )
                 }
+
                 Text(
                     text = "Select duration and enter PIN.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -205,7 +206,7 @@ fun PauseSystemModal(
                         CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                     } else {
                         Text(
-                            text = "Confirm Pause",
+                            text = if (selectedDuration == "Indefinite") "Turn Off System" else "Confirm Pause",
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
                         )
