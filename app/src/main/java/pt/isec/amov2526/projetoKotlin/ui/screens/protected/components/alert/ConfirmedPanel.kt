@@ -2,13 +2,13 @@ package pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.alert
 
 
 import android.location.Location
+import android.preference.PreferenceManager
 import android.util.Log
 import android.view.ViewGroup
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,9 +16,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Face
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -26,7 +23,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -35,6 +31,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.compose.foundation.Canvas
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.ui.geometry.Offset
+
+import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
 
 // --- Theme Colors ---
 private val AlertRed = Color(0xFFDC2626)
@@ -51,6 +56,16 @@ fun ConfirmedPanel(currentLocation: Location?) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
+
+    //(tiles) da internet
+    LaunchedEffect(Unit) {
+        Configuration.getInstance().load(
+            context,
+            PreferenceManager.getDefaultSharedPreferences(context)
+        )
+        // Opcional: Define um UserAgent para evitar bloqueios dos servidores do OSM
+        Configuration.getInstance().userAgentValue = context.packageName
+    }
 
     Column(
         modifier = Modifier
@@ -183,61 +198,6 @@ fun ConfirmedPanel(currentLocation: Location?) {
                     fontSize = 12.sp
                 )
             }
-
-
-
-
-            // Placeholder Content based on Tab
-//            if (selectedCameraTab == 0) {
-//                // Mock Back Camera View
-//                Icon(
-//                    imageVector = Icons.Default.Videocam,
-//                    contentDescription = null,
-//                    tint = Color.Gray,
-//                    modifier = Modifier.size(48.dp)
-//                )
-//                Text(
-//                    text = "Back Camera Feed",
-//                    color = Color.Gray,
-//                    modifier = Modifier.padding(top = 80.dp)
-//                )
-//            } else {
-//                // Mock Front Camera View
-//                Icon(
-//                    imageVector = Icons.Default.Face,
-//                    contentDescription = null,
-//                    tint = Color.Gray,
-//                    modifier = Modifier.size(48.dp)
-//                )
-//                Text(
-//                    text = "Front Camera Feed",
-//                    color = Color.Gray,
-//                    modifier = Modifier.padding(top = 80.dp)
-//                )
-//            }
-//
-//            // Universal Recording Indicator (Always on top)
-//            Row(
-//                modifier = Modifier
-//                    .align(Alignment.TopEnd)
-//                    .padding(8.dp)
-//                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
-//                    .padding(horizontal = 6.dp, vertical = 4.dp),
-//                verticalAlignment = Alignment.CenterVertically
-//            ) {
-//                Box(
-//                    modifier = Modifier
-//                        .size(8.dp)
-//                        .background(Color.Red, CircleShape)
-//                )
-//                Spacer(modifier = Modifier.width(6.dp))
-//                Text(
-//                    text = "REC",
-//                    color = Color.White,
-//                    fontWeight = FontWeight.Bold,
-//                    fontSize = 12.sp
-//                )
-//            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -256,39 +216,75 @@ fun ConfirmedPanel(currentLocation: Location?) {
                 .fillMaxWidth()
                 .weight(1f)
                 .clip(RoundedCornerShape(12.dp))
-                .background(MapColor)
+                .background(Color(0xFFE2E8F0))
+                //.background(MapColor)
         ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val width = size.width
-                val height = size.height
-                drawLine(
-                    color = MapRoadColor,
-                    start = Offset(width * 0.6f, 0f),
-                    end = Offset(width * 0.6f, height),
-                    strokeWidth = 40f
+//            Canvas(modifier = Modifier.fillMaxSize()) {
+//                val width = size.width
+//                val height = size.height
+//                drawLine(
+//                    color = MapRoadColor,
+//                    start = Offset(width * 0.6f, 0f),
+//                    end = Offset(width * 0.6f, height),
+//                    strokeWidth = 40f
+//                )
+//                drawLine(
+//                    color = MapRoadColor,
+//                    start = Offset(0f, height * 0.4f),
+//                    end = Offset(width, height * 0.4f),
+//                    strokeWidth = 40f
+//                )
+//            }
+//            Icon(
+//                imageVector = Icons.Default.LocationOn,
+//                contentDescription = "My Location",
+//                tint = AlertRed,
+//                modifier = Modifier
+//                    .size(48.dp)
+//                    .align(Alignment.Center)
+//                    .offset(y = (-24).dp)
+//            )
+//            Box(
+//                modifier = Modifier
+//                    .size(16.dp)
+//                    .align(Alignment.Center)
+//                    .background(AlertRed.copy(alpha = 0.3f), CircleShape)
+//            )
+
+            if (currentLocation != null) {
+                // Aqui usamos o MapView do OSMDroid dentro de uma AndroidView
+                AndroidView(
+                    factory = { ctx ->
+                        MapView(ctx).apply {
+                            setTileSource(TileSourceFactory.MAPNIK) // Estilo de mapa padrão
+                            setMultiTouchControls(true) // Permitir zoom com dedos
+                            controller.setZoom(18.0) // Zoom inicial
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    update = { map ->
+                        val point = GeoPoint(currentLocation.latitude, currentLocation.longitude)
+
+                        // Centrar o mapa na localização atual
+                        map.controller.setCenter(point)
+
+                        // Limpar marcadores antigos e adicionar o novo
+                        map.overlays.clear()
+                        val marker = Marker(map)
+                        marker.position = point
+                        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        marker.title = "Eu estou aqui!"
+                        map.overlays.add(marker)
+
+                        map.invalidate() // Forçar atualização visual
+                    }
                 )
-                drawLine(
-                    color = MapRoadColor,
-                    start = Offset(0f, height * 0.4f),
-                    end = Offset(width, height * 0.4f),
-                    strokeWidth = 40f
-                )
+            } else {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("A aguardar sinal de GPS...", color = Color.Gray)
+                }
             }
-            Icon(
-                imageVector = Icons.Default.LocationOn,
-                contentDescription = "My Location",
-                tint = AlertRed,
-                modifier = Modifier
-                    .size(48.dp)
-                    .align(Alignment.Center)
-                    .offset(y = (-24).dp)
-            )
-            Box(
-                modifier = Modifier
-                    .size(16.dp)
-                    .align(Alignment.Center)
-                    .background(AlertRed.copy(alpha = 0.3f), CircleShape)
-            )
+
 
             Box(
                 modifier = Modifier

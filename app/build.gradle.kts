@@ -59,6 +59,8 @@ dependencies {
     implementation(libs.vico.compose.m3)
     implementation(libs.vico.core)
 
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
+
     // CameraX
     implementation("androidx.camera:camera-camera2:1.3.0")
     implementation("androidx.camera:camera-lifecycle:1.3.0")
