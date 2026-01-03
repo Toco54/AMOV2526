@@ -159,5 +159,6 @@ fun getMonitorIconForActivityType(type: ActivityAlertType): ImageVector {
         ActivityAlertType.GEOFENCE -> Icons.Default.LocationOn
         ActivityAlertType.PANIC -> Icons.Default.Warning
         ActivityAlertType.BATTERY -> Icons.Default.BatteryAlert
+        ActivityAlertType.INACTIVITY -> Icons.Default.Schedule
     }
 }

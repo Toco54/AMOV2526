@@ -19,13 +19,13 @@ object TimeUtils {
         end: String,
         now: Long = System.currentTimeMillis()
     ): StatusResult {
-        
+
         // 1. Check Pause (Timer/Indefinite Priority over "Disabled" flag)
         if (pausedUntil > now) {
             val remaining = pausedUntil - now
             return StatusResult(false, "PAUSED", "Paused: ${formatDuration(remaining)}")
         }
-        
+
         if (pausedUntil == -1L) {
             return StatusResult(false, "PAUSED", "Paused indefinitely")
         }
@@ -33,33 +33,37 @@ object TimeUtils {
         if (!isEnabled) {
             return StatusResult(false, "DISABLED", "Disabled by user")
         }
-        
-        // 2. Check Schedule
+
+        // 2. Check Schedule (LÓGICA INVERTIDA: Definição de Horário Ativo)
         if (isScheduleEnabled) {
             val cal = Calendar.getInstance()
             cal.timeInMillis = now
             val currentDay = cal.get(Calendar.DAY_OF_WEEK) - 1 // Calendar.SUNDAY=1 -> 0
-            
-            val isTodayActive = days.contains(currentDay)
+
             val (startH, startM) = parseTime(start)
             val (endH, endM) = parseTime(end)
-            
+
             val nowTime = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
             val startTime = startH * 60 + startM
             val endTime = endH * 60 + endM
-            
-            // Check if we are INSIDE the disabled window
-            val isInsideDisabledWindow = isTodayActive && (nowTime in startTime until endTime)
-            
-            if (isInsideDisabledWindow) {
-                // User defined this time frame to be DISABLED
-                return StatusResult(false, "SCHEDULED", "Scheduled off until $end")
+
+            // Verifica se estamos no dia certo E dentro da janela de horas
+            val isDayActive = days.contains(currentDay)
+            val isTimeActive = nowTime in startTime until endTime
+
+            if (isDayActive && isTimeActive) {
+                // Estamos DENTRO do horário de proteção -> ACTIVE
+                return StatusResult(true, "ACTIVE", "Active until $end")
+            } else {
+                // Estamos FORA do horário de proteção -> SCHEDULED (OFF)
+                val msg = if (!isDayActive) "Schedule: Inactive Today"
+                else if (nowTime < startTime) "Schedule: Starts at $start"
+                else "Schedule: Ended at $end"
+
+                return StatusResult(false, "SCHEDULED", msg)
             }
-            
-            // Outside disabled window -> Active
-            return StatusResult(true, "ACTIVE", null)
         }
-        
+
         return StatusResult(true, "ACTIVE", null)
     }
 
@@ -74,9 +78,9 @@ object TimeUtils {
         val minutes = millis / 1000 / 60
         val seconds = (millis / 1000) % 60
         if (minutes > 60) {
-             val hours = minutes / 60
-             val mins = minutes % 60
-             return "${hours}h ${mins}m"
+            val hours = minutes / 60
+            val mins = minutes % 60
+            return "${hours}h ${mins}m"
         }
         return "${minutes}m ${seconds}s"
     }
@@ -85,7 +89,8 @@ object TimeUtils {
         if (days.isEmpty() || start.isEmpty() || end.isEmpty()) return ""
         val dayNames = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
         val activeDays = days.sorted().joinToString(", ") { dayNames[it] }
-        return "🕒 $activeDays • $start - $end"
+        // Adicionei "Active:" para clarificar na UI que estes são os dias ATIVOS
+        return "🕒 Active: $activeDays • $start - $end"
     }
 
     fun getNextActiveTime(days: List<Int>, startH: Int, startM: Int, now: Long): String {

@@ -14,15 +14,16 @@ import kotlinx.coroutines.*
 import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.data.repository.AlertRepository
 import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType
 import pt.isec.amov2526.projetoKotlin.utils.*
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 
 class SafetyMonitorService : Service() {
 
     companion object {
         var isServiceRunning = false
-        // [ALTERAÇÃO 1] Constantes para comunicação com o Ecrã
         const val ACTION_CANCEL_ALERT = "pt.isec.amov2526.projetoKotlin.services.ACTION_CANCEL_ALERT"
         const val ACTION_CONFIRM_ALERT = "pt.isec.amov2526.projetoKotlin.services.ACTION_CONFIRM_ALERT"
     }
@@ -32,15 +33,23 @@ class SafetyMonitorService : Service() {
     private val auth = FirebaseAuth.getInstance()
     private var isProtectionActive = true
 
+    // Variáveis de Estado Interno (para Agendamento)
+    private var systemStatus = "ACTIVE"
+    private var globalScheduleDays: List<Int> = listOf(1, 2, 3, 4, 5)
+    private var globalScheduleStart: String = "09:00"
+    private var globalScheduleEnd: String = "18:00"
+    private var isGlobalScheduleEnabled: Boolean = false
+
     private lateinit var locationHelper: LocationHelper
     private lateinit var sensorHelper: SensorHelper
+    private lateinit var locationHandler: LocationHandler // [NOVO] Handler de Regras
     private lateinit var accelerometerHandler: AccelerometerHandler
     private lateinit var inactivityHandler: InactivityHandler
 
     private var pausedUntil: Long = 0L
     private val alertRepository = AlertRepository()
+    private val ruleListeners = mutableListOf<ListenerRegistration>()
 
-    // [ALTERAÇÃO 2] Variável para controlar o temporizador de 10s
     private var alertJob: Job? = null
 
     private val batteryReceiver = object : android.content.BroadcastReceiver() {
@@ -59,36 +68,47 @@ class SafetyMonitorService : Service() {
         isServiceRunning = true
         startForegroundService()
 
+        // Inicialização dos Helpers
         locationHelper = LocationHelper(this)
         sensorHelper = SensorHelper(this)
+
+        // [NOVO] Instanciar LocationHandler com o mesmo locationHelper
+        locationHandler = LocationHandler(locationHelper, serviceScope)
+
         accelerometerHandler = AccelerometerHandler(sensorHelper, serviceScope)
         inactivityHandler = InactivityHandler(sensorHelper, serviceScope)
 
+        // Iniciar monitorização
         locationHelper.startLocationUpdates(5000L)
         accelerometerHandler.startMonitoring()
         inactivityHandler.startMonitoring()
+        locationHandler.startMonitoring() // [NOVO] Iniciar verificação de regras
 
         registerReceiver(batteryReceiver, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
 
         observeSensors()
         observeSystemStatus()
+        startScheduleChecker()
     }
 
-    // [ALTERAÇÃO 3] Receber ordens do GuardScreen (Cancelar/Confirmar)
+    private fun startScheduleChecker() {
+        serviceScope.launch {
+            while (isActive) {
+                evaluateProtectionStatus()
+                delay(60000L) // Verifica a cada 60 segundos
+            }
+        }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_CANCEL_ALERT -> {
-                // Cancelar contagem e limpar notificação
                 alertJob?.cancel()
                 alertJob = null
                 getSystemService(NotificationManager::class.java).cancel(999)
             }
-            ACTION_CONFIRM_ALERT -> {
-                // Confirmar envio (o job pode continuar ou ser cancelado se o envio for manual imediato)
-                // A lógica de envio manual já trata disto chamando ACTION_CANCEL_ALERT a seguir
-            }
+            ACTION_CONFIRM_ALERT -> { }
         }
-        // Garante que o serviço não renasce sozinho se morrer, mas processa intents
         return START_NOT_STICKY
     }
 
@@ -96,12 +116,15 @@ class SafetyMonitorService : Service() {
         val uid = auth.currentUser?.uid ?: return
         startHeartbeat(uid)
 
+        // [NOVO] Começar a escutar as regras da BD para alimentar o LocationHandler
+        startListeningToRules(uid)
+
         serviceScope.launch {
             db.collection("users").document(uid).addSnapshotListener { snapshot, _ ->
                 if (snapshot != null && snapshot.exists()) {
-                    val status = snapshot.getString("systemStatus") ?: "ACTIVE"
+                    systemStatus = snapshot.getString("systemStatus") ?: "ACTIVE"
 
-                    if (status == "OFFLINE") {
+                    if (systemStatus == "OFFLINE") {
                         isProtectionActive = false
                         stopForeground(STOP_FOREGROUND_REMOVE)
                         getSystemService(NotificationManager::class.java)?.cancel(1)
@@ -110,15 +133,13 @@ class SafetyMonitorService : Service() {
                     }
 
                     pausedUntil = snapshot.getLong("globalPausedUntil") ?: 0L
-                    val now = System.currentTimeMillis()
+                    isGlobalScheduleEnabled = snapshot.getBoolean("isGlobalScheduleEnabled") ?: false
+                    globalScheduleStart = snapshot.getString("globalScheduleStart") ?: "09:00"
+                    globalScheduleEnd = snapshot.getString("globalScheduleEnd") ?: "18:00"
+                    val daysList = snapshot.get("globalScheduleDays") as? List<Number>
+                    globalScheduleDays = daysList?.map { it.toInt() } ?: listOf(1, 2, 3, 4, 5)
 
-                    if (status == "PAUSED" && (pausedUntil == -1L || pausedUntil > now)) {
-                        isProtectionActive = false
-                        updateNotification(isPaused = true)
-                    } else {
-                        isProtectionActive = true
-                        updateNotification(isPaused = false)
-                    }
+                    evaluateProtectionStatus()
                 }
             }
         }
@@ -137,6 +158,114 @@ class SafetyMonitorService : Service() {
         }
     }
 
+    // [NOVO] Função para ler regras da BD e injetar no LocationHandler
+    private fun startListeningToRules(uid: String) {
+        // Limpar listeners antigos se houver recriação
+        ruleListeners.forEach { it.remove() }
+        ruleListeners.clear()
+
+        // 1. Escutar Conexões (Monitores)
+        val connListener = db.collection("users").document(uid).collection("connections")
+            .whereEqualTo("role", "Monitor")
+            .addSnapshotListener { connections, _ ->
+                if (connections == null) return@addSnapshotListener
+
+                // Reiniciar regras no Handler para evitar duplicados/lixo
+                locationHandler.clearAllRules()
+
+                connections.documents.forEach { connDoc ->
+                    val monitorUid = connDoc.getString("uid") ?: return@forEach
+
+                    // 2. Escutar Regras de cada Monitor
+                    val ruleListener = db.collection("users").document(uid)
+                        .collection("connections").document(monitorUid)
+                        .collection("rules")
+                        .whereEqualTo("isEnabled", true) // Apenas regras ativas
+                        .addSnapshotListener { rules, _ ->
+                            if (rules == null) return@addSnapshotListener
+
+                            rules.documents.forEach { doc ->
+                                // Ignorar se estiver desativada pelo Protegido
+                                if (doc.getBoolean("isDisabledByProtege") == true) return@forEach
+                                if (doc.getBoolean("deletedByProtege") == true) return@forEach
+
+                                val typeStr = doc.getString("type") ?: ""
+                                val param1 = doc.getString("param1") ?: ""
+                                val ruleId = doc.id
+
+                                try {
+                                    when (typeStr) {
+                                        "INACTIVITY" -> {
+                                            // param1 esperado em minutos (ex: "10")
+                                            val minutes = param1.toLongOrNull()
+                                            if (minutes != null) {
+                                                // Converte minutos para milissegundos para o Handler
+                                                inactivityHandler.addRule(InactivityRule(ruleId, minutes * 60 * 1000))
+                                            }
+                                        }
+                                        "SPEED" -> {
+                                            val limit = param1.toFloatOrNull()
+                                            if (limit != null) {
+                                                locationHandler.addSpeedRule(SpeedRule(ruleId, limit))
+                                            }
+                                        }
+                                        "GEOFENCING" -> {
+                                            // Formato esperado: "lat,lng,radius" ou "lat;lng;radius"
+                                            val parts = param1.split(Regex("[,;]"))
+                                            if (parts.size >= 3) {
+                                                val lat = parts[0].toDoubleOrNull()
+                                                val lng = parts[1].toDoubleOrNull()
+                                                val rad = parts[2].toFloatOrNull()
+                                                if (lat != null && lng != null && rad != null) {
+                                                    locationHandler.addGeofence(GeofenceRule(ruleId, lat, lng, rad))
+                                                }
+                                            }
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    // Erro no parse da regra, ignora
+                                }
+                            }
+                        }
+                    ruleListeners.add(ruleListener)
+                }
+            }
+        ruleListeners.add(connListener)
+    }
+
+    private fun evaluateProtectionStatus() {
+        val now = System.currentTimeMillis()
+
+        if (systemStatus == "PAUSED" && pausedUntil != -1L && pausedUntil < now && pausedUntil != 0L) {
+            systemStatus = "ACTIVE"
+            pausedUntil = 0L
+            auth.currentUser?.uid?.let { uid ->
+                db.collection("users").document(uid).update(
+                    mapOf("systemStatus" to "ACTIVE", "globalPausedUntil" to 0L)
+                )
+            }
+        }
+
+        val statusResult = TimeUtils.calculateStatus(
+            isEnabled = (systemStatus == "ACTIVE"),
+            pausedUntil = pausedUntil,
+            isScheduleEnabled = isGlobalScheduleEnabled,
+            days = globalScheduleDays,
+            start = globalScheduleStart,
+            end = globalScheduleEnd,
+            now = now
+        )
+
+        val shouldBeActive = statusResult.isActive
+
+        if (isProtectionActive != shouldBeActive) {
+            isProtectionActive = shouldBeActive
+            updateNotification(isPaused = !isProtectionActive)
+        } else {
+            updateNotification(isPaused = !isProtectionActive)
+        }
+    }
+
     private fun startHeartbeat(uid: String) {
         serviceScope.launch {
             while (isActive) {
@@ -148,50 +277,63 @@ class SafetyMonitorService : Service() {
         }
     }
 
-    // [ALTERAÇÃO 4] Usar triggerAlertSequence em vez de launchAlertUI direto
     private fun observeSensors() {
+        // [EXISTENTE] Acelerómetro (Queda/Acidente)
         serviceScope.launch {
             accelerometerHandler.onFallDetected.collect {
-                if (isProtectionActive) {
-                    triggerAlertSequence(ActivityAlertType.FALL)
-                }
+                if (isProtectionActive) triggerAlertSequence(ActivityAlertType.FALL)
             }
         }
 
         serviceScope.launch {
             accelerometerHandler.onAccidentDetected.collect {
-                if (isProtectionActive) {
-                    triggerAlertSequence(ActivityAlertType.ACCIDENT)
-                }
+                if (isProtectionActive) triggerAlertSequence(ActivityAlertType.ACCIDENT)
             }
         }
 
         serviceScope.launch {
-            inactivityHandler.inactivityAlerts.collect { rule ->
+            inactivityHandler.inactivityAlerts.collect {
+                if (isProtectionActive) triggerAlertSequence(ActivityAlertType.INACTIVITY)
+            }
+        }
+
+        // [NOVO] LocationHandler (Geofencing/Velocidade)
+        serviceScope.launch {
+            locationHandler.alerts.collect { alert ->
                 if (isProtectionActive) {
-                    triggerAlertSequence(ActivityAlertType.FALL) // Trata inatividade como Fall/Alert
+                    when (alert) {
+                        is LocationAlert.GeofenceExit -> {
+                            triggerAlertSequence(ActivityAlertType.GEOFENCE)
+                        }
+                        is LocationAlert.SpeedLimitExceeded -> {
+                            triggerAlertSequence(ActivityAlertType.SPEED)
+                        }
+                    }
                 }
             }
         }
     }
 
-    // [ALTERAÇÃO 5] Nova lógica de contagem automática
     private fun triggerAlertSequence(type: ActivityAlertType) {
-        // Se já estiver a contar, ignora para não spammar
         if (alertJob?.isActive == true) return
 
-        // 1. Mostrar ecrã vermelho
         launchAlertUI(type)
 
-        // 2. Iniciar contagem de 10 segundos
         alertJob = serviceScope.launch {
-            delay(10000L) // Espera 10s
+            delay(10000L)
 
             if (isActive) {
-                // Se chegou aqui e não foi cancelado: ENVIA
-                createAlert(type, "Alerta Automático (${type.name})")
-
-                // Limpa a notificação vermelha
+                // [ATUALIZADO] Títulos corretos para os novos tipos
+                val title = when(type) {
+                    ActivityAlertType.FALL -> "Queda Detetada"
+                    ActivityAlertType.ACCIDENT -> "Acidente de Viação"
+                    ActivityAlertType.BATTERY -> "Bateria Fraca"
+                    ActivityAlertType.GEOFENCE -> "Saiu da Zona Segura"
+                    ActivityAlertType.SPEED -> "Velocidade Excessiva"
+                    ActivityAlertType.INACTIVITY -> "Inatividade Detetada"
+                    else -> "Alerta Automático"
+                }
+                createAlert(type, title)
                 getSystemService(NotificationManager::class.java).cancel(999)
             }
             alertJob = null
@@ -208,10 +350,7 @@ class SafetyMonitorService : Service() {
         }
 
         val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val notificationManager = getSystemService(NotificationManager::class.java)
@@ -219,13 +358,11 @@ class SafetyMonitorService : Service() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                channelId,
-                "Alertas de Emergência",
-                NotificationManager.IMPORTANCE_HIGH
+                channelId, "Alertas de Emergência", NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                 enableVibration(true)
-                setBypassDnd(true) // Fura o "Não incomodar"
+                setBypassDnd(true)
             }
             notificationManager.createNotificationChannel(channel)
         }
@@ -237,19 +374,15 @@ class SafetyMonitorService : Service() {
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setFullScreenIntent(pendingIntent, true)
-            .setAutoCancel(false) // Não desaparece ao clicar, só por código
+            .setAutoCancel(false)
             .setOngoing(true)
             .build()
 
         notificationManager.notify(999, notification)
 
-        // [IMPORTANTE] Tenta abrir a Activity diretamente (útil se a app já estiver aberta)
         try {
             startActivity(intent)
-        } catch (e: Exception) {
-            // Em Androids recentes (10+), background activity start pode ser bloqueado,
-            // mas o FullScreenIntent garante que funciona se estiver bloqueado.
-        }
+        } catch (e: Exception) {}
     }
 
     private suspend fun createAlert(type: ActivityAlertType, title: String) {
@@ -268,9 +401,7 @@ class SafetyMonitorService : Service() {
         val channelId = "SafetySecChannel"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                channelId,
-                "Monitorização SafetySec",
-                NotificationManager.IMPORTANCE_LOW
+                channelId, "Monitorização SafetySec", NotificationManager.IMPORTANCE_LOW
             )
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
@@ -316,9 +447,13 @@ class SafetyMonitorService : Service() {
 
         try { unregisterReceiver(batteryReceiver) } catch (e: Exception) {}
 
+        // Limpar listeners de regras
+        ruleListeners.forEach { it.remove() }
+
         locationHelper.stopLocationUpdates()
         accelerometerHandler.stopMonitoring()
         inactivityHandler.stopMonitoring()
+        locationHandler.stopMonitoring() // [NOVO]
         serviceScope.cancel()
     }
 

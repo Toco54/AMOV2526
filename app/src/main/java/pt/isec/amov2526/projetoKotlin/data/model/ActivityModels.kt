@@ -1,14 +1,14 @@
 package pt.isec.amov2526.projetoKotlin.data.model
 
 enum class ActivityAlertType {
-    SPEED, FALL, ACCIDENT, GEOFENCE, PANIC, BATTERY
+    SPEED, FALL, ACCIDENT, GEOFENCE, PANIC, BATTERY, INACTIVITY
 }
 
 enum class ActivityAlertStatus {
     CONFIRMED, CANCELLED, PENDING
 }
 
-enum class MonitorActionState { SENT, VIEWED, CALLED_USER, CALLED_112, ON_THE_WAY, MARKED_SAFE }
+enum class MonitorActionState { SENT, VIEWED, CALLED_USER, CALLED_112, ON_THE_WAY, MARKED_SAFE}
 
 data class MonitorAction(
     val name: String,
