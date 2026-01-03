@@ -48,10 +48,19 @@ fun AlertScreen(
 
     val previewView = remember { PreviewView(context) }
     
+    // --- TESTING FLAGS ---
+    val SKIP_UPLOAD_FOR_TESTING = true
+
     fun performUpload(file: File, id: String) {
         if (isUploading) return
         isUploading = true
         scope.launch {
+            if (SKIP_UPLOAD_FOR_TESTING) {
+                delay(2000) // Simular upload
+                isRecordingFinished = true
+                return@launch
+            }
+
             val uid = auth.currentUser?.uid
             if (uid != null) {
                 val vUrl = evidenceManager.uploadFile(file, "users/$uid/alerts/$id/video")

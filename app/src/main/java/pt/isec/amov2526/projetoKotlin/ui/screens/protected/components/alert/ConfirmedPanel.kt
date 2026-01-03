@@ -50,7 +50,8 @@ fun ConfirmedPanel(
     onClose: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    var remainingSeconds by remember { mutableLongStateOf(30L) }
+    // Estado local para o countdown visual
+    var remainingSeconds by remember { mutableLongStateOf(12L) }
     val isTimeUp = remainingSeconds <= 0
 
     LaunchedEffect(Unit) {
@@ -58,14 +59,15 @@ fun ConfirmedPanel(
         Configuration.getInstance().userAgentValue = context.packageName
     }
 
+    // Timer Loop para atualizar o UI de forma sincronizada com o início real
     LaunchedEffect(recordingStartTime, isRecordingFinished) {
         if (!isRecordingFinished && recordingStartTime > 0) {
             while (true) {
                 val elapsed = System.currentTimeMillis() - recordingStartTime
-                val left = 30000L - elapsed
+                val left = 12000L - elapsed
                 remainingSeconds = (left / 1000L).coerceAtLeast(0L)
                 if (left <= 0) break
-                delay(500L)
+                delay(500L) // Atualização mais frequente para maior precisão visual
             }
         } else if (isRecordingFinished) {
             remainingSeconds = 0
