@@ -23,5 +23,7 @@ data class ActivityItem(
     val date: String,
     val time: String,
     val status: ActivityAlertStatus,
-    val notifiedMonitors: List<MonitorAction> = emptyList()
+    val notifiedMonitors: List<MonitorAction> = emptyList(),
+    val latitude: Double? = null,
+    val longitude: Double? = null
 )

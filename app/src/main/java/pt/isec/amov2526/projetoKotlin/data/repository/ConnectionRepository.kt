@@ -184,6 +184,13 @@ class ConnectionRepository {
                 throw Exception("Cannot connect to yourself")
             }
 
+            // Fetch Names to store in connection docs (Optimization for Services)
+            val monitorDoc = db.collection("users").document(monitorUid).get().await()
+            val monitorName = monitorDoc.getString("name") ?: "Monitor"
+            
+            val protegeDoc = db.collection("users").document(protegeUid).get().await()
+            val protegeName = protegeDoc.getString("name") ?: "Protege"
+
             // Prevent duplicate connection
             val existingConnection = db.collection("users").document(monitorUid)
                 .collection("connections").document(protegeUid)
@@ -195,13 +202,14 @@ class ConnectionRepository {
 
             val batch = db.batch()
 
-            // 1. Add Protege to Monitor's list (User document + Subcollection for details)
+            // 1. Add Protege to Monitor's list
             val monitorRef = db.collection("users").document(monitorUid)
             batch.update(monitorRef, "associatedIds", FieldValue.arrayUnion(protegeUid))
             
             val monitorConnectionRef = monitorRef.collection("connections").document(protegeUid)
             batch.set(monitorConnectionRef, hashMapOf(
                 "uid" to protegeUid,
+                "name" to protegeName, // [NOVO] Guardar nome para evitar fetch no futuro
                 "role" to "Protege",
                 "since" to FieldValue.serverTimestamp()
             ))
@@ -213,8 +221,9 @@ class ConnectionRepository {
             val protegeConnectionRef = protegeRef.collection("connections").document(monitorUid)
             batch.set(protegeConnectionRef, hashMapOf(
                 "uid" to monitorUid,
+                "name" to monitorName, // [NOVO] Guardar nome para evitar fetch no futuro
                 "role" to "Monitor",
-                "accessLevel" to accessLevel, // <--- SAVING PERMISSION
+                "accessLevel" to accessLevel,
                 "since" to FieldValue.serverTimestamp()
             ))
 

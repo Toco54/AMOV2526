@@ -21,7 +21,10 @@ private val Slate900 = Color(0xFF0F172A)
 
 
 @Composable
-fun ActivityScreen(viewModel: pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
+fun ActivityScreen(
+    viewModel: pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
+    activeGeofences: List<MonitorRule> = emptyList() // [NOVO] Recebe as regras ativas do ViewModel partilhado
+) {
     var selectedActivity by remember { mutableStateOf<ActivityItem?>(null) }
 
     val activities = viewModel.activities
@@ -67,7 +70,8 @@ fun ActivityScreen(viewModel: pt.isec.amov2526.projetoKotlin.ui.viewmodels.Prote
     if (selectedActivity != null) {
         AlertDetailModal(
             activity = selectedActivity!!,
-            onDismiss = { selectedActivity = null }
+            onDismiss = { selectedActivity = null },
+            activeGeofences = activeGeofences // [NOVO] Passa as regras para o Modal
         )
     }
 }

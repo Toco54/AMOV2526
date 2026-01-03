@@ -63,6 +63,21 @@ fun ConfirmedPanel(
 
     var selectedCameraTab by remember { mutableIntStateOf(0) } // 0 = Back, 1 = Front
 
+    // [NOVO] Estado para controlar visibilidade das zonas por monitor
+    // Inicialmente todos os monitores com infrações estão visíveis
+    val visibleMonitors = remember { mutableStateListOf<String>() }
+
+    LaunchedEffect(infractions) {
+        visibleMonitors.clear()
+        visibleMonitors.addAll(infractions.map { it.monitorName }.distinct())
+        // Adiciona também monitores das activeGeofences que possam não estar nas infrações (opcional, mas seguro)
+        activeGeofences.forEach { rule ->
+            if (!visibleMonitors.contains(rule.monitorName)) {
+                visibleMonitors.add(rule.monitorName)
+            }
+        }
+    }
+
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
@@ -237,6 +252,12 @@ fun ConfirmedPanel(
                             setTileSource(TileSourceFactory.MAPNIK) // Estilo de mapa padrão
                             setMultiTouchControls(true) // Permitir zoom com dedos
                             controller.setZoom(18.0) // Zoom inicial
+                            
+                            // [CORREÇÃO] Prevenir que o ScrollView pai intercepte o toque no mapa
+                            setOnTouchListener { v, event ->
+                                v.parent.requestDisallowInterceptTouchEvent(true)
+                                false
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxSize(),
@@ -249,25 +270,34 @@ fun ConfirmedPanel(
                         // Limpar marcadores e overlays antigos
                         map.overlays.clear()
 
-                        // 1. Desenhar Geofences
+                        // 1. Desenhar Geofences (Apenas dos monitores visíveis)
+                        Log.d("ConfirmedPanel", "Active Geofences: ${activeGeofences.size}")
                         activeGeofences.forEach { rule ->
-                            rule.geofenceData?.let { (lat, lng, radius) ->
-                                val circle = Polygon(map)
-                                circle.points = Polygon.pointsAsCircle(GeoPoint(lat, lng), radius.toDouble())
-                                
-                                // Verificar se o user está dentro
-                                val results = FloatArray(1)
-                                Location.distanceBetween(currentLocation.latitude, currentLocation.longitude, lat, lng, results)
-                                val isInside = results[0] <= radius
+                            // Só desenha se o monitor estiver na lista de visíveis
+                            val isVisible = visibleMonitors.contains(rule.monitorName)
+                            Log.d("ConfirmedPanel", "Rule for ${rule.monitorName}: isVisible=$isVisible, hasGeoData=${rule.geofenceData != null}")
+                            
+                            if (isVisible) {
+                                rule.geofenceData?.let { (lat, lng, radius) ->
+                                    val circle = Polygon(map)
+                                    circle.points = Polygon.pointsAsCircle(GeoPoint(lat, lng), radius.toDouble())
+                                    
+                                    // Verificar se esta regra pertence a um monitor que gerou infração de Geofence
+                                    val hasInfraction = infractions.any { 
+                                        it.monitorName == rule.monitorName && it.ruleType == "GEOFENCING" 
+                                    }
 
-                                // Cor: Verde (Dentro) ou Amarelo (Fora)
-                                val color = if (isInside) SafeGreen else AlertYellow
-                                
-                                circle.fillPaint.color = android.graphics.Color.argb(70, (color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt()) // Transparente
-                                circle.outlinePaint.color = android.graphics.Color.argb(255, (color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt())
-                                circle.outlinePaint.strokeWidth = 3f
+                                    Log.d("ConfirmedPanel", "  -> Drawing Zone: Lat=$lat, Lng=$lng, Radius=$radius, Color=${if(hasInfraction) "RED" else "GREEN"}")
 
-                                map.overlays.add(circle)
+                                    // Cor: Vermelho se houve infração (violada), Verde se está seguro
+                                    val color = if (hasInfraction) AlertRed else SafeGreen
+                                    
+                                    circle.fillPaint.color = android.graphics.Color.argb(70, (color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt()) // Transparente
+                                    circle.outlinePaint.color = android.graphics.Color.argb(255, (color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt())
+                                    circle.outlinePaint.strokeWidth = 3f
+
+                                    map.overlays.add(circle)
+                                }
                             }
                         }
 
@@ -315,7 +345,7 @@ fun ConfirmedPanel(
         if (infractions.isNotEmpty()) {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Infringed Rules",
+                text = "Infringed Rules (Select to View on Map)",
                 color = Color.White.copy(alpha = 0.7f),
                 modifier = Modifier
                     .align(Alignment.Start)
@@ -330,10 +360,34 @@ fun ConfirmedPanel(
                     .padding(12.dp)
             ) {
                 infractions.forEachIndexed { index, inf ->
+                    val isSelected = visibleMonitors.contains(inf.monitorName)
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clickable {
+                                if (isSelected) {
+                                    visibleMonitors.remove(inf.monitorName)
+                                } else {
+                                    visibleMonitors.add(inf.monitorName)
+                                }
+                            },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // [NOVO] Checkbox de seleção
+                        androidx.compose.material3.Checkbox(
+                            checked = isSelected,
+                            onCheckedChange = { checked ->
+                                if (checked) visibleMonitors.add(inf.monitorName)
+                                else visibleMonitors.remove(inf.monitorName)
+                            },
+                            colors = androidx.compose.material3.CheckboxDefaults.colors(
+                                checkedColor = AlertRed,
+                                uncheckedColor = Color.Gray,
+                                checkmarkColor = Color.White
+                            )
+                        )
+                        
                         // Monitor Icon/Name
                          Box(
                             modifier = Modifier

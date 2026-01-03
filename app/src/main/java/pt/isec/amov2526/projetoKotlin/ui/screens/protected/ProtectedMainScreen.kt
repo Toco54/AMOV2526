@@ -119,6 +119,7 @@ fun ProtectedMainScreen(
 
     // --- O POPUP DE ALERTA GLOBAL ---
     if (showAlertScreen) {
+        android.util.Log.d("ProtectedMainScreen", "Showing AlertScreen. Active Geofences Count: ${activeGeofences.size}")
         Dialog(
             onDismissRequest = { },
             properties = DialogProperties(
@@ -271,7 +272,11 @@ fun ProtectedMainScreen(
                     )
                 }
                 composable("monitors") { MonitorsScreen() }
-                composable("activity") { ActivityScreen() }
+                composable("activity") { 
+                    ActivityScreen(
+                        activeGeofences = activeGeofences // [NOVO] Passa as regras de geofence para o ecrã de histórico
+                    ) 
+                }
                 composable("profile") {
                     ProfileScreen(
                         name = viewModel.userName, email = viewModel.userEmail,

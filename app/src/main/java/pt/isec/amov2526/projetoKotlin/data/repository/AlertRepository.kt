@@ -24,7 +24,8 @@ class AlertRepository {
         title: String,
         latitude: Double? = null,
         longitude: Double? = null,
-        visibleToMonitors: List<String>? = null // [NOVO] Lista de IDs de monitores autorizados
+        visibleToMonitors: List<String>? = null, // [NOVO] Lista de IDs de monitores autorizados
+        initialActions: List<MonitorAction>? = null // [NOVO] Lista inicial de monitores notificados
     ) {
         // Se 'auth' der erro aqui, é porque a função está fora da classe!
         val currentUser = auth.currentUser ?: return
@@ -54,12 +55,44 @@ class AlertRepository {
             alertData["visibleTo"] = visibleToMonitors
         }
 
+        // [NOVO] Guardar a lista inicial de ações/monitores notificados
+        if (initialActions != null) {
+            val actionsList = initialActions.map { action ->
+                mapOf(
+                    "name" to action.name,
+                    "state" to action.state.name,
+                    "time" to action.time
+                )
+            }
+            alertData["notifiedMonitors"] = actionsList
+        }
+
         try {
-            // Se o .await() der erro aqui, falta adicionar a dependência no build.gradle
-            db.collection("users").document(uid)
+            val batch = db.batch()
+
+            // 1. Criar o Alerta Principal na coleção do Protegido
+            val alertRef = db.collection("users").document(uid)
                 .collection("alerts").document(alertId)
-                .set(alertData)
-                .await()
+            batch.set(alertRef, alertData)
+
+            // 2. Atualizar o documento de conexão em cada Monitor
+            // Adiciona o caminho ao mapa 'alertRefs' usando notação de ponto
+            visibleToMonitors?.forEach { monitorUid ->
+                val connectionDoc = db.collection("users").document(monitorUid)
+                    .collection("connections").document(uid)
+                
+                // Nota: Usamos update() porque o documento de conexão JÁ DEVE existir.
+                // Se não existir (caso raro de inconsistência), esta parte falharia para esse monitor específico.
+                // O caminho guardado é o path absoluto para facilitar o fetch futuro.
+                val updateData = mapOf(
+                    "alertRefs.$alertId" to "users/$uid/alerts/$alertId"
+                )
+                batch.update(connectionDoc, updateData)
+            }
+
+            // Executar todas as escritas atomicamente
+            batch.commit().await()
+
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -97,7 +130,9 @@ class AlertRepository {
                         date = doc.getString("date") ?: "",
                         time = doc.getString("time") ?: "",
                         status = ActivityAlertStatus.valueOf(statusStr),
-                        notifiedMonitors = monitorsList
+                        notifiedMonitors = monitorsList,
+                        latitude = doc.getDouble("latitude"),
+                        longitude = doc.getDouble("longitude")
                     )
                 } catch (ex: Exception) {
                     null

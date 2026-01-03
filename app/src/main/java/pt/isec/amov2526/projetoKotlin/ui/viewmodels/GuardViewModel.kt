@@ -128,6 +128,31 @@ class GuardViewModel(
             val lat = lastLocation?.latitude
             val lng = lastLocation?.longitude
 
+            // [NOVO] Obter lista inicial de monitores para o Pânico
+            var initialActions: List<pt.isec.amov2526.projetoKotlin.data.model.MonitorAction>? = null
+            var monitorIds: List<String>? = null // [NOVO] Lista de UIDs para o campo visibleTo
+
+            try {
+                val snapshot = db.collection("users").document(currentUserUid)
+                    .collection("connections")
+                    .whereEqualTo("role", "Monitor")
+                    .get().await()
+                
+                // Extrair UIDs para permissões
+                monitorIds = snapshot.documents.mapNotNull { it.getString("uid") }
+
+                // Extrair Nomes para histórico visual
+                initialActions = snapshot.documents.map { doc ->
+                    pt.isec.amov2526.projetoKotlin.data.model.MonitorAction(
+                        name = doc.getString("name") ?: "Monitor",
+                        state = pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState.SENT,
+                        time = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+                    )
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("GuardViewModel", "Error fetching monitors for manual SOS", e)
+            }
+
             // CORRIGIDO: Usa título dinâmico baseado no tipo
             val alertTitle = when(type) {
                 ActivityAlertType.PANIC -> "SOS Manual"
@@ -143,7 +168,9 @@ class GuardViewModel(
                 type = type,
                 title = alertTitle,
                 latitude = lat,
-                longitude = lng
+                longitude = lng,
+                visibleToMonitors = monitorIds, // [NOVO] Permite que os monitores vejam o alerta
+                initialActions = initialActions // [NOVO] Preenche o histórico "Notified Monitors"
             )
         }
     }
@@ -397,21 +424,24 @@ class GuardViewModel(
                         }
 
                         val param1 = doc.getString("param1") ?: ""
-                        var geoData: Triple<Double, Double, Float>? = null // [NOVO]
+                        val param2 = doc.getString("param2") ?: "" // [NOVO] Ler param2
+                        var geoData: Triple<Double, Double, Float>? = null 
 
                         val parameterDisplay = when(uiType) {
                             RuleType.GEOFENCING -> {
-                                // Parse: "lat,lng,radius"
-                                val parts = param1.split(Regex("[,;]"))
-                                if (parts.size >= 3) {
-                                    val lat = parts[0].toDoubleOrNull()
-                                    val lng = parts[1].toDoubleOrNull()
-                                    val rad = parts[2].toFloatOrNull()
-                                    if (lat != null && lng != null && rad != null) {
-                                        geoData = Triple(lat, lng, rad)
+                                // Parse: param1=Radius, param2=Lat,Lng
+                                val radius = param1.toFloatOrNull()
+                                val coordParts = param2.split(Regex("[,;]"))
+                                
+                                if (radius != null && coordParts.size >= 2) {
+                                    val lat = coordParts[0].trim().toDoubleOrNull()
+                                    val lng = coordParts[1].trim().toDoubleOrNull()
+                                    
+                                    if (lat != null && lng != null) {
+                                        geoData = Triple(lat, lng, radius)
                                     }
                                 }
-                                "${param1}m" // Este display name está um pouco sujo ("lat,lng,radm"), mas mantemos por agora
+                                "${param1}m" 
                             }
                             RuleType.SPEED -> "${param1} KM/H"
                             RuleType.INACTIVITY -> "${param1} MIN"

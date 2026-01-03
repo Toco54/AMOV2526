@@ -12,9 +12,12 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.*
+import kotlinx.coroutines.tasks.await
 import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.data.repository.AlertRepository
 import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorAction
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
 import pt.isec.amov2526.projetoKotlin.data.model.RuleType
 import pt.isec.amov2526.projetoKotlin.utils.*
@@ -257,97 +260,103 @@ class SafetyMonitorService : Service() {
 
                 connections.documents.forEach { connDoc ->
                     val monitorUid = connDoc.getString("uid") ?: return@forEach
-                    val monitorName = connDoc.getString("name") ?: "Monitor"
+                    
+                    // [CORREÇÃO] Se o nome não estiver no doc de conexão, tentamos buscar ao perfil do monitor
+                    // (O ideal é estar no doc de conexão para performance, mas isto garante que mostra o nome real)
+                    serviceScope.launch {
+                        var monitorName = connDoc.getString("name")
+                        if (monitorName == null || monitorName == "Monitor") {
+                            try {
+                                val monitorDoc = db.collection("users").document(monitorUid).get().await()
+                                monitorName = monitorDoc.getString("name") ?: "Monitor"
+                                // Opcional: Atualizar o doc de conexão local para futuras leituras rápidas
+                                db.collection("users").document(uid).collection("connections").document(monitorUid).update("name", monitorName)
+                            } catch (e: Exception) {
+                                monitorName = "Monitor"
+                            }
+                        }
 
-                    val ruleListener = db.collection("users").document(uid)
-                        .collection("connections").document(monitorUid)
-                        .collection("rules")
-                        .addSnapshotListener { rules, _ ->
-                            if (rules == null) return@addSnapshotListener
+                        val ruleListener = db.collection("users").document(uid)
+                            .collection("connections").document(monitorUid)
+                            .collection("rules")
+                            .addSnapshotListener { rules, _ ->
+                                if (rules == null) return@addSnapshotListener
 
-                            rules.documents.forEach { doc ->
-                                if (doc.getBoolean("isDisabledByProtege") == true) return@forEach
-                                if (doc.getBoolean("deletedByProtege") == true) return@forEach
+                                // Limpar regras antigas deste monitor antes de adicionar as novas (evita duplicados no monitoramento)
+                                // Nota: Para simplificar, como os handlers usam lista e removem por ID, o addRule trata disso.
 
-                                val typeStr = doc.getString("type") ?: ""
-                                val param1 = doc.getString("param1") ?: ""
-                                val param2 = doc.getString("param2") ?: "" // [NOVO] Ler param2
-                                val ruleId = doc.id
-                                val type = try { RuleType.valueOf(typeStr) } catch(e:Exception) { null }
+                                rules.documents.forEach { doc ->
+                                    if (doc.getBoolean("isDisabledByProtege") == true) return@forEach
+                                    if (doc.getBoolean("deletedByProtege") == true) return@forEach
 
-                                if (type != null) {
-                                    // [NOVO] Ler dados de Agendamento
-                                    val isEnabled = doc.getBoolean("isEnabled") ?: true
-                                    val isScheduleEnabled = doc.getBoolean("isScheduleEnabled") ?: false
-                                    val scheduleStart = doc.getString("scheduleStart") ?: "09:00"
-                                    val scheduleEnd = doc.getString("scheduleEnd") ?: "18:00"
-                                    val pausedUntil = doc.getLong("pausedUntil") ?: 0L
-                                    val daysList = doc.get("scheduleDays") as? List<Number>
-                                    val scheduleDays = daysList?.map { it.toInt() } ?: listOf(1,2,3,4,5)
+                                    val typeStr = doc.getString("type") ?: ""
+                                    val param1 = doc.getString("param1") ?: ""
+                                    val param2 = doc.getString("param2") ?: ""
+                                    val ruleId = doc.id
+                                    val type = try { RuleType.valueOf(typeStr) } catch(e:Exception) { null }
 
-                                    // Calcular estado efetivo
-                                    val statusResult = TimeUtils.calculateStatus(
-                                        isEnabled = isEnabled,
-                                        pausedUntil = pausedUntil,
-                                        isScheduleEnabled = isScheduleEnabled,
-                                        days = scheduleDays,
-                                        start = scheduleStart,
-                                        end = scheduleEnd,
-                                        now = System.currentTimeMillis()
-                                    )
+                                    if (type != null) {
+                                        // ... (rest of the logic remains same, but uses the fetched monitorName)
+                                        val isEnabled = doc.getBoolean("isEnabled") ?: true
+                                        val isScheduleEnabled = doc.getBoolean("isScheduleEnabled") ?: false
+                                        val scheduleStart = doc.getString("scheduleStart") ?: "09:00"
+                                        val scheduleEnd = doc.getString("scheduleEnd") ?: "18:00"
+                                        val pausedUntil = doc.getLong("pausedUntil") ?: 0L
+                                        val daysList = doc.get("scheduleDays") as? List<Number>
+                                        val scheduleDays = daysList?.map { it.toInt() } ?: listOf(1,2,3,4,5)
 
-                                    // Parse Geofencing data CORRIGIDO
-                                    var geofenceData: Triple<Double, Double, Float>? = null
-                                    if (type == RuleType.GEOFENCING) {
-                                        Log.d("SafetyMonitorService", "Parsing GEOFENCE Rule ${doc.id}. Radius (p1): '$param1', Coords (p2): '$param2'")
-                                        
-                                        // 1. Parse Radius (param1)
-                                        val radius = param1.toFloatOrNull()
-                                        
-                                        // 2. Parse Coords (param2: "lat, lng")
-                                        val coordParts = param2.split(Regex("\\s*[,;]\\s*"))
-                                        
-                                        if (radius != null && coordParts.size >= 2) {
-                                            val lat = coordParts[0].toDoubleOrNull()
-                                            val lng = coordParts[1].toDoubleOrNull()
-                                            
-                                            if (lat != null && lng != null) {
-                                                geofenceData = Triple(lat, lng, radius)
-                                                Log.d("SafetyMonitorService", "  > Success: Lat=$lat, Lng=$lng, Rad=$radius")
-                                            } else {
-                                                Log.e("SafetyMonitorService", "  > Invalid Lat/Lng: $param2")
+                                        val statusResult = TimeUtils.calculateStatus(
+                                            isEnabled = isEnabled,
+                                            pausedUntil = pausedUntil,
+                                            isScheduleEnabled = isScheduleEnabled,
+                                            days = scheduleDays,
+                                            start = scheduleStart,
+                                            end = scheduleEnd,
+                                            now = System.currentTimeMillis()
+                                        )
+
+                                        var geofenceData: Triple<Double, Double, Float>? = null
+                                        if (type == RuleType.GEOFENCING) {
+                                            val radius = param1.toFloatOrNull()
+                                            val coordParts = param2.split(Regex("\\s*[,;]\\s*"))
+                                            if (radius != null && coordParts.size >= 2) {
+                                                val lat = coordParts[0].toDoubleOrNull()
+                                                val lng = coordParts[1].toDoubleOrNull()
+                                                if (lat != null && lng != null) {
+                                                    geofenceData = Triple(lat, lng, radius)
+                                                }
                                             }
-                                        } else {
-                                            Log.e("SafetyMonitorService", "  > Invalid Format. Radius=$radius, CoordsParts=${coordParts.size}")
                                         }
-                                    }
 
-                                    val rule = MonitorRule(
-                                        id = ruleId,
-                                        monitorId = monitorUid,
-                                        monitorName = monitorName,
-                                        parameter = param1,
-                                        isEnabled = isEnabled,
-                                        type = type,
-                                        scheduleDays = scheduleDays,
-                                        scheduleStart = scheduleStart,
-                                        scheduleEnd = scheduleEnd,
-                                        isScheduleEnabled = isScheduleEnabled,
-                                        pausedUntil = pausedUntil,
-                                        isEffectivelyActive = statusResult.isActive,
-                                        geofenceData = geofenceData
-                                    )
+                                        val rule = MonitorRule(
+                                            id = ruleId,
+                                            monitorId = monitorUid,
+                                            monitorName = monitorName!!, // <--- NOME REAL RECUPERADO
+                                            parameter = param1,
+                                            isEnabled = isEnabled,
+                                            type = type,
+                                            scheduleDays = scheduleDays,
+                                            scheduleStart = scheduleStart,
+                                            scheduleEnd = scheduleEnd,
+                                            isScheduleEnabled = isScheduleEnabled,
+                                            pausedUntil = pausedUntil,
+                                            isEffectivelyActive = statusResult.isActive,
+                                            geofenceData = geofenceData
+                                        )
 
-                                    when(type) {
-                                        RuleType.SPEED, RuleType.GEOFENCING -> locationHandler.addRule(rule)
-                                        RuleType.FALL, RuleType.ACCIDENT -> accelerometerHandler.addRule(rule)
-                                        RuleType.INACTIVITY -> inactivityHandler.addRule(rule)
-                                        else -> {}
+                                        when(type) {
+                                            RuleType.SPEED, RuleType.GEOFENCING -> locationHandler.addRule(rule)
+                                            RuleType.FALL, RuleType.ACCIDENT -> accelerometerHandler.addRule(rule)
+                                            RuleType.INACTIVITY -> inactivityHandler.addRule(rule)
+                                            else -> {}
+                                        }
                                     }
                                 }
                             }
+                        synchronized(ruleListeners) {
+                            ruleListeners.add(ruleListener)
                         }
-                    ruleListeners.add(ruleListener)
+                    }
                 }
             }
         ruleListeners.add(connListener)
@@ -466,7 +475,7 @@ class SafetyMonitorService : Service() {
                     ActivityAlertType.INACTIVITY -> "Inatividade Detetada"
                     else -> "Alerta Automático"
                 }
-                createAlert(type, if (details != null) "$title: $details" else title, monitors)
+                createAlert(type, if (details != null) "$title: $details" else title, monitors, infractions)
                 getSystemService(NotificationManager::class.java).cancel(999)
             }
             alertJob = null
@@ -522,10 +531,78 @@ class SafetyMonitorService : Service() {
         } catch (e: Exception) {}
     }
 
-    private suspend fun createAlert(type: ActivityAlertType, title: String, monitors: List<String>? = null) {
+    private suspend fun createAlert(type: ActivityAlertType, title: String, monitors: List<String>? = null, infractions: List<pt.isec.amov2526.projetoKotlin.data.model.RuleInfraction>? = null) {
         if (!isProtectionActive) return
         val loc = locationHelper.currentLocation.value
-        alertRepository.createAlert(type = type, title = title, latitude = loc?.latitude, longitude = loc?.longitude, visibleToMonitors = monitors)
+        
+        // [MODIFICADO] Lógica mais robusta para identificar quem notificar
+        var initialActions: List<MonitorAction>? = null
+
+        if (infractions != null && infractions.isNotEmpty()) {
+            // Se temos infrações específicas, notificamos esses monitores
+            initialActions = infractions.map { inf ->
+                MonitorAction(
+                    name = inf.monitorName,
+                    state = MonitorActionState.SENT,
+                    time = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+                )
+            }
+        } else if (monitors != null && monitors.isNotEmpty()) {
+            // Se temos IDs de monitores mas não a infração (ex: bateria), tentamos obter os nomes
+            try {
+                val uid = auth.currentUser?.uid
+                if (uid != null) {
+                    val snapshot = db.collection("users").document(uid)
+                        .collection("connections")
+                        .whereIn("uid", monitors)
+                        .get().await()
+                    
+                    initialActions = snapshot.documents.map { doc ->
+                        MonitorAction(
+                            name = doc.getString("name") ?: "Monitor",
+                            state = MonitorActionState.SENT,
+                            time = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                // Fallback simples se a query falhar
+                initialActions = monitors.map { MonitorAction("Monitor", MonitorActionState.SENT, "") }
+            }
+        }
+
+        // Se ainda for nulo (Alerta Global/Panico), buscamos todos os monitores
+        if (initialActions == null) {
+            try {
+                val uid = auth.currentUser?.uid
+                if (uid != null) {
+                    val snapshot = db.collection("users").document(uid)
+                        .collection("connections").whereEqualTo("role", "Monitor").get().await()
+                    
+                    initialActions = snapshot.documents.map { doc ->
+                        MonitorAction(
+                            name = doc.getString("name") ?: "Monitor",
+                            state = MonitorActionState.SENT,
+                            time = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("SafetyMonitorService", "Error fetching monitors for alert", e)
+            }
+        }
+
+        Log.d("SafetyMonitorService", "Creating Alert: $title | Notified: ${initialActions?.size ?: 0} monitors")
+        initialActions?.forEach { Log.d("SafetyMonitorService", "  -> Monitor: ${it.name}") }
+
+        alertRepository.createAlert(
+            type = type, 
+            title = title, 
+            latitude = loc?.latitude, 
+            longitude = loc?.longitude, 
+            visibleToMonitors = monitors,
+            initialActions = initialActions
+        )
     }
 
     private fun startForegroundService() {
