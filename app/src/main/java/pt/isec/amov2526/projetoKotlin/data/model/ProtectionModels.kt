@@ -33,6 +33,23 @@ data class MonitorRule(
     val geofenceData: Triple<Double, Double, Float>? = null // [NOVO] (Lat, Lng, Radius)
 )
 
+// [NOVO] Estrutura para representar uma infração detetada
+data class RuleInfraction(
+    val ruleId: String,
+    val monitorId: String,
+    val monitorName: String, // [ADDED]
+    val ruleType: RuleType,
+    val description: String,
+    val valueDetected: Any? = null, // Ex: a velocidade atual (120.0) ou tempo inatividade
+    val ruleParameter: String? = null // [NOVO] O parâmetro original (ex: "120", "10")
+)
+
+// [NOVO] Resultado de uma verificação de sensores
+data class ProtectionCheckResult(
+    val infractions: List<RuleInfraction> = emptyList(),
+    val activeMonitorsToNotify: Set<String> = emptySet() // IDs dos monitores que devem receber alerta
+)
+
 data class ProtectionGroup(
     val type: RuleType,
     val rules: List<MonitorRule>,

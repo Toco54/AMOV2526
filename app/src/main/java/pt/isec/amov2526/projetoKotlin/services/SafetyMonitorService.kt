@@ -9,12 +9,14 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.*
 import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.data.repository.AlertRepository
 import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
-import pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
+import pt.isec.amov2526.projetoKotlin.data.model.RuleType
 import pt.isec.amov2526.projetoKotlin.utils.*
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -40,9 +42,15 @@ class SafetyMonitorService : Service() {
     private var globalScheduleEnd: String = "18:00"
     private var isGlobalScheduleEnabled: Boolean = false
 
+    // Estados dos Grupos
+    private var groupStatuses = mutableMapOf<RuleType, pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel.ProtectionStatus>()
+
+    // Cache para monitorizar alterações de estado e evitar spam de logs
+    private val ruleStatusCache = mutableMapOf<String, Boolean>()
+
     private lateinit var locationHelper: LocationHelper
     private lateinit var sensorHelper: SensorHelper
-    private lateinit var locationHandler: LocationHandler // [NOVO] Handler de Regras
+    private lateinit var locationHandler: LocationHandler
     private lateinit var accelerometerHandler: AccelerometerHandler
     private lateinit var inactivityHandler: InactivityHandler
 
@@ -51,6 +59,7 @@ class SafetyMonitorService : Service() {
     private val ruleListeners = mutableListOf<ListenerRegistration>()
 
     private var alertJob: Job? = null
+    private var lastBatteryAlertTime = 0L // [RESTAURADO]
 
     private val batteryReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context?, intent: Intent?) {
@@ -72,23 +81,77 @@ class SafetyMonitorService : Service() {
         locationHelper = LocationHelper(this)
         sensorHelper = SensorHelper(this)
 
-        // [NOVO] Instanciar LocationHandler com o mesmo locationHelper
-        locationHandler = LocationHandler(locationHelper, serviceScope)
-
-        accelerometerHandler = AccelerometerHandler(sensorHelper, serviceScope)
-        inactivityHandler = InactivityHandler(sensorHelper, serviceScope)
+        // Instanciar Handlers com o verificador dinâmico (Lógica AND)
+        val checker = { rule: MonitorRule -> isRuleEffectivelyActive(rule) }
+        
+        locationHandler = LocationHandler(locationHelper, serviceScope, checker)
+        accelerometerHandler = AccelerometerHandler(sensorHelper, serviceScope, checker)
+        inactivityHandler = InactivityHandler(sensorHelper, serviceScope, checker)
 
         // Iniciar monitorização
         locationHelper.startLocationUpdates(5000L)
         accelerometerHandler.startMonitoring()
         inactivityHandler.startMonitoring()
-        locationHandler.startMonitoring() // [NOVO] Iniciar verificação de regras
+        locationHandler.startMonitoring()
 
         registerReceiver(batteryReceiver, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
 
         observeSensors()
         observeSystemStatus()
         startScheduleChecker()
+    }
+
+    // Função central que implementa o AND lógico dos 3 níveis de ativação com Logging
+    private fun isRuleEffectivelyActive(rule: MonitorRule): Boolean {
+        val now = System.currentTimeMillis()
+        
+        // 1. NÍVEL GLOBAL (Sistema)
+        val globalActive = isProtectionActive
+
+        // 2. NÍVEL DE GRUPO (Tipo de Regra)
+        val groupStatus = groupStatuses[rule.type]
+        val groupActive = if (groupStatus != null) {
+            TimeUtils.calculateStatus(
+                isEnabled = groupStatus.isEnabled,
+                pausedUntil = groupStatus.pausedUntil,
+                isScheduleEnabled = groupStatus.isScheduleEnabled,
+                days = groupStatus.scheduleDays,
+                start = groupStatus.scheduleStart,
+                end = groupStatus.scheduleEnd,
+                now = now
+            ).isActive
+        } else true
+
+        // 3. NÍVEL INDIVIDUAL (Regra)
+        val localActive = TimeUtils.calculateStatus(
+            isEnabled = rule.isEnabled && !rule.isDisabledByProtege,
+            pausedUntil = rule.pausedUntil,
+            isScheduleEnabled = rule.isScheduleEnabled,
+            days = rule.scheduleDays,
+            start = rule.scheduleStart,
+            end = rule.scheduleEnd,
+            now = now
+        ).isActive
+        
+        val effectivelyActive = globalActive && groupActive && localActive
+
+        // [LOG DE ALTERAÇÃO]
+        val previousStatus = ruleStatusCache[rule.id]
+        if (previousStatus != effectivelyActive) {
+            Log.d("SafetyMonitorService", "ALTERAÇÃO DE ESTADO - Regra: ${rule.type} (Monitor: ${rule.monitorName})")
+            Log.d("SafetyMonitorService", "  > Global Protection: $globalActive")
+            Log.d("SafetyMonitorService", "  > Group Status (${rule.type}): $groupActive")
+            Log.d("SafetyMonitorService", "  > Individual Rule (Final Local): $localActive")
+            
+            // Log detalhado da razão local
+            if (!rule.isEnabled) Log.d("SafetyMonitorService", "    [!] DISABLED BY MONITOR")
+            if (rule.isDisabledByProtege) Log.d("SafetyMonitorService", "    [!] DISABLED BY PROTEGE")
+            
+            Log.d("SafetyMonitorService", "  > RESULTADO FINAL (AND): $effectivelyActive")
+            ruleStatusCache[rule.id] = effectivelyActive
+        }
+        
+        return effectivelyActive
     }
 
     private fun startScheduleChecker() {
@@ -116,7 +179,6 @@ class SafetyMonitorService : Service() {
         val uid = auth.currentUser?.uid ?: return
         startHeartbeat(uid)
 
-        // [NOVO] Começar a escutar as regras da BD para alimentar o LocationHandler
         startListeningToRules(uid)
 
         serviceScope.launch {
@@ -139,6 +201,28 @@ class SafetyMonitorService : Service() {
                     val daysList = snapshot.get("globalScheduleDays") as? List<Number>
                     globalScheduleDays = daysList?.map { it.toInt() } ?: listOf(1, 2, 3, 4, 5)
 
+                    // Ler estados dos Grupos
+                    val rawGroups = snapshot.get("activeProtections") as? Map<String, Any>
+                    if (rawGroups != null) {
+                        val newMap = mutableMapOf<RuleType, pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel.ProtectionStatus>()
+                        rawGroups.forEach { (key, value) ->
+                            try {
+                                val type = RuleType.valueOf(key)
+                                if (value is Map<*, *>) {
+                                    newMap[type] = pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel.ProtectionStatus(
+                                        isEnabled = value["enabled"] as? Boolean ?: true,
+                                        pausedUntil = (value["pausedUntil"] as? Number)?.toLong() ?: 0L,
+                                        scheduleDays = (value["scheduleDays"] as? List<Number>)?.map { it.toInt() } ?: emptyList(),
+                                        scheduleStart = value["scheduleStart"] as? String ?: "",
+                                        scheduleEnd = value["scheduleEnd"] as? String ?: "",
+                                        isScheduleEnabled = value["isScheduleEnabled"] as? Boolean ?: false
+                                    )
+                                }
+                            } catch (e: Exception) {}
+                        }
+                        groupStatuses = newMap
+                    }
+
                     evaluateProtectionStatus()
                 }
             }
@@ -158,72 +242,108 @@ class SafetyMonitorService : Service() {
         }
     }
 
-    // [NOVO] Função para ler regras da BD e injetar no LocationHandler
     private fun startListeningToRules(uid: String) {
-        // Limpar listeners antigos se houver recriação
         ruleListeners.forEach { it.remove() }
         ruleListeners.clear()
 
-        // 1. Escutar Conexões (Monitores)
         val connListener = db.collection("users").document(uid).collection("connections")
             .whereEqualTo("role", "Monitor")
             .addSnapshotListener { connections, _ ->
                 if (connections == null) return@addSnapshotListener
 
-                // Reiniciar regras no Handler para evitar duplicados/lixo
                 locationHandler.clearAllRules()
+                accelerometerHandler.clearAllRules()
+                inactivityHandler.clearAllRules()
 
                 connections.documents.forEach { connDoc ->
                     val monitorUid = connDoc.getString("uid") ?: return@forEach
+                    val monitorName = connDoc.getString("name") ?: "Monitor"
 
-                    // 2. Escutar Regras de cada Monitor
                     val ruleListener = db.collection("users").document(uid)
                         .collection("connections").document(monitorUid)
                         .collection("rules")
-                        .whereEqualTo("isEnabled", true) // Apenas regras ativas
                         .addSnapshotListener { rules, _ ->
                             if (rules == null) return@addSnapshotListener
 
                             rules.documents.forEach { doc ->
-                                // Ignorar se estiver desativada pelo Protegido
                                 if (doc.getBoolean("isDisabledByProtege") == true) return@forEach
                                 if (doc.getBoolean("deletedByProtege") == true) return@forEach
 
                                 val typeStr = doc.getString("type") ?: ""
                                 val param1 = doc.getString("param1") ?: ""
+                                val param2 = doc.getString("param2") ?: "" // [NOVO] Ler param2
                                 val ruleId = doc.id
+                                val type = try { RuleType.valueOf(typeStr) } catch(e:Exception) { null }
 
-                                try {
-                                    when (typeStr) {
-                                        "INACTIVITY" -> {
-                                            // param1 esperado em minutos (ex: "10")
-                                            val minutes = param1.toLongOrNull()
-                                            if (minutes != null) {
-                                                // Converte minutos para milissegundos para o Handler
-                                                inactivityHandler.addRule(InactivityRule(ruleId, minutes * 60 * 1000))
+                                if (type != null) {
+                                    // [NOVO] Ler dados de Agendamento
+                                    val isEnabled = doc.getBoolean("isEnabled") ?: true
+                                    val isScheduleEnabled = doc.getBoolean("isScheduleEnabled") ?: false
+                                    val scheduleStart = doc.getString("scheduleStart") ?: "09:00"
+                                    val scheduleEnd = doc.getString("scheduleEnd") ?: "18:00"
+                                    val pausedUntil = doc.getLong("pausedUntil") ?: 0L
+                                    val daysList = doc.get("scheduleDays") as? List<Number>
+                                    val scheduleDays = daysList?.map { it.toInt() } ?: listOf(1,2,3,4,5)
+
+                                    // Calcular estado efetivo
+                                    val statusResult = TimeUtils.calculateStatus(
+                                        isEnabled = isEnabled,
+                                        pausedUntil = pausedUntil,
+                                        isScheduleEnabled = isScheduleEnabled,
+                                        days = scheduleDays,
+                                        start = scheduleStart,
+                                        end = scheduleEnd,
+                                        now = System.currentTimeMillis()
+                                    )
+
+                                    // Parse Geofencing data CORRIGIDO
+                                    var geofenceData: Triple<Double, Double, Float>? = null
+                                    if (type == RuleType.GEOFENCING) {
+                                        Log.d("SafetyMonitorService", "Parsing GEOFENCE Rule ${doc.id}. Radius (p1): '$param1', Coords (p2): '$param2'")
+                                        
+                                        // 1. Parse Radius (param1)
+                                        val radius = param1.toFloatOrNull()
+                                        
+                                        // 2. Parse Coords (param2: "lat, lng")
+                                        val coordParts = param2.split(Regex("\\s*[,;]\\s*"))
+                                        
+                                        if (radius != null && coordParts.size >= 2) {
+                                            val lat = coordParts[0].toDoubleOrNull()
+                                            val lng = coordParts[1].toDoubleOrNull()
+                                            
+                                            if (lat != null && lng != null) {
+                                                geofenceData = Triple(lat, lng, radius)
+                                                Log.d("SafetyMonitorService", "  > Success: Lat=$lat, Lng=$lng, Rad=$radius")
+                                            } else {
+                                                Log.e("SafetyMonitorService", "  > Invalid Lat/Lng: $param2")
                                             }
-                                        }
-                                        "SPEED" -> {
-                                            val limit = param1.toFloatOrNull()
-                                            if (limit != null) {
-                                                locationHandler.addSpeedRule(SpeedRule(ruleId, limit))
-                                            }
-                                        }
-                                        "GEOFENCING" -> {
-                                            // Formato esperado: "lat,lng,radius" ou "lat;lng;radius"
-                                            val parts = param1.split(Regex("[,;]"))
-                                            if (parts.size >= 3) {
-                                                val lat = parts[0].toDoubleOrNull()
-                                                val lng = parts[1].toDoubleOrNull()
-                                                val rad = parts[2].toFloatOrNull()
-                                                if (lat != null && lng != null && rad != null) {
-                                                    locationHandler.addGeofence(GeofenceRule(ruleId, lat, lng, rad))
-                                                }
-                                            }
+                                        } else {
+                                            Log.e("SafetyMonitorService", "  > Invalid Format. Radius=$radius, CoordsParts=${coordParts.size}")
                                         }
                                     }
-                                } catch (e: Exception) {
-                                    // Erro no parse da regra, ignora
+
+                                    val rule = MonitorRule(
+                                        id = ruleId,
+                                        monitorId = monitorUid,
+                                        monitorName = monitorName,
+                                        parameter = param1,
+                                        isEnabled = isEnabled,
+                                        type = type,
+                                        scheduleDays = scheduleDays,
+                                        scheduleStart = scheduleStart,
+                                        scheduleEnd = scheduleEnd,
+                                        isScheduleEnabled = isScheduleEnabled,
+                                        pausedUntil = pausedUntil,
+                                        isEffectivelyActive = statusResult.isActive,
+                                        geofenceData = geofenceData
+                                    )
+
+                                    when(type) {
+                                        RuleType.SPEED, RuleType.GEOFENCING -> locationHandler.addRule(rule)
+                                        RuleType.FALL, RuleType.ACCIDENT -> accelerometerHandler.addRule(rule)
+                                        RuleType.INACTIVITY -> inactivityHandler.addRule(rule)
+                                        else -> {}
+                                    }
                                 }
                             }
                         }
@@ -235,17 +355,13 @@ class SafetyMonitorService : Service() {
 
     private fun evaluateProtectionStatus() {
         val now = System.currentTimeMillis()
-
         if (systemStatus == "PAUSED" && pausedUntil != -1L && pausedUntil < now && pausedUntil != 0L) {
             systemStatus = "ACTIVE"
             pausedUntil = 0L
             auth.currentUser?.uid?.let { uid ->
-                db.collection("users").document(uid).update(
-                    mapOf("systemStatus" to "ACTIVE", "globalPausedUntil" to 0L)
-                )
+                db.collection("users").document(uid).update(mapOf("systemStatus" to "ACTIVE", "globalPausedUntil" to 0L))
             }
         }
-
         val statusResult = TimeUtils.calculateStatus(
             isEnabled = (systemStatus == "ACTIVE"),
             pausedUntil = pausedUntil,
@@ -255,11 +371,15 @@ class SafetyMonitorService : Service() {
             end = globalScheduleEnd,
             now = now
         )
-
         val shouldBeActive = statusResult.isActive
-
         if (isProtectionActive != shouldBeActive) {
             isProtectionActive = shouldBeActive
+            
+            // [NOVO] Se o sistema reativou, limpamos o anti-spam para garantir que infrações persistentes sejam reportadas novamente
+            if (isProtectionActive) {
+                locationHandler.resetAlertStates()
+            }
+            
             updateNotification(isPaused = !isProtectionActive)
         } else {
             updateNotification(isPaused = !isProtectionActive)
@@ -269,66 +389,74 @@ class SafetyMonitorService : Service() {
     private fun startHeartbeat(uid: String) {
         serviceScope.launch {
             while (isActive) {
-                try {
-                    db.collection("users").document(uid).update("lastUpdate", System.currentTimeMillis())
-                } catch (e: Exception) {}
+                try { db.collection("users").document(uid).update("lastUpdate", System.currentTimeMillis()) } catch (e: Exception) {}
                 delay(60000L)
             }
         }
     }
 
     private fun observeSensors() {
-        // [EXISTENTE] Acelerómetro (Queda/Acidente)
         serviceScope.launch {
-            accelerometerHandler.onFallDetected.collect {
-                if (isProtectionActive) triggerAlertSequence(ActivityAlertType.FALL)
-            }
-        }
-
-        serviceScope.launch {
-            accelerometerHandler.onAccidentDetected.collect {
-                if (isProtectionActive) triggerAlertSequence(ActivityAlertType.ACCIDENT)
-            }
-        }
-
-        serviceScope.launch {
-            inactivityHandler.inactivityAlerts.collect { rule ->
-                if (isProtectionActive) {
-                    val minutes = rule.maxDurationMillis / 60000
-                    triggerAlertSequence(ActivityAlertType.INACTIVITY, "> $minutes min inactive")
+            accelerometerHandler.infractions.collect { result ->
+                if (isProtectionActive && result.infractions.isNotEmpty()) {
+                    val firstInfraction = result.infractions.first()
+                    val alertType = when(firstInfraction.ruleType) {
+                        RuleType.FALL -> ActivityAlertType.FALL
+                        RuleType.ACCIDENT -> ActivityAlertType.ACCIDENT
+                        else -> ActivityAlertType.ACCIDENT
+                    }
+                    triggerAlertSequence(
+                        type = alertType,
+                        details = result.infractions.joinToString(", ") { it.description },
+                        monitors = result.activeMonitorsToNotify.toList(),
+                        infractions = result.infractions
+                    )
                 }
             }
         }
-
-        // [NOVO] LocationHandler (Geofencing/Velocidade)
         serviceScope.launch {
-            locationHandler.alerts.collect { alert ->
-                if (isProtectionActive) {
-                    when (alert) {
-                        is LocationAlert.GeofenceExit -> {
-                            triggerAlertSequence(ActivityAlertType.GEOFENCE)
-                        }
-                        is LocationAlert.SpeedLimitExceeded -> {
-                            val current = alert.currentSpeedKmh.toInt()
-                            val limit = alert.limitKmh.toInt()
-                            triggerAlertSequence(ActivityAlertType.SPEED, "$current km/h (Limit: $limit)")
-                        }
+            inactivityHandler.infractions.collect { result ->
+                if (isProtectionActive && result.infractions.isNotEmpty()) {
+                    triggerAlertSequence(
+                        type = ActivityAlertType.INACTIVITY,
+                        details = result.infractions.joinToString(", ") { it.description },
+                        monitors = result.activeMonitorsToNotify.toList(),
+                        infractions = result.infractions
+                    )
+                }
+            }
+        }
+        serviceScope.launch {
+            locationHandler.infractions.collect { result ->
+                if (isProtectionActive && result.infractions.isNotEmpty()) {
+                    val firstInfraction = result.infractions.first()
+                    val alertType = when(firstInfraction.ruleType) {
+                        RuleType.GEOFENCING -> ActivityAlertType.GEOFENCE
+                        RuleType.SPEED -> ActivityAlertType.SPEED
+                        else -> ActivityAlertType.GEOFENCE
                     }
+                    triggerAlertSequence(
+                        type = alertType, 
+                        details = result.infractions.joinToString(", ") { it.description },
+                        monitors = result.activeMonitorsToNotify.toList(),
+                        infractions = result.infractions
+                    )
                 }
             }
         }
     }
 
-    private fun triggerAlertSequence(type: ActivityAlertType, details: String? = null) {
+    private fun triggerAlertSequence(
+        type: ActivityAlertType, 
+        details: String? = null,
+        monitors: List<String>? = null,
+        infractions: List<pt.isec.amov2526.projetoKotlin.data.model.RuleInfraction>? = null
+    ) {
         if (alertJob?.isActive == true) return
-
-        launchAlertUI(type, details)
-
+        launchAlertUI(type, details, infractions)
         alertJob = serviceScope.launch {
             delay(10000L)
-
             if (isActive) {
-                // [ATUALIZADO] Títulos corretos para os novos tipos
                 val title = when(type) {
                     ActivityAlertType.FALL -> "Queda Detetada"
                     ActivityAlertType.ACCIDENT -> "Acidente de Viação"
@@ -338,125 +466,87 @@ class SafetyMonitorService : Service() {
                     ActivityAlertType.INACTIVITY -> "Inatividade Detetada"
                     else -> "Alerta Automático"
                 }
-                // Adiciona detalhes ao título do alerta se existirem
-                val finalTitle = if (details != null) "$title: $details" else title
-                createAlert(type, finalTitle)
+                createAlert(type, if (details != null) "$title: $details" else title, monitors)
                 getSystemService(NotificationManager::class.java).cancel(999)
             }
             alertJob = null
         }
     }
 
-    private fun launchAlertUI(type: ActivityAlertType, details: String? = null) {
-        val alertTime = System.currentTimeMillis() // [NOVO] Hora de início do alerta
+    private fun launchAlertUI(
+        type: ActivityAlertType, 
+        details: String? = null,
+        infractions: List<pt.isec.amov2526.projetoKotlin.data.model.RuleInfraction>? = null
+    ) {
+        val alertTime = System.currentTimeMillis()
         val intent = Intent(this, pt.isec.amov2526.projetoKotlin.ui.MainActivity::class.java).apply {
             action = "ACTION_SHOW_ALERT"
             putExtra("ALERT_TYPE", type.name)
             putExtra("ALERT_TIMESTAMP", alertTime)
-            if (details != null) {
-                putExtra("ALERT_DETAILS", details)
+            if (details != null) putExtra("ALERT_DETAILS", details)
+            // [RESTAURADO] Serialização das infrações
+            if (infractions != null) {
+                val serialized = infractions.joinToString(";") { 
+                    val safeName = it.monitorName.replace("|", "").replace(";", "")
+                    val safeDesc = it.description.replace("|", "").replace(";", "")
+                    val safeParam = it.ruleParameter?.replace("|", "")?.replace(";", "") ?: ""
+                    "$safeName|${it.ruleType.name}|$safeDesc|$safeParam" 
+                }
+                putExtra("ALERT_INFRACTIONS", serialized)
             }
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
-
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
+        val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notificationManager = getSystemService(NotificationManager::class.java)
         val channelId = "SafetySecAlertChannel"
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId, "Alertas de Emergência", NotificationManager.IMPORTANCE_HIGH
-            ).apply {
+            val channel = NotificationChannel(channelId, "Alertas de Emergência", NotificationManager.IMPORTANCE_HIGH).apply {
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                 enableVibration(true)
                 setBypassDnd(true)
             }
             notificationManager.createNotificationChannel(channel)
         }
-
         val notification = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_shield_check)
-            .setContentTitle("ALERTA DE SEGURANÇA")
-            .setContentText("A enviar ajuda em 10s...")
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setFullScreenIntent(pendingIntent, true)
-            .setAutoCancel(false)
-            .setOngoing(true)
-            .build()
-
+            .setSmallIcon(R.drawable.ic_shield_check).setContentTitle("ALERTA DE SEGURANÇA").setContentText("A enviar ajuda em 10s...")
+            .setPriority(NotificationCompat.PRIORITY_MAX).setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setFullScreenIntent(pendingIntent, true).setAutoCancel(false).setOngoing(true).build()
         notificationManager.notify(999, notification)
-
-        // [IMPORTANTE] Tenta abrir a Activity diretamente (útil se a app já estiver aberta ou tiver permissão de Overlay)
-        try {
-            // Se tivermos permissão de Overlay (ou for Android < 10), isto vai forçar a abertura
+        try { 
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || android.provider.Settings.canDrawOverlays(this)) {
-                startActivity(intent)
+                startActivity(intent) 
             } else {
-                // Mesmo sem permissão, tentamos (alguns fabricantes permitem, ou se a app já estiver em foreground funciona)
                 startActivity(intent)
             }
-        } catch (e: Exception) {
-            // Se falhar, o FullScreenIntent da notificação acima serve como backup
-        }
+        } catch (e: Exception) {}
     }
 
-    private suspend fun createAlert(type: ActivityAlertType, title: String) {
+    private suspend fun createAlert(type: ActivityAlertType, title: String, monitors: List<String>? = null) {
         if (!isProtectionActive) return
-
         val loc = locationHelper.currentLocation.value
-        alertRepository.createAlert(
-            type = type,
-            title = title,
-            latitude = loc?.latitude,
-            longitude = loc?.longitude
-        )
+        alertRepository.createAlert(type = type, title = title, latitude = loc?.latitude, longitude = loc?.longitude, visibleToMonitors = monitors)
     }
 
     private fun startForegroundService() {
         val channelId = "SafetySecChannel"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId, "Monitorização SafetySec", NotificationManager.IMPORTANCE_LOW
-            )
+            val channel = NotificationChannel(channelId, "Monitorização SafetySec", NotificationManager.IMPORTANCE_LOW)
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
-
         val notification: Notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("SafetySec Ativo")
-            .setContentText("Estamos a proteger-te em segundo plano.")
-            .setSmallIcon(R.drawable.ic_shield_check)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(true)
-            .build()
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
-        } else {
-            startForeground(1, notification)
-        }
+            .setContentTitle("SafetySec Ativo").setContentText("Estamos a proteger-te em segundo plano.")
+            .setSmallIcon(R.drawable.ic_shield_check).setPriority(NotificationCompat.PRIORITY_LOW).setOngoing(true).build()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+        else startForeground(1, notification)
     }
 
     private fun updateNotification(isPaused: Boolean) {
         val channelId = "SafetySecChannel"
-        val title = if (isPaused) "SafetySec em Pausa" else "SafetySec Ativo"
-        val text = if (isPaused) "A proteção está suspensa." else "Proteção ativa."
-        val icon = if (isPaused) R.drawable.ic_shield_check else R.drawable.ic_shield_check
-
         val notification: Notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setSmallIcon(icon)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .build()
-
+            .setContentTitle(if (isPaused) "SafetySec em Pausa" else "SafetySec Ativo")
+            .setContentText(if (isPaused) "A proteção está suspensa." else "Proteção ativa.")
+            .setSmallIcon(R.drawable.ic_shield_check).setPriority(NotificationCompat.PRIORITY_LOW).setOngoing(true).setOnlyAlertOnce(true).build()
         getSystemService(NotificationManager::class.java).notify(1, notification)
     }
 
@@ -465,32 +555,25 @@ class SafetyMonitorService : Service() {
         isServiceRunning = false
         stopForeground(STOP_FOREGROUND_REMOVE)
         getSystemService(NotificationManager::class.java)?.cancel(1)
-
         try { unregisterReceiver(batteryReceiver) } catch (e: Exception) {}
-
-        // Limpar listeners de regras
         ruleListeners.forEach { it.remove() }
-
         locationHelper.stopLocationUpdates()
         accelerometerHandler.stopMonitoring()
         inactivityHandler.stopMonitoring()
-        locationHandler.stopMonitoring() // [NOVO]
+        locationHandler.stopMonitoring()
         serviceScope.cancel()
     }
 
-    private var lastBatteryAlertTime = 0L
-
+    // [RESTAURADO] Lógica de cooldown da bateria
     private fun updateBatteryLevel(pct: Int) {
         val uid = auth.currentUser?.uid ?: return
         db.collection("users").document(uid).update("batteryLevel", pct)
-
+        
         if (pct <= 15 && isProtectionActive) {
             val now = System.currentTimeMillis()
-            if (now - lastBatteryAlertTime > 900000L) {
+            if (now - lastBatteryAlertTime > 900000L) { // 15 minutos de cooldown
                 lastBatteryAlertTime = now
-                serviceScope.launch {
-                    createAlert(ActivityAlertType.BATTERY, "Bateria Fraca ($pct%)")
-                }
+                serviceScope.launch { createAlert(ActivityAlertType.BATTERY, "Bateria Fraca ($pct%)", null) }
             }
         }
     }

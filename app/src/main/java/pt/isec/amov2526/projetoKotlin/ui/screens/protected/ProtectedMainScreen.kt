@@ -70,6 +70,7 @@ fun ProtectedMainScreen(
     val activity = LocalContext.current as? android.app.Activity
     var alertInitialSeconds by remember { mutableIntStateOf(10) } // [NOVO]
     var alertDetails by remember { mutableStateOf<String?>(null) } // [NOVO]
+    var alertInfractions by remember { mutableStateOf<List<InfractionDisplayInfo>>(emptyList()) } // [NOVO]
 
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
@@ -77,6 +78,20 @@ fun ProtectedMainScreen(
                 if (activity?.intent?.action == "ACTION_SHOW_ALERT") {
                     val typeStr = activity.intent.getStringExtra("ALERT_TYPE")
                     alertDetails = activity.intent.getStringExtra("ALERT_DETAILS") // [NOVO]
+
+                    // [NOVO] Extração das infrações
+                    val infractionsStr = activity.intent.getStringExtra("ALERT_INFRACTIONS")
+                    if (infractionsStr != null) {
+                         alertInfractions = infractionsStr.split(";").mapNotNull { 
+                             val parts = it.split("|")
+                             if (parts.size >= 3) {
+                                 val param = if(parts.size >= 4) parts[3].ifEmpty { null } else null
+                                 InfractionDisplayInfo(parts[0], parts[1], parts[2], param)
+                             } else null
+                         }
+                    } else {
+                        alertInfractions = emptyList()
+                    }
 
                     pendingAlertType = if (typeStr != null) {
                         try { ActivityAlertType.valueOf(typeStr) }
@@ -118,6 +133,7 @@ fun ProtectedMainScreen(
                     alertDetails = alertDetails, 
                     currentLocation = currentLocation,
                     activeGeofences = activeGeofences, // [NOVO]
+                    infractions = alertInfractions, // [NOVO]
                     initialSeconds = alertInitialSeconds, 
                     onCancel = {
                         // Cancelar ANTES de confirmar: Fecha tudo

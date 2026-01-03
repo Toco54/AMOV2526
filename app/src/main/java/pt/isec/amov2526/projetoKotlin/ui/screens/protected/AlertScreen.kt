@@ -11,6 +11,13 @@ import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.alert.Coun
 
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
 
+data class InfractionDisplayInfo(
+    val monitorName: String,
+    val ruleType: String,
+    val description: String,
+    val parameter: String? = null // [NOVO]
+)
+
 // --- Theme Colors ---
 private val DarkBackground = Color(0xFF0F172A)
 
@@ -23,7 +30,8 @@ fun AlertScreen(
     onConfirm: () -> Unit,
     onValidatePin: suspend (String) -> Boolean,
     currentLocation: Location? = null,
-    activeGeofences: List<MonitorRule> = emptyList() // [NOVO]
+    activeGeofences: List<MonitorRule> = emptyList(), // [NOVO]
+    infractions: List<InfractionDisplayInfo> = emptyList() // [NOVO]
 ) {
     var isConfirmed by remember { mutableStateOf(false) }
     var pinInput by remember { mutableStateOf("") }
@@ -74,7 +82,8 @@ fun AlertScreen(
             ConfirmedPanel(
                 currentLocation = currentLocation,
                 // [LÓGICA] Só mostra as zonas se o alerta for de GEOFENCE
-                activeGeofences = if (alertType == "GEOFENCE") activeGeofences else emptyList()
+                activeGeofences = if (alertType == "GEOFENCE") activeGeofences else emptyList(),
+                infractions = infractions
             )
         }
     }

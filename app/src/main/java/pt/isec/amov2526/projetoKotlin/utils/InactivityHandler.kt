@@ -8,59 +8,44 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
-
-data class InactivityRule(
-    val id: String,
-    val maxDurationMillis: Long,
-    val name: String = "Inactivity Rule"
-)
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
+import pt.isec.amov2526.projetoKotlin.data.model.ProtectionCheckResult
+import pt.isec.amov2526.projetoKotlin.data.model.RuleInfraction
+import pt.isec.amov2526.projetoKotlin.data.model.RuleType
 
 class InactivityHandler(
     private val sensorHelper: SensorHelper,
-    private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default)
+    private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default),
+    private val isActiveChecker: (MonitorRule) -> Boolean // [NOVO]
 ) {
-    private val rules = mutableListOf<InactivityRule>()
-    private val triggeredRules = mutableSetOf<String>()
+    private val rules = mutableListOf<MonitorRule>()
+    private val triggeredRulesThisSession = mutableSetOf<String>()
 
-    private val _inactivityAlerts = MutableSharedFlow<InactivityRule>()
-    val inactivityAlerts = _inactivityAlerts.asSharedFlow()
+    private val _infractions = MutableSharedFlow<ProtectionCheckResult>()
+    val infractions = _infractions.asSharedFlow()
 
     private var lastMotionTimestamp: Long = System.currentTimeMillis()
     private var monitoringJob: Job? = null
     private var sensorJob: Job? = null
+    private var lastMinuteLogged: Long = 0
 
-    fun addRule(rule: InactivityRule) {
-        synchronized(rules) { rules.add(rule) }
-        Log.d("InactivityHandler", "Added rule: ${rule.name}")
+    fun addRule(rule: MonitorRule) {
+        if (rule.type != RuleType.INACTIVITY) return
+        synchronized(rules) { rules.removeAll { it.id == rule.id }; rules.add(rule) }
     }
 
-    fun removeRule(ruleId: String) {
-        synchronized(rules) {
-            rules.removeAll { it.id == ruleId }
-            triggeredRules.remove(ruleId)
-        }
+    fun clearAllRules() {
+        synchronized(rules) { rules.clear(); triggeredRulesThisSession.clear() }
     }
 
     fun startMonitoring() {
         if (monitoringJob?.isActive == true) return
-
         sensorHelper.startMotionDetection()
-
-        // 1. Listen for Motion to reset the timer
         sensorJob = scope.launch {
-            sensorHelper.significantMotion.collect { hasMotion ->
-                if (hasMotion) {
-                    resetTimer()
-                }
-            }
+            sensorHelper.significantMotion.collect { hasMotion -> if (hasMotion) resetTimer() }
         }
-
-        // 2. Periodic check loop (every 5 seconds)
         monitoringJob = scope.launch {
-            while (true) {
-                checkRules()
-                delay(5000L) 
-            }
+            while (true) { checkRules(); delay(5000L) }
         }
     }
 
@@ -72,40 +57,54 @@ class InactivityHandler(
 
     private fun resetTimer() {
         lastMotionTimestamp = System.currentTimeMillis()
-        Log.d("InactivityHandler", "Inactivity timer started/reset at: ${System.currentTimeMillis()}")
-        if (triggeredRules.isNotEmpty()) {
-            Log.d("InactivityHandler", "Motion detected! Resetting triggered rules.")
-            synchronized(triggeredRules) {
-                triggeredRules.clear()
-            }
+        if (triggeredRulesThisSession.isNotEmpty()) {
+            synchronized(triggeredRulesThisSession) { triggeredRulesThisSession.clear() }
         }
+        if (lastMinuteLogged != 0L) lastMinuteLogged = 0
     }
-
-    private var lastMinuteLogged: Long = 0
 
     private suspend fun checkRules() {
         val now = System.currentTimeMillis()
-        val inactiveDuration = now - lastMotionTimestamp
-        val minutesInactive = inactiveDuration / 60000
+        val inactiveDurationMillis = now - lastMotionTimestamp
+        val minutesInactive = inactiveDurationMillis / 60000
 
-        // Log a cada minuto que passa
         if (minutesInactive > lastMinuteLogged) {
             lastMinuteLogged = minutesInactive
-            Log.d("InactivityHandler", "STATUS: User inactive for $minutesInactive minutes...")
-        } else if (minutesInactive == 0L && lastMinuteLogged != 0L) {
-            lastMinuteLogged = 0
+            Log.d("InactivityHandler", "User inactive for $minutesInactive minutes...")
         }
-        
+
         val currentRules = synchronized(rules) { rules.toList() }
+        val newInfractions = mutableListOf<RuleInfraction>()
+        val monitorsToNotify = mutableSetOf<String>()
 
         for (rule in currentRules) {
-            if (inactiveDuration > rule.maxDurationMillis) {
-                if (!triggeredRules.contains(rule.id)) {
-                    Log.d("InactivityHandler", "ALERT: Inactivity Rule '${rule.name}' triggered!")
-                    _inactivityAlerts.emit(rule)
-                    synchronized(triggeredRules) { triggeredRules.add(rule.id) }
-                }
+            // [ATUALIZADO] Verificação Dinâmica (AND: Global && Group && Rule)
+            if (!isActiveChecker(rule)) continue
+            
+            if (triggeredRulesThisSession.contains(rule.id)) continue
+
+            val ruleMinutes = rule.parameter.toLongOrNull() ?: continue
+            val ruleMillis = ruleMinutes * 60 * 1000
+
+            if (inactiveDurationMillis >= ruleMillis) {
+                monitorsToNotify.add(rule.monitorId)
+                newInfractions.add(
+                    RuleInfraction(
+                        ruleId = rule.id,
+                        monitorId = rule.monitorId,
+                        monitorName = rule.monitorName,
+                        ruleType = RuleType.INACTIVITY,
+                        description = "Inactive for > $minutesInactive min",
+                        valueDetected = minutesInactive,
+                        ruleParameter = rule.parameter
+                    )
+                )
+                synchronized(triggeredRulesThisSession) { triggeredRulesThisSession.add(rule.id) }
             }
+        }
+
+        if (newInfractions.isNotEmpty()) {
+            _infractions.emit(ProtectionCheckResult(newInfractions, monitorsToNotify))
         }
     }
 }

@@ -90,6 +90,7 @@ fun GuardScreen(
     val activity = LocalContext.current as? android.app.Activity
     var alertInitialSeconds by remember { mutableIntStateOf(10) } 
     var alertDetails by remember { mutableStateOf<String?>(null) } // [NOVO]
+    var alertInfractions by remember { mutableStateOf<List<InfractionDisplayInfo>>(emptyList()) } // [NOVO]
 
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
@@ -98,6 +99,20 @@ fun GuardScreen(
                 if (activity?.intent?.action == "ACTION_SHOW_ALERT") {
                     val typeStr = activity.intent.getStringExtra("ALERT_TYPE")
                     alertDetails = activity.intent.getStringExtra("ALERT_DETAILS") // [NOVO]
+
+                    // [NOVO] Extração das infrações
+                    val infractionsStr = activity.intent.getStringExtra("ALERT_INFRACTIONS")
+                    if (infractionsStr != null) {
+                         alertInfractions = infractionsStr.split(";").mapNotNull { 
+                             val parts = it.split("|")
+                             if (parts.size >= 3) {
+                                 val param = if(parts.size >= 4) parts[3].ifEmpty { null } else null
+                                 InfractionDisplayInfo(parts[0], parts[1], parts[2], param)
+                             } else null
+                         }
+                    } else {
+                        alertInfractions = emptyList()
+                    }
 
                     // Define o tipo correto (Queda/Acidente) vindo do Serviço
                     pendingAlertType = if (typeStr != null) {
@@ -146,6 +161,7 @@ fun GuardScreen(
                     alertType = pendingAlertType.name,
                     alertDetails = alertDetails, 
                     activeGeofences = activeGeofences, // [NOVO]
+                    infractions = alertInfractions, // [NOVO]
                     onCancel = {
                         showAlertScreen = false
                         (context as? pt.isec.amov2526.projetoKotlin.ui.MainActivity)?.setShowOnLockScreen(false)

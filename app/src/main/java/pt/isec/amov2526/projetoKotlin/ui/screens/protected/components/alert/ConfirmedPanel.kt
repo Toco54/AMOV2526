@@ -40,6 +40,10 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker // [RESTAURADO]
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Divider
+import pt.isec.amov2526.projetoKotlin.ui.screens.protected.InfractionDisplayInfo
 import org.osmdroid.views.overlay.Polygon 
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
 
@@ -53,7 +57,8 @@ private val TabUnselectedColor = Color(0xFF1E293B) // [RESTAURADO]
 @Composable
 fun ConfirmedPanel(
     currentLocation: Location?,
-    activeGeofences: List<MonitorRule> = emptyList() // [NOVO]
+    activeGeofences: List<MonitorRule> = emptyList(), // [NOVO]
+    infractions: List<InfractionDisplayInfo> = emptyList() // [NOVO]
 ) {
 
     var selectedCameraTab by remember { mutableIntStateOf(0) } // 0 = Back, 1 = Front
@@ -75,6 +80,7 @@ fun ConfirmedPanel(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -219,43 +225,10 @@ fun ConfirmedPanel(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
+                .height(250.dp) // Altura fixa para o mapa dentro do Scroll
                 .clip(RoundedCornerShape(12.dp))
                 .background(Color(0xFFE2E8F0))
-                //.background(MapColor)
         ) {
-//            Canvas(modifier = Modifier.fillMaxSize()) {
-//                val width = size.width
-//                val height = size.height
-//                drawLine(
-//                    color = MapRoadColor,
-//                    start = Offset(width * 0.6f, 0f),
-//                    end = Offset(width * 0.6f, height),
-//                    strokeWidth = 40f
-//                )
-//                drawLine(
-//                    color = MapRoadColor,
-//                    start = Offset(0f, height * 0.4f),
-//                    end = Offset(width, height * 0.4f),
-//                    strokeWidth = 40f
-//                )
-//            }
-//            Icon(
-//                imageVector = Icons.Default.LocationOn,
-//                contentDescription = "My Location",
-//                tint = AlertRed,
-//                modifier = Modifier
-//                    .size(48.dp)
-//                    .align(Alignment.Center)
-//                    .offset(y = (-24).dp)
-//            )
-//            Box(
-//                modifier = Modifier
-//                    .size(16.dp)
-//                    .align(Alignment.Center)
-//                    .background(AlertRed.copy(alpha = 0.3f), CircleShape)
-//            )
-
             if (currentLocation != null) {
                 // Aqui usamos o MapView do OSMDroid dentro de uma AndroidView
                 AndroidView(
@@ -335,6 +308,76 @@ fun ConfirmedPanel(
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
                 )
+            }
+        }
+        
+        // 5. Infractions List
+        if (infractions.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Infringed Rules",
+                color = Color.White.copy(alpha = 0.7f),
+                modifier = Modifier
+                    .align(Alignment.Start)
+                    .padding(bottom = 8.dp)
+            )
+            
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF1E293B))
+                    .padding(12.dp)
+            ) {
+                infractions.forEachIndexed { index, inf ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Monitor Icon/Name
+                         Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(AlertRed.copy(alpha = 0.2f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = inf.monitorName.firstOrNull()?.toString() ?: "M",
+                                color = AlertRed,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            // Primary: Monitor Name
+                            Text(
+                                text = inf.monitorName,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                            
+                            // Secondary: Detail based on Type
+                            val detailText = when(inf.ruleType) {
+                                "SPEED" -> "Limit: ${inf.parameter ?: "?"} km/h"
+                                "INACTIVITY" -> "Max Time: ${inf.parameter ?: "?"} min"
+                                "GEOFENCING" -> "Left Safe Zone"
+                                "FALL" -> "Fall Detected"
+                                "ACCIDENT" -> "Accident Detected"
+                                else -> inf.description
+                            }
+                            
+                            Text(
+                                text = detailText,
+                                color = Color.Gray,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                    if (index < infractions.size - 1) {
+                        Divider(color = Color.Gray.copy(alpha = 0.2f))
+                    }
+                }
             }
         }
 

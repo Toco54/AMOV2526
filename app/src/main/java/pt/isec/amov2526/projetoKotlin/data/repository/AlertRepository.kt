@@ -23,7 +23,8 @@ class AlertRepository {
         type: ActivityAlertType,
         title: String,
         latitude: Double? = null,
-        longitude: Double? = null
+        longitude: Double? = null,
+        visibleToMonitors: List<String>? = null // [NOVO] Lista de IDs de monitores autorizados
     ) {
         // Se 'auth' der erro aqui, é porque a função está fora da classe!
         val currentUser = auth.currentUser ?: return
@@ -35,7 +36,7 @@ class AlertRepository {
 
         val alertId = UUID.randomUUID().toString()
 
-        val alertData = hashMapOf(
+        val alertData = hashMapOf<String, Any?>(
             "id" to alertId,
             "type" to type.name,
             "title" to title,
@@ -46,6 +47,12 @@ class AlertRepository {
             "longitude" to longitude,
             "created_at" to System.currentTimeMillis()
         )
+        
+        // Se a lista for null ou vazia, assume-se que é visível a TODOS (comportamento fallback)
+        // ou guardamos explicitamente se foi passado
+        if (visibleToMonitors != null) {
+            alertData["visibleTo"] = visibleToMonitors
+        }
 
         try {
             // Se o .await() der erro aqui, falta adicionar a dependência no build.gradle
