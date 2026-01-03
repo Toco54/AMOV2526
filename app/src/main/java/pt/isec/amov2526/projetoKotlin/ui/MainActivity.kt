@@ -1,8 +1,10 @@
 package pt.isec.amov2526.projetoKotlin.ui
 
 import android.Manifest
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -15,6 +17,19 @@ import pt.isec.amov2526.projetoKotlin.ui.screens.MainScreen
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+//            setShowWhenLocked(true)
+//            setTurnScreenOn(true)
+//        } else {
+//            window.addFlags(
+//                android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+//                        android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+//            )
+//        }
+
+        checkIntentForAlert(intent)
+
         enableEdgeToEdge()
         setContent {
             // --- Permission Handling in MainActivity ---
@@ -45,6 +60,37 @@ class MainActivity : ComponentActivity() {
 
             // --- UI Entry Point ---
             MainScreen()
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent) // Atualiza a intenção atual para a nova (que traz o Alerta)
+        checkIntentForAlert(intent)
+    }
+
+    private fun checkIntentForAlert(intent: Intent?) {
+        if (intent?.action == "ACTION_SHOW_ALERT") {
+            setShowOnLockScreen(true)
+        }
+    }
+
+    fun setShowOnLockScreen(show: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(show)
+            setTurnScreenOn(show)
+        } else {
+            if (show) {
+                window.addFlags(
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                )
+            } else {
+                window.clearFlags(
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                )
+            }
         }
     }
 }

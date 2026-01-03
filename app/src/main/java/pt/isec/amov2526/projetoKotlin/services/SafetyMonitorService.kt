@@ -3,6 +3,7 @@ package pt.isec.amov2526.projetoKotlin.services
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -21,14 +22,16 @@ class SafetyMonitorService : Service() {
 
     companion object {
         var isServiceRunning = false
+        // [ALTERAÇÃO 1] Constantes para comunicação com o Ecrã
+        const val ACTION_CANCEL_ALERT = "pt.isec.amov2526.projetoKotlin.services.ACTION_CANCEL_ALERT"
+        const val ACTION_CONFIRM_ALERT = "pt.isec.amov2526.projetoKotlin.services.ACTION_CONFIRM_ALERT"
     }
-    private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
 
+    private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private var isProtectionActive = true
 
-    // As tuas ferramentas (Utils)
     private lateinit var locationHelper: LocationHelper
     private lateinit var sensorHelper: SensorHelper
     private lateinit var accelerometerHandler: AccelerometerHandler
@@ -36,6 +39,9 @@ class SafetyMonitorService : Service() {
 
     private var pausedUntil: Long = 0L
     private val alertRepository = AlertRepository()
+
+    // [ALTERAÇÃO 2] Variável para controlar o temporizador de 10s
+    private var alertJob: Job? = null
 
     private val batteryReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context?, intent: Intent?) {
@@ -51,74 +57,75 @@ class SafetyMonitorService : Service() {
     override fun onCreate() {
         super.onCreate()
         isServiceRunning = true
-        startForegroundService() // Torna o serviço imortal (mostra notificação)
+        startForegroundService()
 
-        // 1. Inicializar os Helpers
         locationHelper = LocationHelper(this)
         sensorHelper = SensorHelper(this)
-
-        // Passamos o scope para eles poderem correr corrotinas
         accelerometerHandler = AccelerometerHandler(sensorHelper, serviceScope)
         inactivityHandler = InactivityHandler(sensorHelper, serviceScope)
 
-        // 2. Ligar os sensores
-        locationHelper.startLocationUpdates(5000L) // GPS a cada 5s
+        locationHelper.startLocationUpdates(5000L)
         accelerometerHandler.startMonitoring()
         inactivityHandler.startMonitoring()
 
-        registerReceiver(batteryReceiver, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))
+        registerReceiver(batteryReceiver, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
 
-        // 3. Começar a escutar os eventos
         observeSensors()
         observeSystemStatus()
     }
 
+    // [ALTERAÇÃO 3] Receber ordens do GuardScreen (Cancelar/Confirmar)
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            ACTION_CANCEL_ALERT -> {
+                // Cancelar contagem e limpar notificação
+                alertJob?.cancel()
+                alertJob = null
+                getSystemService(NotificationManager::class.java).cancel(999)
+            }
+            ACTION_CONFIRM_ALERT -> {
+                // Confirmar envio (o job pode continuar ou ser cancelado se o envio for manual imediato)
+                // A lógica de envio manual já trata disto chamando ACTION_CANCEL_ALERT a seguir
+            }
+        }
+        // Garante que o serviço não renasce sozinho se morrer, mas processa intents
+        return START_NOT_STICKY
+    }
+
     private fun observeSystemStatus() {
         val uid = auth.currentUser?.uid ?: return
-
-        // 0. Iniciar Heartbeat (Ping) para sinalizar que estamos online
         startHeartbeat(uid)
 
-        // 1. Verificar se o utilizador Pausou a aplicação
         serviceScope.launch {
-            db.collection("users").document(uid)
-                .addSnapshotListener { snapshot, _ ->
-                    if (snapshot != null && snapshot.exists()) {
-                        val status = snapshot.getString("systemStatus") ?: "ACTIVE"
+            db.collection("users").document(uid).addSnapshotListener { snapshot, _ ->
+                if (snapshot != null && snapshot.exists()) {
+                    val status = snapshot.getString("systemStatus") ?: "ACTIVE"
 
+                    if (status == "OFFLINE") {
+                        isProtectionActive = false
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        getSystemService(NotificationManager::class.java)?.cancel(1)
+                        stopSelf()
+                        return@addSnapshotListener
+                    }
 
-                        if (status == "OFFLINE") {
-                            isProtectionActive = false
-                            stopForeground(STOP_FOREGROUND_REMOVE) // Remove notificação
-                            val manager = getSystemService(NotificationManager::class.java)
-                            manager?.cancel(1)
+                    pausedUntil = snapshot.getLong("globalPausedUntil") ?: 0L
+                    val now = System.currentTimeMillis()
 
-                            stopSelf() // Mata o serviço
-                            return@addSnapshotListener
-                        }
-
-                        //val pausedUntil = snapshot.getLong("globalPausedUntil") ?: 0L
-                        pausedUntil = snapshot.getLong("globalPausedUntil") ?: 0L
-
-                        val now = System.currentTimeMillis()
-
-                        // Se estiver PAUSED e o tempo ainda não acabou -> Desativar proteção
-                        if (status == "PAUSED" && (pausedUntil == -1L || pausedUntil > now)) {
-                            isProtectionActive = false
-                            updateNotification(isPaused = true)
-                        } else {
-                            isProtectionActive = true
-                            updateNotification(isPaused = false)
-                        }
+                    if (status == "PAUSED" && (pausedUntil == -1L || pausedUntil > now)) {
+                        isProtectionActive = false
+                        updateNotification(isPaused = true)
+                    } else {
+                        isProtectionActive = true
+                        updateNotification(isPaused = false)
                     }
                 }
+            }
         }
 
-        // 2. Enviar a localização em tempo real para o Firestore
         serviceScope.launch {
             locationHelper.currentLocation.collect { loc ->
-
-                if (loc != null && isProtectionActive ) {
+                if (loc != null && isProtectionActive) {
                     val updates = mapOf(
                         "lastLat" to loc.latitude,
                         "lastLng" to loc.longitude,
@@ -130,54 +137,118 @@ class SafetyMonitorService : Service() {
         }
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Isto garante que se o serviço for morto, ele NÃO renasce sozinho.
-        // Só arranca se a App mandar explicitamente.
-        return START_NOT_STICKY
-    }
     private fun startHeartbeat(uid: String) {
         serviceScope.launch {
             while (isActive) {
-                // Se a proteção estiver ativa ou se a app estiver apenas aberta (Service Running), enviamos sinal.
-                // Atualizar APENAS o timestamp para não gastar muita quota ou re-escrever localização antiga.
                 try {
-                    db.collection("users").document(uid)
-                        .update("lastUpdate", System.currentTimeMillis())
-                } catch (e: Exception) {
-                    // Falha silenciosa de rede
-                }
-                delay(60000L) // Ping a cada 60 segundos
+                    db.collection("users").document(uid).update("lastUpdate", System.currentTimeMillis())
+                } catch (e: Exception) {}
+                delay(60000L)
             }
         }
     }
 
-
+    // [ALTERAÇÃO 4] Usar triggerAlertSequence em vez de launchAlertUI direto
     private fun observeSensors() {
-        // Escutar Quedas
         serviceScope.launch {
             accelerometerHandler.onFallDetected.collect {
-                if (isProtectionActive) { // <--- NOVO CHECK
-                    createAlert(ActivityAlertType.FALL, "Queda Detetada!")
+                if (isProtectionActive) {
+                    triggerAlertSequence(ActivityAlertType.FALL)
                 }
             }
         }
 
-        // Escutar Acidentes (G-Force elevado)
         serviceScope.launch {
             accelerometerHandler.onAccidentDetected.collect {
-                if (isProtectionActive) { // <--- NOVO CHECK
-                    createAlert(ActivityAlertType.ACCIDENT, "Acidente de Viação Detetado!")
+                if (isProtectionActive) {
+                    triggerAlertSequence(ActivityAlertType.ACCIDENT)
                 }
             }
         }
 
-        // Escutar Inatividade (falta de movimento)
         serviceScope.launch {
             inactivityHandler.inactivityAlerts.collect { rule ->
-                if (isProtectionActive) { // <--- NOVO CHECK
-                    createAlert(ActivityAlertType.FALL, "Inatividade: ${rule.name}")
+                if (isProtectionActive) {
+                    triggerAlertSequence(ActivityAlertType.FALL) // Trata inatividade como Fall/Alert
                 }
             }
+        }
+    }
+
+    // [ALTERAÇÃO 5] Nova lógica de contagem automática
+    private fun triggerAlertSequence(type: ActivityAlertType) {
+        // Se já estiver a contar, ignora para não spammar
+        if (alertJob?.isActive == true) return
+
+        // 1. Mostrar ecrã vermelho
+        launchAlertUI(type)
+
+        // 2. Iniciar contagem de 10 segundos
+        alertJob = serviceScope.launch {
+            delay(10000L) // Espera 10s
+
+            if (isActive) {
+                // Se chegou aqui e não foi cancelado: ENVIA
+                createAlert(type, "Alerta Automático (${type.name})")
+
+                // Limpa a notificação vermelha
+                getSystemService(NotificationManager::class.java).cancel(999)
+            }
+            alertJob = null
+        }
+    }
+
+    private fun launchAlertUI(type: ActivityAlertType) {
+        val intent = Intent(this, pt.isec.amov2526.projetoKotlin.ui.MainActivity::class.java).apply {
+            action = "ACTION_SHOW_ALERT"
+            putExtra("ALERT_TYPE", type.name)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        val channelId = "SafetySecAlertChannel"
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "Alertas de Emergência",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                enableVibration(true)
+                setBypassDnd(true) // Fura o "Não incomodar"
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.drawable.ic_shield_check)
+            .setContentTitle("ALERTA DE SEGURANÇA")
+            .setContentText("A enviar ajuda em 10s...")
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setFullScreenIntent(pendingIntent, true)
+            .setAutoCancel(false) // Não desaparece ao clicar, só por código
+            .setOngoing(true)
+            .build()
+
+        notificationManager.notify(999, notification)
+
+        // [IMPORTANTE] Tenta abrir a Activity diretamente (útil se a app já estiver aberta)
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            // Em Androids recentes (10+), background activity start pode ser bloqueado,
+            // mas o FullScreenIntent garante que funciona se estiver bloqueado.
         }
     }
 
@@ -193,7 +264,6 @@ class SafetyMonitorService : Service() {
         )
     }
 
-    // Configuração da Notificação Obrigatória do Android
     private fun startForegroundService() {
         val channelId = "SafetySecChannel"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -208,12 +278,11 @@ class SafetyMonitorService : Service() {
         val notification: Notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle("SafetySec Ativo")
             .setContentText("Estamos a proteger-te em segundo plano.")
-            .setSmallIcon(R.drawable.ic_shield_check) // Usa o teu ícone de escudo
+            .setSmallIcon(R.drawable.ic_shield_check)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .build()
 
-        // Inicia o serviço em modo Foreground (com tipo location para Android 14)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
         } else {
@@ -223,44 +292,30 @@ class SafetyMonitorService : Service() {
 
     private fun updateNotification(isPaused: Boolean) {
         val channelId = "SafetySecChannel"
-
-        // Define o texto consoante o estado
         val title = if (isPaused) "SafetySec em Pausa" else "SafetySec Ativo"
-        val text = if (isPaused) "A proteção está temporariamente suspensa." else "Estamos a proteger-te em segundo plano."
-        val icon = if (isPaused) R.drawable.ic_shield_check else R.drawable.ic_shield_check // Podes mudar o ícone se tiveres outro (ex: ic_pause)
+        val text = if (isPaused) "A proteção está suspensa." else "Proteção ativa."
+        val icon = if (isPaused) R.drawable.ic_shield_check else R.drawable.ic_shield_check
 
         val notification: Notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle(title)
             .setContentText(text)
             .setSmallIcon(icon)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(true) // Mantém a notificação fixa
-            .setOnlyAlertOnce(true) // Evita que o telemóvel vibre/toque a cada atualização
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
             .build()
 
-        // O ID '1' tem de ser o mesmo que usaste no startForeground
         getSystemService(NotificationManager::class.java).notify(1, notification)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         isServiceRunning = false
-
-        // 1. Parar o estado Foreground e remover a notificação
-        // Como o teu minSdk é >= 24, usamos a flag direta sem 'if'.
-        // STOP_FOREGROUND_REMOVE remove a notificação da barra de status.
         stopForeground(STOP_FOREGROUND_REMOVE)
+        getSystemService(NotificationManager::class.java)?.cancel(1)
 
-        // 2. Garantia Extra ("Double Tap")
-        // Dizemos explicitamente ao NotificationManager para cancelar o ID 1.
-        val manager = getSystemService(NotificationManager::class.java)
-        manager?.cancel(1)
+        try { unregisterReceiver(batteryReceiver) } catch (e: Exception) {}
 
-        try {
-            unregisterReceiver(batteryReceiver) // [NOVO]
-        } catch (e: Exception) {}
-
-        // 3. Limpar sensores e corrotinas
         locationHelper.stopLocationUpdates()
         accelerometerHandler.stopMonitoring()
         inactivityHandler.stopMonitoring()
@@ -271,13 +326,11 @@ class SafetyMonitorService : Service() {
 
     private fun updateBatteryLevel(pct: Int) {
         val uid = auth.currentUser?.uid ?: return
-        // Atualizar Base de Dados
         db.collection("users").document(uid).update("batteryLevel", pct)
 
-        // Criar Alerta se for < 15% (com cooldown de 15 min para não spammar)
         if (pct <= 15 && isProtectionActive) {
             val now = System.currentTimeMillis()
-            if (now - lastBatteryAlertTime > 900000L) { // 15 minutos
+            if (now - lastBatteryAlertTime > 900000L) {
                 lastBatteryAlertTime = now
                 serviceScope.launch {
                     createAlert(ActivityAlertType.BATTERY, "Bateria Fraca ($pct%)")

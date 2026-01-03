@@ -29,9 +29,11 @@ fun GuardScreen(
     protectedViewModel: ProtectedMainViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val context = LocalContext.current
+    val keyguardManager = context.getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
     val viewModel: pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         factory = pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModelFactory()
     )
+
 
     LaunchedEffect(Unit) {
         protectedViewModel.refreshServiceState()
@@ -47,6 +49,8 @@ fun GuardScreen(
 
         locationHelper.startLocationUpdates(2000L)
     }
+
+
 
     val currentLocation by locationHelper.currentLocation.collectAsState(initial = null)
 
@@ -76,6 +80,7 @@ fun GuardScreen(
     var selectedRuleToPause by remember { mutableStateOf<MonitorRule?>(null) }
     var selectedGroupToSchedule by remember { mutableStateOf<ProtectionGroup?>(null) }
     var selectedRuleToSchedule by remember { mutableStateOf<MonitorRule?>(null) }
+    var pendingAlertType by remember { mutableStateOf(ActivityAlertType.PANIC) }
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -92,6 +97,47 @@ fun GuardScreen(
         now = currentTime
     )
 
+//    val activity = LocalContext.current as? android.app.Activity
+//    LaunchedEffect(Unit) {
+//        if (activity?.intent?.action == "ACTION_SHOW_ALERT") {
+//            // Opcional: Ler o tipo de alerta do intent
+//            // val typeStr = activity.intent.getStringExtra("ALERT_TYPE")
+//
+//            // Abre o ecrã de Alerta IMEDIATAMENTE
+//            showAlertScreen = true
+//
+//            // Limpa a action para não reabrir se rodares o ecrã
+//            activity.intent.action = null
+//        }
+//    }
+
+    // [SUBSTITUIR O BLOCO ANTIGO POR ESTE]
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    val activity = LocalContext.current as? android.app.Activity
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                // Executa sempre que a app abre ou volta do background
+                if (activity?.intent?.action == "ACTION_SHOW_ALERT") {
+                    val typeStr = activity.intent.getStringExtra("ALERT_TYPE")
+
+                    // Define o tipo correto (Queda/Acidente) vindo do Serviço
+                    pendingAlertType = if (typeStr != null) {
+                        try { ActivityAlertType.valueOf(typeStr) } catch (e: Exception) { ActivityAlertType.PANIC }
+                    } else {
+                        ActivityAlertType.PANIC
+                    }
+
+                    showAlertScreen = true
+                    activity.intent.action = null // Limpa para não repetir
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     // Fix: Prioritize PAUSED over SCHEDULED
     val finalSystemLabel = if (!isServiceRunning) "OFFLINE" 
     else if (globalScheduleStatus.label == "PAUSED") "PAUSED" 
@@ -100,14 +146,57 @@ fun GuardScreen(
 
     if (showAlertScreen) {
         Dialog(
-            onDismissRequest = { showAlertScreen = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
+            onDismissRequest = { /* Bloquear dismiss acidental */ },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                dismissOnBackPress = false, // Obriga a interagir
+                dismissOnClickOutside = false
+            )
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 AlertScreen(
-                    onCancel = { showAlertScreen = false },
-                    onConfirm = { viewModel.sendManualSos() },
-                    onValidatePin = { viewModel.verifyPin(it) },
+                    onCancel = {
+                        showAlertScreen = false
+                        (context as? pt.isec.amov2526.projetoKotlin.ui.MainActivity)?.setShowOnLockScreen(false)
+                               },
+                    onConfirm = {
+                        // 1. Enviar Alerta Manualmente
+                        viewModel.sendAlert(pendingAlertType)
+
+                        // 2. Avisar Serviço: "Pára a contagem e limpa a notificação!"
+                        val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
+                            action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_CANCEL_ALERT
+                        }
+                        context.startService(intent)
+
+                        showAlertScreen = false
+
+                        (context as? pt.isec.amov2526.projetoKotlin.ui.MainActivity)?.setShowOnLockScreen(false)
+                    },
+                    onValidatePin = { pin ->
+                        scope.launch {
+                            if (viewModel.verifyPin(pin)) {
+                                // 1. Fechar UI
+                                showAlertScreen = false
+
+                                // 2. Avisar Serviço: "Cancelado com sucesso (PIN OK), pára tudo"
+                                val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
+                                    action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_CANCEL_ALERT
+                                }
+                                context.startService(intent)
+
+                                (context as? pt.isec.amov2526.projetoKotlin.ui.MainActivity)?.setShowOnLockScreen(false)
+
+                                // 3. [CRÍTICO] Se estava bloqueado, fecha a Activity para voltar ao Lockscreen seguro
+                                if (keyguardManager.isDeviceLocked) {
+                                    activity?.finish()
+                                }
+                            } else {
+                                snackbarHostState.showSnackbar("Invalid PIN")
+                            }
+                        }
+                        true
+                    },
                     currentLocation = currentLocation
                 )
             }
@@ -151,6 +240,7 @@ fun GuardScreen(
             // --- SOS Button ---
             SosButton(
                 onClick = {
+                    pendingAlertType = ActivityAlertType.PANIC
                     showAlertScreen = true
                     onPanic()
                 }
