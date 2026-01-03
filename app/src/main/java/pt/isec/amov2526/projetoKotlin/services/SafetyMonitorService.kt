@@ -37,6 +37,17 @@ class SafetyMonitorService : Service() {
     private var pausedUntil: Long = 0L
     private val alertRepository = AlertRepository()
 
+    private val batteryReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: Intent?) {
+            val level = intent?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = intent?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1) ?: -1
+            if (level != -1 && scale != -1) {
+                val pct = (level * 100 / scale.toFloat()).toInt()
+                updateBatteryLevel(pct)
+            }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         isServiceRunning = true
@@ -54,6 +65,8 @@ class SafetyMonitorService : Service() {
         locationHelper.startLocationUpdates(5000L) // GPS a cada 5s
         accelerometerHandler.startMonitoring()
         inactivityHandler.startMonitoring()
+
+        registerReceiver(batteryReceiver, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))
 
         // 3. Começar a escutar os eventos
         observeSensors()
@@ -137,6 +150,7 @@ class SafetyMonitorService : Service() {
             }
         }
     }
+
 
     private fun observeSensors() {
         // Escutar Quedas
@@ -242,11 +256,34 @@ class SafetyMonitorService : Service() {
         val manager = getSystemService(NotificationManager::class.java)
         manager?.cancel(1)
 
+        try {
+            unregisterReceiver(batteryReceiver) // [NOVO]
+        } catch (e: Exception) {}
+
         // 3. Limpar sensores e corrotinas
         locationHelper.stopLocationUpdates()
         accelerometerHandler.stopMonitoring()
         inactivityHandler.stopMonitoring()
         serviceScope.cancel()
+    }
+
+    private var lastBatteryAlertTime = 0L
+
+    private fun updateBatteryLevel(pct: Int) {
+        val uid = auth.currentUser?.uid ?: return
+        // Atualizar Base de Dados
+        db.collection("users").document(uid).update("batteryLevel", pct)
+
+        // Criar Alerta se for < 15% (com cooldown de 15 min para não spammar)
+        if (pct <= 15 && isProtectionActive) {
+            val now = System.currentTimeMillis()
+            if (now - lastBatteryAlertTime > 900000L) { // 15 minutos
+                lastBatteryAlertTime = now
+                serviceScope.launch {
+                    createAlert(ActivityAlertType.BATTERY, "Bateria Fraca ($pct%)")
+                }
+            }
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

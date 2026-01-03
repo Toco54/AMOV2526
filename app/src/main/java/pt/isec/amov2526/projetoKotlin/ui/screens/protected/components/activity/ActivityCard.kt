@@ -129,5 +129,6 @@ fun getIconForActivityType(type: ActivityAlertType): ImageVector {
         ActivityAlertType.ACCIDENT -> Icons.Default.CarCrash
         ActivityAlertType.GEOFENCE -> Icons.Default.LocationOn
         ActivityAlertType.PANIC -> Icons.Default.Warning
+        ActivityAlertType.BATTERY -> Icons.Default.BatteryAlert
     }
 }

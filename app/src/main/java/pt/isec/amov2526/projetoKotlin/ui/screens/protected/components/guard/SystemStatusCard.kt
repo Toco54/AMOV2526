@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Shield
@@ -44,6 +45,7 @@ fun SystemStatusCard(
     isGlobalScheduleEnabled: Boolean,
     globalScheduleStatus: StatusResult,
     finalSystemLabel: String,
+    batteryLevel: Int,
     onPlanClick: () -> Unit,
     onStatusClick: () -> Unit
 ) {
@@ -114,6 +116,22 @@ fun SystemStatusCard(
                         }
                     }
 
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.BatteryFull,
+                            contentDescription = "Battery",
+                            tint = if (batteryLevel < 20) Color.Red else Slate400,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            text = "$batteryLevel%",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (batteryLevel < 20) Color.Red else Slate400,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp
+                        )
+                    }
                     // Status Pill
                     // If the system is in SCHEDULED mode, the manual pause switch should still show ACTIVE (Green),
                     // because the user hasn't manually paused it.

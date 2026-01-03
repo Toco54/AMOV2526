@@ -55,6 +55,8 @@ fun GuardScreen(
     val globalSchedule by viewModel.globalSchedule.collectAsState()
     val globalPausedUntil by viewModel.globalPausedUntil.collectAsState()
 
+    val batteryLevel by viewModel.batteryLevel.collectAsState()
+
     // UI Refresh Timer for Countdowns
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
@@ -129,6 +131,7 @@ fun GuardScreen(
                 isGlobalScheduleEnabled = globalSchedule.isEnabled,
                 globalScheduleStatus = globalScheduleStatus,
                 finalSystemLabel = finalSystemLabel,
+                batteryLevel = batteryLevel,
                 onPlanClick = { showGlobalScheduleModal = true },
                 onStatusClick = {
                     if (globalScheduleStatus.label == "PAUSED") {

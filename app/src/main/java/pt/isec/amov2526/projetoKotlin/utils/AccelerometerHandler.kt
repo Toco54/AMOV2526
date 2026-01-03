@@ -18,8 +18,8 @@ class AccelerometerHandler(
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default)
 ) {
     // Thresholds (Mantidos como pediste)
-    private val FALL_G_THRESHOLD = 25f
-    private val ACCIDENT_G_THRESHOLD = 60f
+    private val FALL_G_THRESHOLD = 45f
+    private val ACCIDENT_G_THRESHOLD = 90f
 
     // [NOVO] Tempo de espera entre alertas (5 segundos)
     private val ALERT_COOLDOWN_MS = 5000L

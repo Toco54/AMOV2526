@@ -1,7 +1,7 @@
 package pt.isec.amov2526.projetoKotlin.data.model
 
 enum class ActivityAlertType {
-    SPEED, FALL, ACCIDENT, GEOFENCE, PANIC
+    SPEED, FALL, ACCIDENT, GEOFENCE, PANIC, BATTERY
 }
 
 enum class ActivityAlertStatus {

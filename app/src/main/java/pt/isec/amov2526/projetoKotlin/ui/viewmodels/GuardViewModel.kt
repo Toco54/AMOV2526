@@ -49,6 +49,9 @@ class GuardViewModel(
     private val _isEffectiveGlobalActive = MutableStateFlow(true)
     val isEffectiveGlobalActive: StateFlow<Boolean> = _isEffectiveGlobalActive.asStateFlow()
 
+    private val _batteryLevel = MutableStateFlow(100)
+    val batteryLevel: StateFlow<Int> = _batteryLevel.asStateFlow()
+
     // Global Schedule State
     data class GlobalSchedule(
         val days: List<Int> = emptyList(),
@@ -174,7 +177,9 @@ class GuardViewModel(
                 _isActive.value = status == "ACTIVE"
                 _systemStatusText.value = status
                 _globalPausedUntil.value = snapshot.getLong("globalPausedUntil") ?: 0L
-                
+
+                val bat = snapshot.getLong("batteryLevel")?.toInt() ?: 100
+                _batteryLevel.value = bat
                 val gDays = (snapshot.get("globalScheduleDays") as? List<Number>)?.map { it.toInt() } ?: listOf(1, 2, 3, 4, 5)
                 val gStart = snapshot.getString("globalScheduleStart") ?: "09:00"
                 val gEnd = snapshot.getString("globalScheduleEnd") ?: "18:00"
