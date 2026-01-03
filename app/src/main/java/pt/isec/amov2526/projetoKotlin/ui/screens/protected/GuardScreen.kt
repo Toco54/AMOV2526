@@ -15,6 +15,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
 import pt.isec.amov2526.projetoKotlin.data.model.*
+import pt.isec.amov2526.projetoKotlin.data.model.InfractionDisplayInfo
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.guard.*
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel

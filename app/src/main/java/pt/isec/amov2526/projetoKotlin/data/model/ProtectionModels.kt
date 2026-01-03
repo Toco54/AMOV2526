@@ -62,3 +62,11 @@ data class ProtectionGroup(
     val isScheduleEnabled: Boolean = false,
     val isEffectivelyActive: Boolean = true // Added
 )
+
+// [NOVO] Classe auxiliar para passar infrações para a UI via Intent
+data class InfractionDisplayInfo(
+    val monitorName: String,
+    val ruleType: String,
+    val description: String,
+    val parameter: String? = null
+)

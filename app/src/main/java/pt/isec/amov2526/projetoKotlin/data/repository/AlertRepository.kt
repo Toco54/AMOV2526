@@ -25,17 +25,18 @@ class AlertRepository {
         latitude: Double? = null,
         longitude: Double? = null,
         visibleToMonitors: List<String>? = null, // [NOVO] Lista de IDs de monitores autorizados
-        initialActions: List<MonitorAction>? = null // [NOVO] Lista inicial de monitores notificados
-    ) {
+        initialActions: List<MonitorAction>? = null, // [NOVO] Lista inicial de monitores notificados
+        forcedId: String? = null // [NOVO] ID forçado (gerado pelo serviço)
+    ): String? { // [ALTERADO] Retorna o ID do alerta criado
         // Se 'auth' der erro aqui, é porque a função está fora da classe!
-        val currentUser = auth.currentUser ?: return
+        val currentUser = auth.currentUser ?: return null
         val uid = currentUser.uid
 
         val sdfDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
         val sdfTime = SimpleDateFormat("HH:mm", Locale.getDefault())
         val now = Date()
 
-        val alertId = UUID.randomUUID().toString()
+        val alertId = forcedId ?: UUID.randomUUID().toString()
 
         val alertData = hashMapOf<String, Any?>(
             "id" to alertId,
@@ -46,7 +47,10 @@ class AlertRepository {
             "status" to ActivityAlertStatus.PENDING.name,
             "latitude" to latitude,
             "longitude" to longitude,
-            "created_at" to System.currentTimeMillis()
+            "created_at" to System.currentTimeMillis(),
+            "media" to hashMapOf(
+                "videoBack" to "PENDING/UNAVAILABLE" // Valor padrão inicial
+            )
         )
         
         // Se a lista for null ou vazia, assume-se que é visível a TODOS (comportamento fallback)
@@ -76,14 +80,10 @@ class AlertRepository {
             batch.set(alertRef, alertData)
 
             // 2. Atualizar o documento de conexão em cada Monitor
-            // Adiciona o caminho ao mapa 'alertRefs' usando notação de ponto
             visibleToMonitors?.forEach { monitorUid ->
                 val connectionDoc = db.collection("users").document(monitorUid)
                     .collection("connections").document(uid)
                 
-                // Nota: Usamos update() porque o documento de conexão JÁ DEVE existir.
-                // Se não existir (caso raro de inconsistência), esta parte falharia para esse monitor específico.
-                // O caminho guardado é o path absoluto para facilitar o fetch futuro.
                 val updateData = mapOf(
                     "alertRefs.$alertId" to "users/$uid/alerts/$alertId"
                 )
@@ -92,11 +92,26 @@ class AlertRepository {
 
             // Executar todas as escritas atomicamente
             batch.commit().await()
+            return alertId
 
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return null
+        }
+    }
+
+    suspend fun updateAlertEvidence(alertId: String, videoUrl: String?) {
+        val currentUser = auth.currentUser ?: return
+        try {
+            db.collection("users").document(currentUser.uid)
+                .collection("alerts").document(alertId)
+                .update("media.videoBack", videoUrl)
+                .await()
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
+
     fun listenToAlerts(onUpdate: (List<ActivityItem>) -> Unit): ListenerRegistration? {
         val currentUser = auth.currentUser ?: return null
 

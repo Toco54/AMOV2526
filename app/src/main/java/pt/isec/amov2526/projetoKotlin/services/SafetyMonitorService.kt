@@ -462,7 +462,12 @@ class SafetyMonitorService : Service() {
         infractions: List<pt.isec.amov2526.projetoKotlin.data.model.RuleInfraction>? = null
     ) {
         if (alertJob?.isActive == true) return
-        launchAlertUI(type, details, infractions)
+        
+        // [NOVO] Gerar ID do alerta IMEDIATAMENTE para sincronizar com o vídeo
+        val generatedAlertId = java.util.UUID.randomUUID().toString()
+        
+        launchAlertUI(type, details, infractions, generatedAlertId)
+        
         alertJob = serviceScope.launch {
             delay(10000L)
             if (isActive) {
@@ -475,7 +480,7 @@ class SafetyMonitorService : Service() {
                     ActivityAlertType.INACTIVITY -> "Inatividade Detetada"
                     else -> "Alerta Automático"
                 }
-                createAlert(type, if (details != null) "$title: $details" else title, monitors, infractions)
+                createAlert(type, if (details != null) "$title: $details" else title, monitors, infractions, generatedAlertId)
                 getSystemService(NotificationManager::class.java).cancel(999)
             }
             alertJob = null
@@ -485,13 +490,15 @@ class SafetyMonitorService : Service() {
     private fun launchAlertUI(
         type: ActivityAlertType, 
         details: String? = null,
-        infractions: List<pt.isec.amov2526.projetoKotlin.data.model.RuleInfraction>? = null
+        infractions: List<pt.isec.amov2526.projetoKotlin.data.model.RuleInfraction>? = null,
+        alertId: String? = null // [NOVO]
     ) {
         val alertTime = System.currentTimeMillis()
         val intent = Intent(this, pt.isec.amov2526.projetoKotlin.ui.MainActivity::class.java).apply {
             action = "ACTION_SHOW_ALERT"
             putExtra("ALERT_TYPE", type.name)
             putExtra("ALERT_TIMESTAMP", alertTime)
+            putExtra("ALERT_ID", alertId) // [NOVO] Passar o ID para a UI
             if (details != null) putExtra("ALERT_DETAILS", details)
             // [RESTAURADO] Serialização das infrações
             if (infractions != null) {
@@ -531,7 +538,7 @@ class SafetyMonitorService : Service() {
         } catch (e: Exception) {}
     }
 
-    private suspend fun createAlert(type: ActivityAlertType, title: String, monitors: List<String>? = null, infractions: List<pt.isec.amov2526.projetoKotlin.data.model.RuleInfraction>? = null) {
+    private suspend fun createAlert(type: ActivityAlertType, title: String, monitors: List<String>? = null, infractions: List<pt.isec.amov2526.projetoKotlin.data.model.RuleInfraction>? = null, forcedId: String? = null) {
         if (!isProtectionActive) return
         val loc = locationHelper.currentLocation.value
         
@@ -601,7 +608,8 @@ class SafetyMonitorService : Service() {
             latitude = loc?.latitude, 
             longitude = loc?.longitude, 
             visibleToMonitors = monitors,
-            initialActions = initialActions
+            initialActions = initialActions,
+            forcedId = forcedId // [NOVO]
         )
     }
 

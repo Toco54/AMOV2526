@@ -123,14 +123,14 @@ class GuardViewModel(
         }
     }
 
-    fun sendAlert(type: ActivityAlertType) {
+    fun sendAlert(type: ActivityAlertType, forcedId: String? = null, onSuccess: ((String) -> Unit)? = null) {
         viewModelScope.launch {
             val lat = lastLocation?.latitude
             val lng = lastLocation?.longitude
 
             // [NOVO] Obter lista inicial de monitores para o Pânico
             var initialActions: List<pt.isec.amov2526.projetoKotlin.data.model.MonitorAction>? = null
-            var monitorIds: List<String>? = null // [NOVO] Lista de UIDs para o campo visibleTo
+            var monitorIds: List<String>? = null 
 
             try {
                 val snapshot = db.collection("users").document(currentUserUid)
@@ -138,10 +138,8 @@ class GuardViewModel(
                     .whereEqualTo("role", "Monitor")
                     .get().await()
                 
-                // Extrair UIDs para permissões
                 monitorIds = snapshot.documents.mapNotNull { it.getString("uid") }
 
-                // Extrair Nomes para histórico visual
                 initialActions = snapshot.documents.map { doc ->
                     pt.isec.amov2526.projetoKotlin.data.model.MonitorAction(
                         name = doc.getString("name") ?: "Monitor",
@@ -153,7 +151,6 @@ class GuardViewModel(
                 android.util.Log.e("GuardViewModel", "Error fetching monitors for manual SOS", e)
             }
 
-            // CORRIGIDO: Usa título dinâmico baseado no tipo
             val alertTitle = when(type) {
                 ActivityAlertType.PANIC -> "SOS Manual"
                 ActivityAlertType.FALL -> "Queda Detetada"
@@ -164,14 +161,19 @@ class GuardViewModel(
                 else -> "Alerta de Segurança"
             }
 
-            alertRepository.createAlert(
+            val newId = alertRepository.createAlert(
                 type = type,
                 title = alertTitle,
                 latitude = lat,
                 longitude = lng,
-                visibleToMonitors = monitorIds, // [NOVO] Permite que os monitores vejam o alerta
-                initialActions = initialActions // [NOVO] Preenche o histórico "Notified Monitors"
+                visibleToMonitors = monitorIds,
+                initialActions = initialActions,
+                forcedId = forcedId // [NOVO] Usa o ID do Serviço se disponível
             )
+            
+            if (newId != null) {
+                onSuccess?.invoke(newId)
+            }
         }
     }
 

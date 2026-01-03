@@ -26,6 +26,7 @@ import pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModelFactory
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
 import pt.isec.amov2526.projetoKotlin.utils.LocationHelper
+import pt.isec.amov2526.projetoKotlin.data.model.InfractionDisplayInfo
 
 @Composable
 fun ProtectedMainScreen(
@@ -70,6 +71,7 @@ fun ProtectedMainScreen(
     val activity = LocalContext.current as? android.app.Activity
     var alertInitialSeconds by remember { mutableIntStateOf(10) } // [NOVO]
     var alertDetails by remember { mutableStateOf<String?>(null) } // [NOVO]
+    var alertIdFromIntent by remember { mutableStateOf<String?>(null) } // [NOVO]
     var alertInfractions by remember { mutableStateOf<List<InfractionDisplayInfo>>(emptyList()) } // [NOVO]
 
     DisposableEffect(lifecycleOwner) {
@@ -132,6 +134,7 @@ fun ProtectedMainScreen(
                 AlertScreen(
                     alertType = pendingAlertType.name, 
                     alertDetails = alertDetails, 
+                    alertIdFromIntent = alertIdFromIntent, // [NOVO]
                     currentLocation = currentLocation,
                     activeGeofences = activeGeofences, // [NOVO]
                     infractions = alertInfractions, // [NOVO]
@@ -143,8 +146,10 @@ fun ProtectedMainScreen(
                     },
                     onConfirm = {
                         // Confirmar (SOS enviado):
-                        // 1. Envia para a Firebase
-                        guardViewModel.sendAlert(pendingAlertType)
+                        // 1. Envia para a Firebase usando o ID gerado pelo serviço se existir
+                        guardViewModel.sendAlert(pendingAlertType, alertIdFromIntent) { newId ->
+                            alertIdFromIntent = newId
+                        }
 
                         // 2. Avisa o Serviço para parar a contagem
                         val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {

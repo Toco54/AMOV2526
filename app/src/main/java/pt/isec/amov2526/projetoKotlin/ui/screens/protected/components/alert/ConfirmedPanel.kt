@@ -43,12 +43,20 @@ import org.osmdroid.views.overlay.Marker // [RESTAURADO]
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Divider
-import pt.isec.amov2526.projetoKotlin.ui.screens.protected.InfractionDisplayInfo
+import pt.isec.amov2526.projetoKotlin.data.model.InfractionDisplayInfo
 import org.osmdroid.views.overlay.Polygon 
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
 
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import kotlinx.coroutines.delay
+
 // --- Theme Colors ---
 private val AlertRed = Color(0xFFDC2626)
+private val AlertGreen = Color(0xFF16A34A)
+private val HeaderColor = Color(0xFF334155)
 private val AlertYellow = Color(0xFFFFC107) 
 private val SafeGreen = Color(0xFF4CAF50)   
 private val TabSelectedColor = Color(0xFF334155) // [RESTAURADO]
@@ -58,10 +66,14 @@ private val TabUnselectedColor = Color(0xFF1E293B) // [RESTAURADO]
 fun ConfirmedPanel(
     currentLocation: Location?,
     activeGeofences: List<MonitorRule> = emptyList(), // [NOVO]
-    infractions: List<InfractionDisplayInfo> = emptyList() // [NOVO]
+    infractions: List<InfractionDisplayInfo> = emptyList(), // [NOVO]
+    previewView: PreviewView? = null, // [NOVO]
+    isRecordingFinished: Boolean = false, // [NOVO]
+    recordingStartTime: Long = 0L, // [NOVO]
+    onClose: () -> Unit = {} // [NOVO]
 ) {
-
-    var selectedCameraTab by remember { mutableIntStateOf(0) } // 0 = Back, 1 = Front
+    var remainingSeconds by remember { mutableLongStateOf(12L) } // 12s como no branch fix/vids
+    val isTimeUp = remainingSeconds <= 0
 
     // [NOVO] Estado para controlar visibilidade das zonas por monitor
     // Inicialmente todos os monitores com infrações estão visíveis
@@ -79,8 +91,21 @@ fun ConfirmedPanel(
     }
 
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
+    
+    // Timer Loop para atualizar o UI de forma sincronizada com o início real
+    LaunchedEffect(recordingStartTime, isRecordingFinished) {
+        if (!isRecordingFinished && recordingStartTime > 0) {
+            while (true) {
+                val elapsed = System.currentTimeMillis() - recordingStartTime
+                val left = 12000L - elapsed
+                remainingSeconds = (left / 1000L).coerceAtLeast(0L)
+                if (left <= 0) break
+                delay(500L)
+            }
+        } else if (isRecordingFinished) {
+            remainingSeconds = 0
+        }
+    }
 
     //(tiles) da internet
     LaunchedEffect(Unit) {
@@ -104,27 +129,27 @@ fun ConfirmedPanel(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
-                .background(AlertRed)
+                .background(if (isRecordingFinished) AlertGreen else AlertRed)
                 .padding(16.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Default.Warning,
+                        imageVector = if (isRecordingFinished) Icons.Default.CheckCircle else Icons.Default.Warning,
                         contentDescription = null,
                         tint = Color.White
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "HELP REQUESTED",
+                        text = if (isRecordingFinished) "EVIDENCE UPLOADED" else "HELP REQUESTED",
                         fontWeight = FontWeight.Black,
                         fontSize = 22.sp,
                         color = Color.White
                     )
                 }
                 Text(
-                    text = "Monitors Notified • Recording Evidence",
+                    text = if (isRecordingFinished) "Monitors received your data." else "Monitors Notified • Recording Evidence",
                     color = Color.White.copy(alpha = 0.9f),
                     fontSize = 12.sp
                 )
@@ -133,25 +158,16 @@ fun ConfirmedPanel(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 2. Camera Tabs
-        Row(
+        // 2. Camera Header
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                .background(TabUnselectedColor)
+                .background(HeaderColor)
+                .padding(vertical = 12.dp),
+            contentAlignment = Alignment.Center
         ) {
-            CameraTab(
-                title = "BACK CAM",
-                isSelected = selectedCameraTab == 0,
-                onClick = { selectedCameraTab = 0 },
-                modifier = Modifier.weight(1f)
-            )
-            CameraTab(
-                title = "FRONT CAM",
-                isSelected = selectedCameraTab == 1,
-                onClick = { selectedCameraTab = 1 },
-                modifier = Modifier.weight(1f)
-            )
+            Text(text = "BACK CAMERA RECORDING", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
         }
 
         // 3. Video Feed Area
@@ -168,61 +184,37 @@ fun ConfirmedPanel(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            AndroidView(
-                factory = { ctx ->
-                    val previewView = PreviewView(ctx)
-                    previewView.layoutParams = ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT
-                    )
-                    previewView
-                },
-                modifier = Modifier.fillMaxSize(),
-                update =  {previewView ->
-                    val cameraSelector = if (selectedCameraTab == 0) CameraSelector.DEFAULT_BACK_CAMERA else CameraSelector.DEFAULT_FRONT_CAMERA
+            if (previewView != null) {
+                AndroidView(
+                    factory = { 
+                        (previewView.parent as? ViewGroup)?.removeView(previewView)
+                        previewView 
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
 
-                    cameraProviderFuture.addListener({
-                        val cameraProvider = cameraProviderFuture.get()
-                        val preview = Preview.Builder().build()
-                        preview.setSurfaceProvider(previewView.surfaceProvider)
-
-                        try {
-                            // Desliga casos de uso anteriores e liga a nova câmara
-                            cameraProvider.unbindAll()
-                            cameraProvider.bindToLifecycle(
-                                lifecycleOwner,
-                                cameraSelector,
-                                preview
-                            )
-                        } catch (e: Exception) {
-                            Log.e("CameraX", "Binding failed", e)
-                        }
-                    }, ContextCompat.getMainExecutor(context))
-
-                }
-            )
-
-            Row (
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp)
-                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
-                    .padding(horizontal = 6.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-
-            ) {
-                Box(
+            if (!isRecordingFinished) {
+                Row (
                     modifier = Modifier
-                        .size(8.dp)
-                        .background(Color.Red, CircleShape)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "REC",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
-                )
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (!isTimeUp) {
+                        Box(modifier = Modifier.size(8.dp).background(Color.Red, CircleShape))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = "REC", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "${remainingSeconds}s", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    } else {
+                        Icon(imageVector = Icons.Default.CloudUpload, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = "UPLOADING...", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                }
             }
         }
 
@@ -435,43 +427,23 @@ fun ConfirmedPanel(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Keep the app open. Help is coming.",
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp
-        )
-    }
-}
-
-@Composable
-fun CameraTab(
-    title: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .clickable(onClick = onClick)
-            .background(if (isSelected) TabSelectedColor else Color.Transparent)
-            .padding(vertical = 12.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = title,
-            color = if (isSelected) Color.White else Color.Gray,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-            fontSize = 12.sp
-        )
-        if (isSelected) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(2.dp)
-                    .background(AlertRed)
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        if (isRecordingFinished) {
+            Button(
+                onClick = onClose,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(text = "CLOSE ALERT PANEL", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+        } else {
+            Text(
+                text = if (isTimeUp) "Uploading evidence... please wait." else "Keep the app open. Help is coming.",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
             )
         }
     }
