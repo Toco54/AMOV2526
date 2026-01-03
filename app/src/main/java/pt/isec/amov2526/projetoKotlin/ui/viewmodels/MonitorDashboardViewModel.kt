@@ -20,6 +20,13 @@ import pt.isec.amov2526.projetoKotlin.data.repository.RuleRepository
 import pt.isec.amov2526.projetoKotlin.data.model.ProtectionRule
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType
 import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
+import com.google.firebase.firestore.Query
+import pt.isec.amov2526.projetoKotlin.data.model.ActivityItem
+import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertStatus
+import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorAction
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState
+import pt.isec.amov2526.projetoKotlin.data.model.AlertStat
 
 data class GlobalScheduleInfo(
     val isEnabled: Boolean,
@@ -44,6 +51,12 @@ class MonitorDashboardViewModel(
 
     private val auth = FirebaseAuth.getInstance()
     private val currentMonitorId = auth.currentUser?.uid ?: ""
+
+    private val _activities = MutableStateFlow<List<ActivityItem>>(emptyList())
+    val activities: StateFlow<List<ActivityItem>> = _activities.asStateFlow()
+
+    private val _alertStats = MutableStateFlow<List<AlertStat>>(emptyList())
+    val alertStats: StateFlow<List<AlertStat>> = _alertStats.asStateFlow()
 
     private val _rules = MutableStateFlow<List<ProtectionRule>>(emptyList())
     val rules: StateFlow<List<ProtectionRule>> = _rules.asStateFlow()
@@ -80,6 +93,7 @@ class MonitorDashboardViewModel(
             startListeningRules()
             startListeningUserStatus()
             startListeningConnectionStatus()
+            startListeningAlerts()
         }
     }
 
@@ -98,6 +112,61 @@ class MonitorDashboardViewModel(
         }
     }
 
+
+    private fun startListeningAlerts() {
+        val docRef = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            .collection("users").document(protegeUid)
+            .collection("alerts")
+            .orderBy("created_at", Query.Direction.DESCENDING)
+
+        docRef.addSnapshotListener { snapshot, e ->
+            if (e != null || snapshot == null) return@addSnapshotListener
+
+            val newActivities = snapshot.documents.mapNotNull { doc ->
+                try {
+                    val typeStr = doc.getString("type") ?: return@mapNotNull null
+                    val statusStr = doc.getString("status") ?: "PENDING"
+
+                    val monitorsList = mutableListOf<MonitorAction>()
+                    val monitorsRaw = doc.get("notifiedMonitors") as? List<Map<String, Any>>
+                    monitorsRaw?.forEach { m ->
+                        monitorsList.add(MonitorAction(
+                            name = m["name"] as? String ?: "Unknown",
+                            state = MonitorActionState.valueOf(m["state"] as? String ?: "SENT"),
+                            time = m["time"] as? String ?: ""
+                        ))
+                    }
+
+                    ActivityItem(
+                        id = doc.id,
+                        type = ActivityAlertType.valueOf(typeStr),
+                        title = doc.getString("title") ?: "Alert",
+                        date = doc.getString("date") ?: "",
+                        time = doc.getString("time") ?: "",
+                        status = ActivityAlertStatus.valueOf(statusStr),
+                        notifiedMonitors = monitorsList
+                    )
+                } catch (ex: Exception) { null }
+            }
+
+            _activities.value = newActivities
+            calculateStats(newActivities)
+        }
+    }
+
+    private fun calculateStats(items: List<ActivityItem>) {
+        // Tenta contar por tipo. Se o tipo INACTIVITY não existir no Enum,
+        // ele vai cair em 'else' ou podes ajustar conforme o teu modelo.
+        val stats = listOf(
+            AlertStat("Fall", items.count { it.type == ActivityAlertType.FALL }),
+            AlertStat("Crash", items.count { it.type == ActivityAlertType.ACCIDENT }),
+            AlertStat("Geo", items.count { it.type == ActivityAlertType.GEOFENCE }),
+            AlertStat("Speed", items.count { it.type == ActivityAlertType.SPEED }),
+            // Se não tiveres INACTIVITY no Enum ActivityAlertType, usa FALL ou remove esta linha
+            AlertStat("SOS", items.count { it.type == ActivityAlertType.PANIC })
+        )
+        _alertStats.value = stats
+    }
     private fun startListeningUserStatus() {
         val docRef = com.google.firebase.firestore.FirebaseFirestore.getInstance()
             .collection("users").document(protegeUid)

@@ -48,13 +48,6 @@ private val Indigo600 = Color(0xFF4F46E5)
 private val Emerald500 = Color(0xFF10B981)
 private val Red600 = Color(0xFFDC2626)
 
-private val mockMonitorActivities = listOf(
-    ActivityItem("1", ActivityAlertType.SPEED, "Speed Alert", "23/12/2025", "21:36", ActivityAlertStatus.CONFIRMED, listOf(MonitorAction("Alice Monitor", MonitorActionState.CALLED_USER, "21:37"))),
-    ActivityItem("2", ActivityAlertType.FALL, "Fall Detected", "22/12/2025", "14:20", ActivityAlertStatus.CANCELLED, listOf(MonitorAction("Alice Monitor", MonitorActionState.MARKED_SAFE, "14:22"))),
-    ActivityItem("3", ActivityAlertType.GEOFENCE, "Safe Zone Exit", "20/12/2025", "09:15", ActivityAlertStatus.CONFIRMED),
-    ActivityItem("4", ActivityAlertType.PANIC, "SOS Activated", "18/12/2025", "23:45", ActivityAlertStatus.PENDING)
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MonitorDashboardScreen(
@@ -75,6 +68,9 @@ fun MonitorDashboardScreen(
     val isDisconnected by viewModel.isDisconnected.collectAsState()
     val shouldExitDashboard by viewModel.shouldExitDashboard.collectAsState()
     val protegeEmail by viewModel.protegeEmail.collectAsState()
+
+    val activities by viewModel.activities.collectAsState()
+    val alertStats by viewModel.alertStats.collectAsState()
 
     // Timer vivo para countdowns
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -193,10 +189,7 @@ fun MonitorDashboardScreen(
             LiveLocationMapCard(userLocation = userLocation, rules = rules)
 
             AlertTrendsCard(
-                stats = listOf(
-                    AlertStat("Fall", 0), AlertStat("Crash", 0), AlertStat("Geo", 1),
-                    AlertStat("Speed", 2), AlertStat("Idle", 0), AlertStat("SOS", 1)
-                )
+                stats = alertStats // <--- MUDAR ISTO (estava uma lista gigante fixa)
             )
 
             Card(
@@ -388,7 +381,7 @@ fun MonitorDashboardScreen(
                 }
             }
 
-            RecentActivityCard(activities = mockMonitorActivities, onActivityClick = { selectedActivity = it })
+            RecentActivityCard(activities = activities, onActivityClick = { selectedActivity = it })
             Spacer(modifier = Modifier.height(24.dp))
         }
     }

@@ -10,16 +10,20 @@ import kotlinx.coroutines.launch
 import kotlin.math.sqrt
 
 /**
- * AccelerometerHandler processes raw data from SensorHelper to detect 
+ * AccelerometerHandler processes raw data from SensorHelper to detect
  * specific events like falls and accidents.
  */
 class AccelerometerHandler(
     private val sensorHelper: SensorHelper,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default)
 ) {
-    // Thresholds
-    private val FALL_G_THRESHOLD = 25f      
-    private val ACCIDENT_G_THRESHOLD = 60f  
+    // Thresholds (Mantidos como pediste)
+    private val FALL_G_THRESHOLD = 25f
+    private val ACCIDENT_G_THRESHOLD = 60f
+
+    // [NOVO] Tempo de espera entre alertas (5 segundos)
+    private val ALERT_COOLDOWN_MS = 5000L
+    private var lastAlertTime = 0L
 
     // Events
     private val _onFallDetected = MutableSharedFlow<Unit>()
@@ -39,16 +43,24 @@ class AccelerometerHandler(
         monitoringJob = scope.launch {
             sensorHelper.accelerometerData.collect { (x, y, z) ->
                 val magnitude = sqrt((x * x + y * y + z * z).toDouble()).toFloat()
-                
-                // 1. Detect Potential Accident
-                if (magnitude > ACCIDENT_G_THRESHOLD) {
-                    Log.d("AccelerometerHandler", "High Impact Accident Detected: $magnitude")
-                    _onAccidentDetected.emit(Unit)
-                } 
-                // 2. Detect Potential Fall
-                else if (magnitude > FALL_G_THRESHOLD) {
-                    Log.d("AccelerometerHandler", "Fall Impact Detected: $magnitude")
-                    _onFallDetected.emit(Unit)
+
+                // [NOVO] Verifica se já passaram 5 segundos desde o último alerta
+                val currentTime = System.currentTimeMillis()
+
+                if (currentTime - lastAlertTime >= ALERT_COOLDOWN_MS) {
+
+                    // 1. Detect Potential Accident
+                    if (magnitude > ACCIDENT_G_THRESHOLD) {
+                        Log.d("AccelerometerHandler", "High Impact Accident Detected: $magnitude")
+                        lastAlertTime = currentTime // Atualiza o tempo do último alerta
+                        _onAccidentDetected.emit(Unit)
+                    }
+                    // 2. Detect Potential Fall
+                    else if (magnitude > FALL_G_THRESHOLD) {
+                        Log.d("AccelerometerHandler", "Fall Impact Detected: $magnitude")
+                        lastAlertTime = currentTime // Atualiza o tempo do último alerta
+                        _onFallDetected.emit(Unit)
+                    }
                 }
             }
         }

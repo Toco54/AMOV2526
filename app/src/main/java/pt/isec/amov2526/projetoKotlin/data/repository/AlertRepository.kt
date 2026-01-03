@@ -2,9 +2,12 @@ package pt.isec.amov2526.projetoKotlin.data.repository
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
-import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertStatus
-import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
+import pt.isec.amov2526.projetoKotlin.data.model.*
+//import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertStatus
+//import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -54,4 +57,47 @@ class AlertRepository {
             e.printStackTrace()
         }
     }
+    fun listenToAlerts(onUpdate: (List<ActivityItem>) -> Unit): ListenerRegistration? {
+        val currentUser = auth.currentUser ?: return null
+
+        val query = db.collection("users").document(currentUser.uid)
+            .collection("alerts")
+            .orderBy("created_at", Query.Direction.DESCENDING) // Mais recentes primeiro
+
+        return query.addSnapshotListener { snapshot, e ->
+            if (e != null || snapshot == null) return@addSnapshotListener
+
+            val activities = snapshot.documents.mapNotNull { doc ->
+                try {
+                    val typeStr = doc.getString("type") ?: return@mapNotNull null
+                    val statusStr = doc.getString("status") ?: "PENDING"
+
+                    // Converter Monitors Actions (se existirem)
+                    val monitorsList = mutableListOf<MonitorAction>()
+                    val monitorsRaw = doc.get("notifiedMonitors") as? List<Map<String, Any>>
+                    monitorsRaw?.forEach { m ->
+                        monitorsList.add(MonitorAction(
+                            name = m["name"] as? String ?: "Unknown",
+                            state = MonitorActionState.valueOf(m["state"] as? String ?: "SENT"),
+                            time = m["time"] as? String ?: ""
+                        ))
+                    }
+
+                    ActivityItem(
+                        id = doc.getString("id") ?: doc.id,
+                        type = ActivityAlertType.valueOf(typeStr),
+                        title = doc.getString("title") ?: "Alert",
+                        date = doc.getString("date") ?: "",
+                        time = doc.getString("time") ?: "",
+                        status = ActivityAlertStatus.valueOf(statusStr),
+                        notifiedMonitors = monitorsList
+                    )
+                } catch (ex: Exception) {
+                    null
+                }
+            }
+            onUpdate(activities)
+        }
+    }
+
 } // <--- A classe SÓ fecha aqui!

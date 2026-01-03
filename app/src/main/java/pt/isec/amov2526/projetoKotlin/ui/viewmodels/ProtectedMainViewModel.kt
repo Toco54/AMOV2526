@@ -28,6 +28,11 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
     private val db = FirebaseFirestore.getInstance()
     private var monitorListener: ListenerRegistration? = null
 
+    private val alertRepository = pt.isec.amov2526.projetoKotlin.data.repository.AlertRepository()
+    private var alertsListener: ListenerRegistration? = null
+
+    var activities = androidx.compose.runtime.mutableStateListOf<pt.isec.amov2526.projetoKotlin.data.model.ActivityItem>()
+
     // --- ESTADOS EXISTENTES (Do teu colega) ---
     var isLoading by mutableStateOf(false)
     var generatedCode by mutableStateOf<String?>(null)
@@ -41,7 +46,16 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
 
     init {
         startListeningMonitors()
+        startListeningAlerts()
         refreshServiceState()
+    }
+
+    // [NOVO] Ler histórico de alertas em tempo real
+    private fun startListeningAlerts() {
+        alertsListener = alertRepository.listenToAlerts { newActivities ->
+            activities.clear()
+            activities.addAll(newActivities)
+        }
     }
     
     private fun startListeningMonitors() {
@@ -234,5 +248,6 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
     override fun onCleared() {
         super.onCleared()
         monitorListener?.remove()
+        alertsListener?.remove()
     }
 }
