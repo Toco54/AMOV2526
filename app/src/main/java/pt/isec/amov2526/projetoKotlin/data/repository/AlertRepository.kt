@@ -24,9 +24,9 @@ class AlertRepository {
         title: String,
         latitude: Double? = null,
         longitude: Double? = null
-    ) {
+    ): String? {
         // Se 'auth' der erro aqui, é porque a função está fora da classe!
-        val currentUser = auth.currentUser ?: return
+        val currentUser = auth.currentUser ?: return null
         val uid = currentUser.uid
 
         val sdfDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
@@ -53,8 +53,10 @@ class AlertRepository {
                 .collection("alerts").document(alertId)
                 .set(alertData)
                 .await()
+            return alertId
         } catch (e: Exception) {
             e.printStackTrace()
+            return null
         }
     }
     fun listenToAlerts(onUpdate: (List<ActivityItem>) -> Unit): ListenerRegistration? {
@@ -97,6 +99,23 @@ class AlertRepository {
                 }
             }
             onUpdate(activities)
+        }
+    }
+
+    suspend fun updateAlertEvidence(alertId: String, frontVideoUrl: String?, backVideoUrl: String?, audioUrl: String?) {
+        val currentUser = auth.currentUser ?: return
+        try {
+            val mediaData = hashMapOf<String, Any?>()
+            if (frontVideoUrl != null) mediaData["videoFront"] = frontVideoUrl
+            if (backVideoUrl != null) mediaData["videoBack"] = backVideoUrl
+            if (audioUrl != null) mediaData["audio"] = audioUrl
+
+            db.collection("users").document(currentUser.uid)
+                .collection("alerts").document(alertId)
+                .update("media", mediaData)
+                .await()
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 

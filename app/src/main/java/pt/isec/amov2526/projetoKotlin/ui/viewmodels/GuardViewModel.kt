@@ -109,18 +109,16 @@ class GuardViewModel(
         }
     }
 
-    fun sendManualSos() {
-        viewModelScope.launch {
-            val lat = lastLocation?.latitude
-            val lng = lastLocation?.longitude
+    suspend fun sendManualSos(): String? {
+        val lat = lastLocation?.latitude
+        val lng = lastLocation?.longitude
 
-            alertRepository.createAlert(
-                type = ActivityAlertType.PANIC, // Usamos PANIC conforme o teu Enum
-                title = "SOS Manual",
-                latitude = lat,
-                longitude = lng
-            )
-        }
+        return alertRepository.createAlert(
+            type = ActivityAlertType.PANIC, // Usamos PANIC conforme o teu Enum
+            title = "SOS Manual",
+            latitude = lat,
+            longitude = lng
+        )
     }
 
     init {

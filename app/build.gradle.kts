@@ -90,6 +90,7 @@ dependencies {
     implementation("androidx.camera:camera-camera2:$cameraxVersion")
     implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
     implementation("androidx.camera:camera-view:$cameraxVersion")
+    implementation("androidx.camera:camera-video:$cameraxVersion")
 
     // --- VIEWMODEL ---
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
