@@ -104,7 +104,7 @@ fun GuardScreen(
             Box(modifier = Modifier.fillMaxSize()) {
                 AlertScreen(
                     onCancel = { showAlertScreen = false },
-                    onConfirm = { },
+                    onConfirm = { viewModel.sendManualSos() },
                     onValidatePin = { viewModel.verifyPin(it) },
                     currentLocation = currentLocation
                 )
