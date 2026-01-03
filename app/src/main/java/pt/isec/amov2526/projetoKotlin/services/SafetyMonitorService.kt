@@ -292,8 +292,11 @@ class SafetyMonitorService : Service() {
         }
 
         serviceScope.launch {
-            inactivityHandler.inactivityAlerts.collect {
-                if (isProtectionActive) triggerAlertSequence(ActivityAlertType.INACTIVITY)
+            inactivityHandler.inactivityAlerts.collect { rule ->
+                if (isProtectionActive) {
+                    val minutes = rule.maxDurationMillis / 60000
+                    triggerAlertSequence(ActivityAlertType.INACTIVITY, "> $minutes min inactive")
+                }
             }
         }
 
@@ -306,7 +309,9 @@ class SafetyMonitorService : Service() {
                             triggerAlertSequence(ActivityAlertType.GEOFENCE)
                         }
                         is LocationAlert.SpeedLimitExceeded -> {
-                            triggerAlertSequence(ActivityAlertType.SPEED)
+                            val current = alert.currentSpeedKmh.toInt()
+                            val limit = alert.limitKmh.toInt()
+                            triggerAlertSequence(ActivityAlertType.SPEED, "$current km/h (Limit: $limit)")
                         }
                     }
                 }
@@ -314,10 +319,10 @@ class SafetyMonitorService : Service() {
         }
     }
 
-    private fun triggerAlertSequence(type: ActivityAlertType) {
+    private fun triggerAlertSequence(type: ActivityAlertType, details: String? = null) {
         if (alertJob?.isActive == true) return
 
-        launchAlertUI(type)
+        launchAlertUI(type, details)
 
         alertJob = serviceScope.launch {
             delay(10000L)
@@ -333,17 +338,24 @@ class SafetyMonitorService : Service() {
                     ActivityAlertType.INACTIVITY -> "Inatividade Detetada"
                     else -> "Alerta Automático"
                 }
-                createAlert(type, title)
+                // Adiciona detalhes ao título do alerta se existirem
+                val finalTitle = if (details != null) "$title: $details" else title
+                createAlert(type, finalTitle)
                 getSystemService(NotificationManager::class.java).cancel(999)
             }
             alertJob = null
         }
     }
 
-    private fun launchAlertUI(type: ActivityAlertType) {
+    private fun launchAlertUI(type: ActivityAlertType, details: String? = null) {
+        val alertTime = System.currentTimeMillis() // [NOVO] Hora de início do alerta
         val intent = Intent(this, pt.isec.amov2526.projetoKotlin.ui.MainActivity::class.java).apply {
             action = "ACTION_SHOW_ALERT"
             putExtra("ALERT_TYPE", type.name)
+            putExtra("ALERT_TIMESTAMP", alertTime)
+            if (details != null) {
+                putExtra("ALERT_DETAILS", details)
+            }
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
                     Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -380,9 +392,18 @@ class SafetyMonitorService : Service() {
 
         notificationManager.notify(999, notification)
 
+        // [IMPORTANTE] Tenta abrir a Activity diretamente (útil se a app já estiver aberta ou tiver permissão de Overlay)
         try {
-            startActivity(intent)
-        } catch (e: Exception) {}
+            // Se tivermos permissão de Overlay (ou for Android < 10), isto vai forçar a abertura
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || android.provider.Settings.canDrawOverlays(this)) {
+                startActivity(intent)
+            } else {
+                // Mesmo sem permissão, tentamos (alguns fabricantes permitem, ou se a app já estiver em foreground funciona)
+                startActivity(intent)
+            }
+        } catch (e: Exception) {
+            // Se falhar, o FullScreenIntent da notificação acima serve como backup
+        }
     }
 
     private suspend fun createAlert(type: ActivityAlertType, title: String) {

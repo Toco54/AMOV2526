@@ -10,6 +10,8 @@ import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
@@ -70,6 +72,15 @@ class GuardViewModel(
     private var allRules = mutableListOf<MonitorRule>()
     private val monitorNameMap = mutableMapOf<String, String>()
     private val listeners = mutableListOf<ListenerRegistration>()
+    
+    // [NOVO] Expor apenas geofences ativas para o mapa
+    val activeGeofences: StateFlow<List<MonitorRule>> = _protectionGroups
+        .map { groups ->
+            groups.find { it.type == RuleType.GEOFENCING }?.rules?.filter { 
+                it.isEffectivelyActive && it.geofenceData != null 
+            } ?: emptyList()
+        }
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), emptyList())
 
     data class ProtectionStatus(
         val isEnabled: Boolean,
@@ -386,8 +397,22 @@ class GuardViewModel(
                         }
 
                         val param1 = doc.getString("param1") ?: ""
+                        var geoData: Triple<Double, Double, Float>? = null // [NOVO]
+
                         val parameterDisplay = when(uiType) {
-                            RuleType.GEOFENCING -> "${param1}m"
+                            RuleType.GEOFENCING -> {
+                                // Parse: "lat,lng,radius"
+                                val parts = param1.split(Regex("[,;]"))
+                                if (parts.size >= 3) {
+                                    val lat = parts[0].toDoubleOrNull()
+                                    val lng = parts[1].toDoubleOrNull()
+                                    val rad = parts[2].toFloatOrNull()
+                                    if (lat != null && lng != null && rad != null) {
+                                        geoData = Triple(lat, lng, rad)
+                                    }
+                                }
+                                "${param1}m" // Este display name está um pouco sujo ("lat,lng,radm"), mas mantemos por agora
+                            }
                             RuleType.SPEED -> "${param1} KM/H"
                             RuleType.INACTIVITY -> "${param1} MIN"
                             else -> "ACTIVE"
@@ -405,7 +430,8 @@ class GuardViewModel(
                             scheduleEnd = doc.getString("scheduleEnd") ?: "",
                             isScheduleEnabled = doc.getBoolean("isScheduleEnabled") ?: false,
                             pausedUntil = doc.getLong("pausedUntil") ?: 0L,
-                            isDisabledByProtege = doc.getBoolean("isDisabledByProtege") ?: false
+                            isDisabledByProtege = doc.getBoolean("isDisabledByProtege") ?: false,
+                            geofenceData = geoData // [NOVO]
                         )
                     } catch (e: Exception) {
                         null

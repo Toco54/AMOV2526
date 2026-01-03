@@ -72,17 +72,29 @@ class InactivityHandler(
 
     private fun resetTimer() {
         lastMotionTimestamp = System.currentTimeMillis()
+        Log.d("InactivityHandler", "Inactivity timer started/reset at: ${System.currentTimeMillis()}")
         if (triggeredRules.isNotEmpty()) {
-            Log.d("InactivityHandler", "Motion detected! Resetting all timers.")
+            Log.d("InactivityHandler", "Motion detected! Resetting triggered rules.")
             synchronized(triggeredRules) {
                 triggeredRules.clear()
             }
         }
     }
 
+    private var lastMinuteLogged: Long = 0
+
     private suspend fun checkRules() {
         val now = System.currentTimeMillis()
         val inactiveDuration = now - lastMotionTimestamp
+        val minutesInactive = inactiveDuration / 60000
+
+        // Log a cada minuto que passa
+        if (minutesInactive > lastMinuteLogged) {
+            lastMinuteLogged = minutesInactive
+            Log.d("InactivityHandler", "STATUS: User inactive for $minutesInactive minutes...")
+        } else if (minutesInactive == 0L && lastMinuteLogged != 0L) {
+            lastMinuteLogged = 0
+        }
         
         val currentRules = synchronized(rules) { rules.toList() }
 

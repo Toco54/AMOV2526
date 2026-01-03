@@ -39,17 +39,22 @@ import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Marker // [RESTAURADO]
+import org.osmdroid.views.overlay.Polygon 
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
 
 // --- Theme Colors ---
 private val AlertRed = Color(0xFFDC2626)
-private val MapColor = Color(0xFFE2E8F0)
-private val MapRoadColor = Color(0xFFCBD5E1)
-private val TabSelectedColor = Color(0xFF334155)
-private val TabUnselectedColor = Color(0xFF1E293B)
+private val AlertYellow = Color(0xFFFFC107) 
+private val SafeGreen = Color(0xFF4CAF50)   
+private val TabSelectedColor = Color(0xFF334155) // [RESTAURADO]
+private val TabUnselectedColor = Color(0xFF1E293B) // [RESTAURADO]
 
 @Composable
-fun ConfirmedPanel(currentLocation: Location?) {
+fun ConfirmedPanel(
+    currentLocation: Location?,
+    activeGeofences: List<MonitorRule> = emptyList() // [NOVO]
+) {
 
     var selectedCameraTab by remember { mutableIntStateOf(0) } // 0 = Back, 1 = Front
 
@@ -268,8 +273,32 @@ fun ConfirmedPanel(currentLocation: Location?) {
                         // Centrar o mapa na localização atual
                         map.controller.setCenter(point)
 
-                        // Limpar marcadores antigos e adicionar o novo
+                        // Limpar marcadores e overlays antigos
                         map.overlays.clear()
+
+                        // 1. Desenhar Geofences
+                        activeGeofences.forEach { rule ->
+                            rule.geofenceData?.let { (lat, lng, radius) ->
+                                val circle = Polygon(map)
+                                circle.points = Polygon.pointsAsCircle(GeoPoint(lat, lng), radius.toDouble())
+                                
+                                // Verificar se o user está dentro
+                                val results = FloatArray(1)
+                                Location.distanceBetween(currentLocation.latitude, currentLocation.longitude, lat, lng, results)
+                                val isInside = results[0] <= radius
+
+                                // Cor: Verde (Dentro) ou Amarelo (Fora)
+                                val color = if (isInside) SafeGreen else AlertYellow
+                                
+                                circle.fillPaint.color = android.graphics.Color.argb(70, (color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt()) // Transparente
+                                circle.outlinePaint.color = android.graphics.Color.argb(255, (color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt())
+                                circle.outlinePaint.strokeWidth = 3f
+
+                                map.overlays.add(circle)
+                            }
+                        }
+
+                        // 2. Adicionar Marcador do User
                         val marker = Marker(map)
                         marker.position = point
                         marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)

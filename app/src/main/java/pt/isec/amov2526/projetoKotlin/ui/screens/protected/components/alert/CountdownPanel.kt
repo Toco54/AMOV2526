@@ -26,13 +26,29 @@ private val PinBoxColor = Color(0xFF1E293B)
 @Composable
 fun CountdownPanel(
     alertType: String,
+    alertDetails: String? = null, // [NOVO]
     pinInput: String,
+    initialSeconds: Int = 10, 
     onPinDigit: (String) -> Unit,
     onPinDelete: () -> Unit,
     onTimerFinished: () -> Unit,
     onHelpNow: () -> Unit
 ) {
-    var timeLeft by remember { mutableIntStateOf(10) }
+    var timeLeft by remember { mutableIntStateOf(initialSeconds) }
+
+    // [NOVO] Formatação do Título
+    val displayTitle = remember(alertType) {
+        when (alertType) {
+            "FALL" -> "FALL DETECTED"
+            "ACCIDENT" -> "ACCIDENT DETECTED"
+            "GEOFENCE" -> "SAFE ZONE EXIT"
+            "SPEED" -> "HIGH SPEED"
+            "INACTIVITY" -> "INACTIVITY ALERT"
+            "BATTERY" -> "LOW BATTERY"
+            "PANIC" -> "SOS ALERT"
+            else -> "$alertType ALERT"
+        }
+    }
 
     LaunchedEffect(timeLeft) {
         if (timeLeft > 0) {
@@ -51,11 +67,21 @@ fun CountdownPanel(
     ) {
         Spacer(modifier = Modifier.height(20.dp))
         Text(
-            text = "$alertType DETECTED",
+            text = displayTitle, // Usa o título formatado
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Black,
             color = AlertRed
         )
+
+        // [NOVO] Mostrar detalhes se existirem
+        if (alertDetails != null) {
+            Text(
+                text = alertDetails,
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
 
         Box(
             contentAlignment = Alignment.Center,

@@ -29,7 +29,8 @@ data class MonitorRule(
     val isScheduleEnabled: Boolean = false,
     val pausedUntil: Long = 0L,     // Timestamp in millis
     val isDisabledByProtege: Boolean = false,
-    val isEffectivelyActive: Boolean = true // Added
+    val isEffectivelyActive: Boolean = true, // Added
+    val geofenceData: Triple<Double, Double, Float>? = null // [NOVO] (Lat, Lng, Radius)
 )
 
 data class ProtectionGroup(

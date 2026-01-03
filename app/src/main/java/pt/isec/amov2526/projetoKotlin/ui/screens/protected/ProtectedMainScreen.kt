@@ -50,6 +50,7 @@ fun ProtectedMainScreen(
     // Location Helper Global
     val locationHelper = remember { LocationHelper(context) }
     val currentLocation by locationHelper.currentLocation.collectAsState(initial = null)
+    val activeGeofences by guardViewModel.activeGeofences.collectAsState() // [NOVO]
 
     LaunchedEffect(Unit) {
         guardViewModel.setLocationHelper(locationHelper)
@@ -67,16 +68,30 @@ fun ProtectedMainScreen(
     // --- DETETOR DE ALERTAS (INTENTS) ---
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val activity = LocalContext.current as? android.app.Activity
+    var alertInitialSeconds by remember { mutableIntStateOf(10) } // [NOVO]
+    var alertDetails by remember { mutableStateOf<String?>(null) } // [NOVO]
 
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 if (activity?.intent?.action == "ACTION_SHOW_ALERT") {
                     val typeStr = activity.intent.getStringExtra("ALERT_TYPE")
+                    alertDetails = activity.intent.getStringExtra("ALERT_DETAILS") // [NOVO]
+
                     pendingAlertType = if (typeStr != null) {
                         try { ActivityAlertType.valueOf(typeStr) }
                         catch (e: Exception) { ActivityAlertType.PANIC }
                     } else { ActivityAlertType.PANIC }
+
+                    // [NOVO] Sincronização de Tempo
+                    val timestamp = activity.intent.getLongExtra("ALERT_TIMESTAMP", -1L)
+                    if (timestamp != -1L) {
+                        val elapsed = (System.currentTimeMillis() - timestamp) / 1000
+                        val remaining = (10 - elapsed).toInt()
+                        alertInitialSeconds = if (remaining > 0) remaining else 0
+                    } else {
+                        alertInitialSeconds = 10
+                    }
 
                     showAlertScreen = true
                     activity.intent.action = null
@@ -99,7 +114,11 @@ fun ProtectedMainScreen(
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 AlertScreen(
+                    alertType = pendingAlertType.name, 
+                    alertDetails = alertDetails, 
                     currentLocation = currentLocation,
+                    activeGeofences = activeGeofences, // [NOVO]
+                    initialSeconds = alertInitialSeconds, 
                     onCancel = {
                         // Cancelar ANTES de confirmar: Fecha tudo
                         showAlertScreen = false
@@ -149,10 +168,45 @@ fun ProtectedMainScreen(
     // --- UI NORMAL DA APP ---
     var isEditingProfile by remember { mutableStateOf(false) }
     var showGoOnlineDialog by remember { mutableStateOf(false) }
+    var showOverlayPermissionDialog by remember { mutableStateOf(false) } // [NOVO] Dialogo para permissão de Overlay
     val currentUserData = viewModel.currentUserData
 
+    // Verificar permissoes ao iniciar
     LaunchedEffect(Unit) {
         if (!protectedViewModel.isProtectionActive) showGoOnlineDialog = true
+
+        // [NOVO] Verifica se tem permissão para sobrepor outras apps (Android 10+)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M &&
+            !android.provider.Settings.canDrawOverlays(context)) {
+            showOverlayPermissionDialog = true
+        }
+    }
+
+    // [NOVO] Dialogo para pedir permissão de sobreposição
+    if (showOverlayPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showOverlayPermissionDialog = false },
+            title = { Text("Permissão Necessária") },
+            text = { Text("Para garantir que os Alertas de Emergência abrem imediatamente sobre outras apps (Facebook, WhatsApp, etc.), precisa de autorizar a sobreposição.") },
+            confirmButton = {
+                Button(onClick = {
+                    showOverlayPermissionDialog = false
+                    val intent = android.content.Intent(
+                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        android.net.Uri.parse("package:${context.packageName}")
+                    )
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(intent)
+                }) {
+                    Text("Autorizar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showOverlayPermissionDialog = false }) {
+                    Text("Agora não")
+                }
+            }
+        )
     }
 
     if (showGoOnlineDialog) {
