@@ -67,7 +67,7 @@ fun GuardScreen(
     var showPauseModal by remember { mutableStateOf(false) }
     var showGlobalScheduleModal by remember { mutableStateOf(false) }
     var showScheduleModal by remember { mutableStateOf(false) }
-    var showAlertScreen by remember { mutableStateOf(false) }
+    // showAlertScreen removed (handled by parent)
     
     var ruleToRemove by remember { mutableStateOf<MonitorRule?>(null) }
     var selectedTypeToPause by remember { mutableStateOf<RuleType?>(null) }
@@ -75,7 +75,7 @@ fun GuardScreen(
     var selectedGroupToSchedule by remember { mutableStateOf<ProtectionGroup?>(null) }
     var selectedRuleToSchedule by remember { mutableStateOf<MonitorRule?>(null) }
     
-    var pendingAlertType by remember { mutableStateOf(ActivityAlertType.PANIC) }
+    // pendingAlertType removed (handled by parent)
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -86,60 +86,7 @@ fun GuardScreen(
         days = globalSchedule.days, start = globalSchedule.start, end = globalSchedule.end, now = currentTime
     )
 
-    // [SINCRONIZAÇÃO DE TEMPO]
-    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-    val activity = LocalContext.current as? android.app.Activity
-    var alertInitialSeconds by remember { mutableIntStateOf(10) } 
-    var alertDetails by remember { mutableStateOf<String?>(null) } // [NOVO]
-    var alertInfractions by remember { mutableStateOf<List<InfractionDisplayInfo>>(emptyList()) } // [NOVO]
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                // Executa sempre que a app abre ou volta do background
-                if (activity?.intent?.action == "ACTION_SHOW_ALERT") {
-                    val typeStr = activity.intent.getStringExtra("ALERT_TYPE")
-                    alertDetails = activity.intent.getStringExtra("ALERT_DETAILS") // [NOVO]
-
-                    // [NOVO] Extração das infrações
-                    val infractionsStr = activity.intent.getStringExtra("ALERT_INFRACTIONS")
-                    if (infractionsStr != null) {
-                         alertInfractions = infractionsStr.split(";").mapNotNull { 
-                             val parts = it.split("|")
-                             if (parts.size >= 3) {
-                                 val param = if(parts.size >= 4) parts[3].ifEmpty { null } else null
-                                 InfractionDisplayInfo(parts[0], parts[1], parts[2], param)
-                             } else null
-                         }
-                    } else {
-                        alertInfractions = emptyList()
-                    }
-
-                    // Define o tipo correto (Queda/Acidente) vindo do Serviço
-                    pendingAlertType = if (typeStr != null) {
-                        try { ActivityAlertType.valueOf(typeStr) } catch (e: Exception) { ActivityAlertType.PANIC }
-                    } else {
-                        ActivityAlertType.PANIC
-                    }
-
-                    // [NOVO] Sincronização de Tempo
-                    val timestamp = activity.intent.getLongExtra("ALERT_TIMESTAMP", -1L)
-                    if (timestamp != -1L) {
-                        val elapsed = (System.currentTimeMillis() - timestamp) / 1000
-                        val remaining = (10 - elapsed).toInt()
-                        alertInitialSeconds = if (remaining > 0) remaining else 0
-                    } else {
-                        alertInitialSeconds = 10
-                    }
-
-                    showAlertScreen = true
-                    activity.intent.action = null // Limpa para não repetir
-                }
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
+    // [INTENT HANDLING REMOVED] - Centralized in ProtectedMainScreen
 
     // Fix: Prioritize PAUSED over SCHEDULED
     val finalSystemLabel = if (!isServiceRunning) "OFFLINE"
@@ -147,69 +94,7 @@ fun GuardScreen(
     else if (globalScheduleStatus.label == "SCHEDULED") "SCHEDULED"
     else "ACTIVE"
 
-    if (showAlertScreen) {
-        Dialog(
-            onDismissRequest = { /* Bloquear dismiss acidental */ },
-            properties = DialogProperties(
-                usePlatformDefaultWidth = false,
-                dismissOnBackPress = false, // Obriga a interagir
-                dismissOnClickOutside = false
-            )
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                AlertScreen(
-                    initialSeconds = alertInitialSeconds, 
-                    alertType = pendingAlertType.name,
-                    alertDetails = alertDetails, 
-                    activeGeofences = activeGeofences, // [NOVO]
-                    infractions = alertInfractions, // [NOVO]
-                    onCancel = {
-                        showAlertScreen = false
-                        (context as? pt.isec.amov2526.projetoKotlin.ui.MainActivity)?.setShowOnLockScreen(false)
-                               },
-                    onConfirm = {
-                        // 1. Enviar Alerta Manualmente
-                        viewModel.sendAlert(pendingAlertType)
-
-                        // 2. Avisar Serviço: "Pára a contagem e limpa a notificação!"
-                        val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {        
-                            action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_CANCEL_ALERT
-                        }
-                        context.startService(intent)
-
-                        showAlertScreen = false
-
-                        (context as? pt.isec.amov2526.projetoKotlin.ui.MainActivity)?.setShowOnLockScreen(false)
-                    },
-                    onValidatePin = { pin ->
-                        scope.launch {
-                            if (viewModel.verifyPin(pin)) {
-                                // 1. Fechar UI
-                                showAlertScreen = false
-
-                                // 2. Avisar Serviço: "Cancelado com sucesso (PIN OK), pára tudo"
-                                val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
-                                    action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_CANCEL_ALERT
-                                }
-                                context.startService(intent)
-
-                                (context as? pt.isec.amov2526.projetoKotlin.ui.MainActivity)?.setShowOnLockScreen(false)
-
-                                // 3. [CRÍTICO] Se estava bloqueado, fecha a Activity para voltar ao Lockscreen seguro
-                                if (keyguardManager.isDeviceLocked) {
-                                    activity?.finish()
-                                }
-                            } else {
-                                snackbarHostState.showSnackbar("Invalid PIN")
-                            }
-                        }
-                        true
-                    },
-                    currentLocation = currentLocation
-                )
-            }
-        }
-    }
+    // [AlertScreen Dialog REMOVED] - Centralized in ProtectedMainScreen
 
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { paddingValues ->
         Column(
@@ -243,10 +128,7 @@ fun GuardScreen(
             Spacer(modifier = Modifier.height(40.dp))
 
             SosButton(onClick = {
-                pendingAlertType = ActivityAlertType.PANIC
-                alertInitialSeconds = 10 // [NOVO] SOS Manual sempre começa do zero
-                showAlertScreen = true
-                onPanic()
+                onPanic() // Delegar apenas ao Pai
             })
 
             Spacer(modifier = Modifier.height(40.dp))

@@ -282,7 +282,10 @@ fun ProtectedMainScreen(
                         protectedViewModel = protectedViewModel,
                         onPanic = {
                             pendingAlertType = ActivityAlertType.PANIC
-                            alertId = java.util.UUID.randomUUID().toString() // [CORREÇÃO] ID Gerado logo aqui
+                            alertId = java.util.UUID.randomUUID().toString() 
+                            alertInitialSeconds = 10 
+                            alertDetails = null // [CORREÇÃO] Limpar detalhes anteriores
+                            alertInfractions = emptyList() // [CORREÇÃO] Limpar infrações anteriores
                             isAlertConfirmed = false
                             showAlertScreen = true
                         }
