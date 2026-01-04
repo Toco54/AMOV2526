@@ -92,50 +92,6 @@ fun LandingScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            HorizontalDivider(modifier = Modifier.weight(1f), color = Slate400.copy(alpha = 0.3f))
-            Text(
-                text = "OR",
-                color = Slate400,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            HorizontalDivider(modifier = Modifier.weight(1f), color = Slate400.copy(alpha = 0.3f))
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Button(
-            onClick = { /* TODO: Google Auth */ },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Slate900),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Slate400.copy(alpha = 0.5f)),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            // Google Logo
-            Icon(
-                painter = painterResource(id = R.drawable.android_light_rd_na),
-                contentDescription = "Google",
-                tint = Color.Unspecified,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = "Continue with Google",
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
-        }
-
         Spacer(modifier = Modifier.height(32.dp))
 
         Row(

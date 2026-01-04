@@ -89,7 +89,14 @@ class EvidenceManager(private val context: Context) {
                                 Log.d("EvidenceManager", "Recording effectively started")
                             }
                             is VideoRecordEvent.Finalize -> {
-                                Log.d("EvidenceManager", "Recording finalize event received")
+                                if (recordEvent.hasError()) {
+                                    val errorMsg = "Video capture failed: code=${recordEvent.error}, cause=${recordEvent.cause?.message}"
+                                    Log.e("EvidenceManager", errorMsg)
+                                    // Mesmo com erro, tentamos devolver o ficheiro (pode ter dados parciais)
+                                    // ou garantir que o fluxo continua.
+                                } else {
+                                    Log.d("EvidenceManager", "Recording finalize event received successfully")
+                                }
                                 activeRecording = null 
                                 onVideoFinalized(file)
                             }

@@ -28,7 +28,8 @@ fun ProfileScreen(
     onEditProfile: () -> Unit = {},
     onAppSettings: () -> Unit = {},
     onLogout: () -> Unit = {},
-    onSwitchMode: () -> Unit = {}
+    onSwitchMode: () -> Unit = {},
+    canSwitchProfile: Boolean = false
 ) {
     // Vista Principal do Perfil
     Column(
@@ -91,7 +92,7 @@ fun ProfileScreen(
                 onClick = onEditProfile
             )
 
-            // Botão único para troca de modo
+            // Botão único para troca de modo (agora sempre visível)
             ProfileActionButton(
                 text = "Switch to Monitor Mode",
                 icon = Icons.Default.SwapHoriz,

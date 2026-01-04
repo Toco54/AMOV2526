@@ -322,12 +322,15 @@ fun LoginScreen(
             // O BOTÃO DE LOGIN AGORA CHAMA O VIEWMODEL
             Button(
                 onClick = {
-                    if (email.isBlank() || password.isBlank()) {
+                    val trimmedEmail = email.trim()
+                    val trimmedPassword = password.trim()
+
+                    if (trimmedEmail.isBlank() || trimmedPassword.isBlank()) {
                         viewModel.errorMsg = "Please fill in all fields"
-                    } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                    } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches()) {
                         viewModel.errorMsg = "Invalid Email Format"
                     } else {
-                        viewModel.login(email, password)
+                        viewModel.login(trimmedEmail, trimmedPassword)
                     }
                 },
                 enabled = !isLoading,
@@ -347,49 +350,6 @@ fun LoginScreen(
                         fontSize = 16.sp
                     )
                 }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                HorizontalDivider(modifier = Modifier.weight(1f), color = Slate400.copy(alpha = 0.3f))
-                Text(
-                    text = "OR CONTINUE WITH",
-                    color = Slate400,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    fontSize = 10.sp
-                )
-                HorizontalDivider(modifier = Modifier.weight(1f), color = Slate400.copy(alpha = 0.3f))
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = { /* TODO: Google Auth */ },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Slate800),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.android_light_rd_na),
-                    contentDescription = "Google",
-                    tint = Color.Unspecified,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = "Google",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
             }
 
             Spacer(modifier = Modifier.weight(1f))

@@ -23,6 +23,12 @@ import pt.isec.amov2526.projetoKotlin.ui.screens.protected.ProtectedMainScreen
 import pt.isec.amov2526.projetoKotlin.ui.theme.ProjetoKotlinTheme
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
 
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
+
 @Composable
 fun MainScreen() {
     ProjetoKotlinTheme {
@@ -35,10 +41,38 @@ fun MainScreen() {
         // Observar estado para navegação automática
         val currentViewMode = authViewModel.currentViewMode
         val user = authViewModel.user
+        
+        // [NOVO] Observador Global de Alertas para Utilizadores "BOTH"
+        // Se o utilizador estiver no modo MONITOR e receber um alerta, forçamos a ida para PROTECTED
+        val context = LocalContext.current
+        val lifecycleOwner = LocalLifecycleOwner.current
+        
+        DisposableEffect(lifecycleOwner) {
+            val observer = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    val activity = context as? android.app.Activity
+                    if (activity?.intent?.action == "ACTION_SHOW_ALERT") {
+                        // Se temos um alerta e não estamos no modo protegido, muda para lá
+                        if (authViewModel.currentViewMode != "PROTECTED") {
+                            authViewModel.currentViewMode = "PROTECTED"
+                        }
+                    }
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose {
+                lifecycleOwner.lifecycle.removeObserver(observer)
+            }
+        }
 
         // Observador Global de Mudança de Modo e Login
         LaunchedEffect(user, currentViewMode) {
             if (user != null && currentViewMode != null) {
+                // [ALTERADO] Removemos o startService automático cego. 
+                // A responsabilidade de iniciar o serviço baseada no estado persistido (Firestore) 
+                // deve ser do ViewModel (ProtectedMainViewModel ou SafetyMonitorService logic).
+                // Se forçarmos aqui, ele ignora o botão de "Ligar/Desligar".
+
                 val destination = if (currentViewMode == "MONITOR") "monitor" else "protected"
                 val currentRoute = navController.currentBackStackEntry?.destination?.route
 

@@ -222,25 +222,28 @@ fun RegisterScreen(
         Button(
             onClick = {
                 val isMonitor = selectedRole == "Monitor"
+                val trimmedName = name.trim()
+                val trimmedEmail = email.trim()
+                val trimmedPassword = password.trim()
                 
                 // Local Validation
-                if (name.isBlank() || email.isBlank() || password.isBlank() || (!isMonitor && pin.length != 4)) {
+                if (trimmedName.isBlank() || trimmedEmail.isBlank() || trimmedPassword.isBlank() || (!isMonitor && pin.length != 4)) {
                     viewModel.errorMsg = "Please fill in all fields correctly"
                     return@Button
                 }
                 
-                if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                if (!android.util.Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches()) {
                     viewModel.errorMsg = "Invalid Email Format"
                     return@Button
                 }
 
-                if (password.length < 6) {
+                if (trimmedPassword.length < 6) {
                     viewModel.errorMsg = "Password must be at least 6 characters"
                     return@Button
                 }
 
                 val finalPin = if (isMonitor) null else pin
-                viewModel.register(email, password, name, isMonitor, finalPin)
+                viewModel.register(trimmedEmail, trimmedPassword, trimmedName, isMonitor, finalPin)
             },
             enabled = !isLoading,
             modifier = Modifier
@@ -272,51 +275,7 @@ fun RegisterScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            HorizontalDivider(modifier = Modifier.weight(1f), color = Slate400.copy(alpha = 0.3f))
-            Text(
-                text = "OR JOIN WITH",
-                color = Slate400,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp),
-                fontSize = 10.sp
-            )
-            HorizontalDivider(modifier = Modifier.weight(1f), color = Slate400.copy(alpha = 0.3f))
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Button(
-            onClick = { /* TODO: Google Auth */ },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Slate800),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.android_light_rd_na),
-                contentDescription = "Google",
-                tint = Color.Unspecified,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = "Google",
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),

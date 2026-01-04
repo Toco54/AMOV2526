@@ -202,7 +202,8 @@ fun MonitorMainScreen(
                                 showProfileMenu = false
                                 showSetPinDialog = true
                             }
-                        }
+                        },
+                        canSwitchProfile = viewModel.canSwitchProfile
                     )
                 }
             }

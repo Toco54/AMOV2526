@@ -39,16 +39,16 @@ class GuardViewModel(
     private var lastLocation: Location? = null
 
     // System Status
-    private val _isActive = MutableStateFlow(true)
+    private val _isActive = MutableStateFlow(false)
     val isActive: StateFlow<Boolean> = _isActive.asStateFlow()
 
-    private val _systemStatusText = MutableStateFlow("ACTIVE")
+    private val _systemStatusText = MutableStateFlow("OFFLINE")
     val systemStatusText: StateFlow<String> = _systemStatusText.asStateFlow()
 
     private val _globalPausedUntil = MutableStateFlow(0L)
     val globalPausedUntil: StateFlow<Long> = _globalPausedUntil.asStateFlow()
 
-    private val _isEffectiveGlobalActive = MutableStateFlow(true)
+    private val _isEffectiveGlobalActive = MutableStateFlow(false)
     val isEffectiveGlobalActive: StateFlow<Boolean> = _isEffectiveGlobalActive.asStateFlow()
 
     private val _batteryLevel = MutableStateFlow(100)

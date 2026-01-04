@@ -139,13 +139,14 @@ fun ForgotPasswordScreen(
 
                 Button(
                     onClick = {
-                        if (email.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                        val trimmedEmail = email.trim()
+                        if (trimmedEmail.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches()) {
                             Toast.makeText(context, "Invalid Email Format", Toast.LENGTH_SHORT).show()
                             return@Button
                         }
                         
                         viewModel.resetPassword(
-                            email = email,
+                            email = trimmedEmail,
                             onSuccess = {
                                 Toast.makeText(context, "Recovery Email Sent", Toast.LENGTH_LONG).show()
                                 onBack()

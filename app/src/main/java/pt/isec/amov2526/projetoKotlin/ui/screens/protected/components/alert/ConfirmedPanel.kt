@@ -70,6 +70,8 @@ fun ConfirmedPanel(
     previewView: PreviewView? = null, // [NOVO]
     isRecordingFinished: Boolean = false, // [NOVO]
     recordingStartTime: Long = 0L, // [NOVO]
+    hasError: Boolean = false, // [NOVO]
+    errorMessage: String? = null, // [NOVO]
     onClose: () -> Unit = {} // [NOVO]
 ) {
     var remainingSeconds by remember { mutableLongStateOf(12L) } // 12s como no branch fix/vids
@@ -125,32 +127,48 @@ fun ConfirmedPanel(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // 1. Status Header
+        val headerBg = when {
+            hasError -> AlertYellow
+            isRecordingFinished -> AlertGreen
+            else -> AlertRed
+        }
+        val headerTitle = when {
+            hasError -> errorMessage ?: "PROCESS FAILED"
+            isRecordingFinished -> "EVIDENCE UPLOADED"
+            else -> "HELP REQUESTED"
+        }
+        val headerSub = when {
+            hasError -> "Help notified, but evidence failed."
+            isRecordingFinished -> "Monitors received your data."
+            else -> "Monitors Notified • Recording Evidence"
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
-                .background(if (isRecordingFinished) AlertGreen else AlertRed)
+                .background(headerBg)
                 .padding(16.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = if (isRecordingFinished) Icons.Default.CheckCircle else Icons.Default.Warning,
+                        imageVector = if (isRecordingFinished && !hasError) Icons.Default.CheckCircle else Icons.Default.Warning,
                         contentDescription = null,
-                        tint = Color.White
+                        tint = if (hasError) Color.Black else Color.White
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isRecordingFinished) "EVIDENCE UPLOADED" else "HELP REQUESTED",
+                        text = headerTitle,
                         fontWeight = FontWeight.Black,
                         fontSize = 22.sp,
-                        color = Color.White
+                        color = if (hasError) Color.Black else Color.White
                     )
                 }
                 Text(
-                    text = if (isRecordingFinished) "Monitors received your data." else "Monitors Notified • Recording Evidence",
-                    color = Color.White.copy(alpha = 0.9f),
+                    text = headerSub,
+                    color = (if (hasError) Color.Black else Color.White).copy(alpha = 0.9f),
                     fontSize = 12.sp
                 )
             }
@@ -210,9 +228,11 @@ fun ConfirmedPanel(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(text = "${remainingSeconds}s", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     } else {
-                        Icon(imageVector = Icons.Default.CloudUpload, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                        val uploadText = if (hasError) "UPLOAD FAILED" else "UPLOADING..."
+                        val uploadColor = if (hasError) AlertYellow else Color.White
+                        Icon(imageVector = Icons.Default.CloudUpload, contentDescription = null, tint = uploadColor, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = "UPLOADING...", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text(text = uploadText, color = uploadColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                 }
             }

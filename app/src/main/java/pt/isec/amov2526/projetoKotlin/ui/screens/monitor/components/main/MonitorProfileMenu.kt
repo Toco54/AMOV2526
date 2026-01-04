@@ -40,7 +40,8 @@ fun ProfileMenuOverlay(
     onDismiss: () -> Unit,
     onEditProfile: () -> Unit,
     onLogout: () -> Unit,
-    onSwitchMode: () -> Unit
+    onSwitchMode: () -> Unit,
+    canSwitchProfile: Boolean = false
 ) {
     Card(
         shape = RoundedCornerShape(24.dp),
@@ -75,7 +76,7 @@ fun ProfileMenuOverlay(
                     onClick = onEditProfile
                 )
 
-                // Botão único para troca de modo
+                // Botão para troca de modo (ou configuração de PIN)
                 MenuOptionButton(
                     icon = Icons.Default.SwapHoriz,
                     text = "Switch to Protected Mode",

@@ -218,6 +218,7 @@ fun ProtectedMainScreen(
 
     var isEditingProfile by remember { mutableStateOf(false) }
     var showOverlayPermissionDialog by remember { mutableStateOf(false) }
+    var showEnableMonitorDialog by remember { mutableStateOf(false) } // NOVO: Dialog state
     val currentUserData = viewModel.currentUserData
 
     LaunchedEffect(Unit) {
@@ -225,6 +226,29 @@ fun ProtectedMainScreen(
             !android.provider.Settings.canDrawOverlays(context)) {
             showOverlayPermissionDialog = true
         }
+    }
+
+    if (showEnableMonitorDialog) {
+        AlertDialog(
+            onDismissRequest = { showEnableMonitorDialog = false },
+            title = { Text("Enable Monitor Mode") },
+            text = { Text("To access the Monitor Dashboard, your account will be upgraded to support both roles (Protected + Monitor). Do you want to proceed?") },
+            confirmButton = {
+                Button(onClick = {
+                    showEnableMonitorDialog = false
+                    viewModel.enableDualRole {
+                         viewModel.switchViewMode()
+                    }
+                }) {
+                    Text("Enable & Switch")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEnableMonitorDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     if (showOverlayPermissionDialog) {
@@ -312,8 +336,13 @@ fun ProtectedMainScreen(
                             }
                         },
                         onSwitchMode = {
-                            viewModel.switchViewMode()
-                        }
+                            if (viewModel.canSwitchProfile) {
+                                viewModel.switchViewMode()
+                            } else {
+                                showEnableMonitorDialog = true
+                            }
+                        },
+                        canSwitchProfile = viewModel.canSwitchProfile
                     )
                 }
             }

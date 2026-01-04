@@ -52,6 +52,8 @@ fun AlertScreen(
     
     var finalizedFile by remember { mutableStateOf<File?>(null) }
     var isUploading by remember { mutableStateOf(false) }
+    var hasError by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val previewView = remember { PreviewView(context) }
     
@@ -76,6 +78,8 @@ fun AlertScreen(
                     alertRepository.updateAlertEvidence(id, vUrl)
                 } else {
                     Log.e("AlertScreen", "Upload returned NULL. Check logs.")
+                    hasError = true
+                    errorMessage = "UPLOADING FAILED"
                 }
                 // [CORREÇÃO] Sempre finalizar, mesmo que falhe, para não prender a UI
                 isRecordingFinished = true
@@ -115,6 +119,22 @@ fun AlertScreen(
                  delay(100)
                  if (isRecordingFinished) break 
              }
+        }
+    }
+
+    // [NOVO] Watchdog de Segurança: Garante que a UI nunca fica presa em "UPLOADING"
+    LaunchedEffect(isConfirmedState) {
+        if (isConfirmedState) {
+            delay(25000L) // 25 Segundos (12s gravação + 13s margem para falhas/upload lento)
+            if (!isRecordingFinished) {
+                Log.e("AlertScreen", "Watchdog triggered: Recording/Upload timed out. Forcing UI unlock.")
+                // Tenta parar gravação se ainda estiver a decorrer
+                evidenceManager.stopVideoRecording()
+                hasError = true
+                errorMessage = "RECORDING FAILED"
+                isRecordingFinished = true
+                isUploading = false
+            }
         }
     }
 
@@ -158,6 +178,8 @@ fun AlertScreen(
                 previewView = previewView,
                 isRecordingFinished = isRecordingFinished,
                 recordingStartTime = recordingStartTime,
+                hasError = hasError,
+                errorMessage = errorMessage,
                 onClose = { onCancel() }
             )
         }

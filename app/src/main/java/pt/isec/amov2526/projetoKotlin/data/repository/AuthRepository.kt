@@ -206,10 +206,23 @@ class AuthRepository(private val app: SafetySecApp) {
 
             // 3. Update Local DB
             val currentLocal = userDao.getUser()
-            val role = currentLocal?.role ?: "PROTECTED"
+            val currentRole = currentLocal?.role ?: "PROTECTED"
             val pinToSave = newPin ?: currentLocal?.pin
 
-            val newUser = UserEntity(uid, name, email, role, pinToSave, mfaEnabled)
+            // [NOVO] Lógica de promoção para "BOTH"
+            // Se era MONITOR e agora tem um PIN (novo ou já existente), passa a BOTH
+            val newRole = if (currentRole == "MONITOR" && !pinToSave.isNullOrEmpty()) {
+                "BOTH"
+            } else {
+                currentRole
+            }
+
+            // Se a role mudou, atualizar também na Firestore
+            if (newRole != currentRole) {
+                db.collection("users").document(uid).update("role", newRole).await()
+            }
+
+            val newUser = UserEntity(uid, name, email, newRole, pinToSave, mfaEnabled)
             userDao.insertUser(newUser)
 
             Result.success(Unit)
@@ -259,6 +272,23 @@ class AuthRepository(private val app: SafetySecApp) {
                 e.printStackTrace()
                 Result.failure(Exception("Falha ao enviar email MFA: ${e.message}"))
             }
+        }
+    }
+
+    suspend fun promoteToBoth(uid: String): Result<Unit> {
+        return try {
+            // 1. Update Firestore
+            db.collection("users").document(uid).update("role", "BOTH").await()
+
+            // 2. Update Local DB
+            val currentLocal = userDao.getUser()
+            if (currentLocal != null) {
+                val updated = currentLocal.copy(role = "BOTH")
+                userDao.insertUser(updated)
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 }

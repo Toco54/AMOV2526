@@ -55,13 +55,36 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
 
                 // Inicializa o modo de visualização com o role da BD se ainda não estiver definido
                 if (currentViewMode == null) {
-                    currentViewMode = fullUser.role
+                    // [MODIFICADO] Prioridade ao modo PROTECTED se for BOTH
+                    currentViewMode = if (fullUser.role == "BOTH") "PROTECTED" else fullUser.role
+                }
+                
+                // [NOVO] Verificar e restaurar o serviço de segurança se estiver ACTIVE na Cloud
+                if (fullUser.role == "PROTECTED" || fullUser.role == "BOTH") {
+                    try {
+                        com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                            .collection("users").document(uid).get()
+                            .addOnSuccessListener { doc ->
+                                val status = doc.getString("systemStatus") ?: "OFFLINE"
+                                if (status == "ACTIVE") {
+                                    val context = getApplication<android.app.Application>()
+                                    val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java)
+                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                        context.startForegroundService(intent)
+                                    } else {
+                                        context.startService(intent)
+                                    }
+                                }
+                            }
+                    } catch (e: Exception) {
+                        // Fail silent, user can manually activate later
+                    }
                 }
             } else {
                 // Fallback (ex: erro de rede ou não encontrado)
                 userRole = repository.getUserRole(uid)
                 if (currentViewMode == null) {
-                    currentViewMode = userRole
+                    currentViewMode = if (userRole == "BOTH") "PROTECTED" else userRole
                 }
 
                 val nameFromDb = repository.getUserName(uid)
@@ -71,8 +94,14 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
         }
     }
 
+    // Helper para a UI saber se mostra o botão de troca
+    val canSwitchProfile: Boolean
+        get() = userRole == "BOTH"
+
     // Função para alternar entre modos
     fun switchViewMode() {
+        if (!canSwitchProfile) return // Segurança extra
+
         currentViewMode = if (currentViewMode == "MONITOR") {
             "PROTECTED"
         } else {
@@ -262,6 +291,22 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
             // Reset MFA
             mfaRequired = false
             generatedMfaCode = null
+        }
+    }
+
+    fun enableDualRole(onSuccess: () -> Unit) {
+        val u = user ?: return
+        isLoading = true
+        viewModelScope.launch {
+            val result = repository.promoteToBoth(u.uid)
+            if (result.isSuccess) {
+                userRole = "BOTH"
+                loadUserData(u.uid, userEmail)
+                onSuccess()
+            } else {
+                errorMsg = "Failed to update role"
+            }
+            isLoading = false
         }
     }
 }
