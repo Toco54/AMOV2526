@@ -268,10 +268,9 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
     val selectedDays = remember {
         mutableStateListOf<Int>().apply {
             if (rule.scheduleDays.isNotEmpty()) addAll(rule.scheduleDays)
-            else if (isNew) addAll(listOf(1, 2, 3, 4, 5))
         }
     }
-    var useSchedule by remember { mutableStateOf(rule.isScheduleEnabled || (isNew && rule.scheduleDays.isEmpty())) }
+    var useSchedule by remember { mutableStateOf(rule.isScheduleEnabled) }
 
     var searchQuery by remember { mutableStateOf("") }
     val context = LocalContext.current

@@ -80,7 +80,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
         }
     }
 
-    // [ALTERADO] Login agora inicia o processo MFA
+    // [ALTERADO] Login agora inicia o processo MFA APENAS SE mfaEnabled for true
     fun login(email: String, pass: String) {
         isLoading = true
         errorMsg = null
@@ -89,20 +89,33 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
             val result = repository.login(email, pass)
 
             if (result.isSuccess) {
-                // SUCESSO na password.
-                // Mas NÃO definimos o 'user' ainda. Vamos iniciar o MFA.
-                tempUserEmail = email
+                val uid = result.getOrNull()
+                if (uid != null) {
+                    // Check if MFA is enabled for this user
+                    val userEntity = repository.getUser(uid)
+                    if (userEntity != null && userEntity.mfaEnabled) {
+                        // SUCESSO na password e MFA ativado.
+                        // Mas NÃO definimos o 'user' ainda. Vamos iniciar o MFA.
+                        tempUserEmail = email
 
-                // 2. Enviar Email MFA
-                val mfaResult = repository.sendMfaEmail(email)
+                        // 2. Enviar Email MFA
+                        val mfaResult = repository.sendMfaEmail(email)
 
-                if (mfaResult.isSuccess) {
-                    generatedMfaCode = mfaResult.getOrNull()
-                    mfaRequired = true // Isto faz a UI mudar para o ecrã de código
+                        if (mfaResult.isSuccess) {
+                            generatedMfaCode = mfaResult.getOrNull()
+                            mfaRequired = true // Isto faz a UI mudar para o ecrã de código
+                        } else {
+                            // Se falhar o envio do email, fazemos logout forçado
+                            repository.logout()
+                            errorMsg = "Password correta, mas falha ao enviar email de verificação."
+                        }
+                    } else {
+                        // MFA not enabled, proceed to login
+                        user = repository.currentUser
+                        loadUserData(uid, email)
+                    }
                 } else {
-                    // Se falhar o envio do email, fazemos logout forçado
-                    repository.logout()
-                    errorMsg = "Password correta, mas falha ao enviar email de verificação."
+                     user = repository.currentUser
                 }
             } else {
                 val exception = result.exceptionOrNull()
@@ -210,6 +223,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
         email: String,
         pass: String?,
         pin: String?,
+        mfaEnabled: Boolean = false, // Default to false if not provided, though callers should provide it
         currentPass: String? = null,
         onSuccess: () -> Unit = {},
         onError: (String) -> Unit = {}
@@ -218,7 +232,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
         isLoading = true
         errorMsg = null
         viewModelScope.launch {
-            val result = repository.updateProfile(u.uid, name, email, pass, pin, currentPass)
+            val result = repository.updateProfile(u.uid, name, email, pass, pin, mfaEnabled, currentPass)
             if (result.isSuccess) {
                 // Refresh data
                 loadUserData(u.uid, email)

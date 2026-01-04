@@ -40,12 +40,15 @@ fun EditProfileView(
     currentName: String,
     currentEmail: String,
     currentPin: String? = null,
+    currentMfaEnabled: Boolean = false,
+    showPinOptions: Boolean = true,
     onDismiss: () -> Unit,
-    onSave: (String, String, String?, String?, String?) -> Unit // Name, Email, NewPass, NewPin, CurrentPass
+    onSave: (String, String, String?, String?, Boolean, String?) -> Unit // Name, Email, NewPass, NewPin, MfaEnabled, CurrentPass
 ) {
     val context = LocalContext.current
     var name by remember { mutableStateOf(currentName) }
     var email by remember { mutableStateOf(currentEmail) }
+    var mfaEnabled by remember { mutableStateOf(currentMfaEnabled) }
 
     var pinInput by remember { mutableStateOf("") }
     var newPinInput by remember { mutableStateOf("") }
@@ -144,7 +147,36 @@ fun EditProfileView(
             )
             Spacer(modifier = Modifier.height(24.dp))
 
-            if (currentPin != null) {
+            // MFA Switch
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "MULTI-FACTOR AUTHENTICATION",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate500
+                    )
+                    Text(
+                        text = "Require email code on login",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Slate500
+                    )
+                }
+                Switch(
+                    checked = mfaEnabled,
+                    onCheckedChange = { mfaEnabled = it },
+                    colors = SwitchDefaults.colors(
+                        checkedTrackColor = Indigo600
+                    )
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+
+            if (showPinOptions && currentPin != null) {
                 Text(
                     text = "SAFETY PIN (4 DIGITS)",
                     style = MaterialTheme.typography.labelSmall,
@@ -367,7 +399,7 @@ fun EditProfileView(
                             return@clickable
                         }
 
-                        onSave(name, email, finalPass, finalPin, currentPassword)
+                        onSave(name, email, finalPass, finalPin, mfaEnabled, currentPassword)
                     },
                 contentAlignment = Alignment.Center
             ) {

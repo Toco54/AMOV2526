@@ -77,13 +77,16 @@ fun MonitorMainScreen(
             currentName = viewModel.currentUserData?.name ?: realName,
             currentEmail = viewModel.currentUserData?.email ?: realEmail,
             currentPin = viewModel.currentUserData?.pin,
+            currentMfaEnabled = viewModel.currentUserData?.mfaEnabled ?: false,
+            showPinOptions = false,
             onDismiss = { isEditingProfile = false },
-            onSave = { name, email, pass, pin, currentPass ->
+            onSave = { name, email, pass, pin, mfa, currentPass ->
                 viewModel.updateProfile(
                     name = name,
                     email = email,
                     pass = pass,
                     pin = pin,
+                    mfaEnabled = mfa,
                     currentPass = currentPass,
                     onSuccess = {
                         Toast.makeText(context, "Profile Updated Successfully", Toast.LENGTH_SHORT).show()
@@ -303,6 +306,7 @@ fun MonitorMainScreen(
                                         email = viewModel.userEmail,
                                         pass = null,
                                         pin = newPin,
+                                        mfaEnabled = viewModel.currentUserData?.mfaEnabled ?: false,
                                         onSuccess = {
                                             showSetPinDialog = false
                                             viewModel.switchViewMode() // Troca após sucesso

@@ -79,15 +79,9 @@ class LocationHandler(
         val detectedInfractions = mutableListOf<RuleInfraction>()
         val monitorsToNotify = mutableSetOf<String>()
 
-        // [DEBUG MODE] FORÇAR VELOCIDADE PARA TESTE
-        // Ignoramos se o location.hasSpeed() é true ou false
-        val debugSpeedKmh = 150f 
-        Log.e("LocationHandler", ">>> DEBUG: Forçando velocidade de $debugSpeedKmh km/h para teste! <<<")
-
         // 1. Verificar Velocidade
-        // if (location.hasSpeed()) { <--- Comentado para teste
-        if (true) { 
-            val currentSpeedKmh = debugSpeedKmh // location.speed * 3.6f
+        if (location.hasSpeed()) {
+            val currentSpeedKmh = location.speed * 3.6f
             
             val rules = synchronized(speedRules) { speedRules.toList() }
             val rulesByMonitor = rules.groupBy { it.monitorId }

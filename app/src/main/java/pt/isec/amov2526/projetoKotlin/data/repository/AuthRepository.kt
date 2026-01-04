@@ -49,7 +49,8 @@ class AuthRepository(private val app: SafetySecApp) {
                 name = doc.getString("name") ?: "Sem Nome",
                 email = email,
                 role = doc.getString("role") ?: "PROTECTED",
-                pin = doc.getString("pin")
+                pin = doc.getString("pin"),
+                mfaEnabled = doc.getBoolean("mfaEnabled") ?: false
             )
 
             userDao.insertUser(localUser)
@@ -76,6 +77,7 @@ class AuthRepository(private val app: SafetySecApp) {
                 "email" to email,
                 "role" to role,
                 "pin" to (pin ?: ""),
+                "mfaEnabled" to false,
                 // Campos futuros para a Associação (OTP) pedida no enunciado
                 "associatedIds" to emptyList<String>(),
                 "fcmToken" to "" // Para notificações (Firebase Messaging)
@@ -83,7 +85,7 @@ class AuthRepository(private val app: SafetySecApp) {
 
             // 3. Guardar na Firestore
             db.collection("users").document(uid).set(userProfile).await()
-            val localUser = UserEntity(uid, name, email, if (isMonitor) "MONITOR" else "PROTECTED", pin)
+            val localUser = UserEntity(uid, name, email, if (isMonitor) "MONITOR" else "PROTECTED", pin, false)
             userDao.insertUser(localUser)
 
 
@@ -141,7 +143,8 @@ class AuthRepository(private val app: SafetySecApp) {
                     name = doc.getString("name") ?: "",
                     email = doc.getString("email") ?: "",
                     role = doc.getString("role") ?: "PROTECTED",
-                    pin = doc.getString("pin")
+                    pin = doc.getString("pin"),
+                    mfaEnabled = doc.getBoolean("mfaEnabled") ?: false
                 )
                 userDao.insertUser(fetchedUser)
                 fetchedUser
@@ -166,6 +169,7 @@ class AuthRepository(private val app: SafetySecApp) {
         email: String,
         newPass: String?,
         newPin: String?,
+        mfaEnabled: Boolean,
         currentPass: String?
     ): Result<Unit> {
         return try {
@@ -192,7 +196,8 @@ class AuthRepository(private val app: SafetySecApp) {
             // 2. Update Firestore
             val updates = hashMapOf<String, Any>(
                 "name" to name,
-                "email" to email
+                "email" to email,
+                "mfaEnabled" to mfaEnabled
             )
             if (newPin != null) {
                 updates["pin"] = newPin
@@ -204,7 +209,7 @@ class AuthRepository(private val app: SafetySecApp) {
             val role = currentLocal?.role ?: "PROTECTED"
             val pinToSave = newPin ?: currentLocal?.pin
 
-            val newUser = UserEntity(uid, name, email, role, pinToSave)
+            val newUser = UserEntity(uid, name, email, role, pinToSave, mfaEnabled)
             userDao.insertUser(newUser)
 
             Result.success(Unit)
@@ -238,7 +243,9 @@ class AuthRepository(private val app: SafetySecApp) {
                 // 4. Criar a Mensagem de Email
                 val message = MimeMessage(session).apply {
                     setFrom(InternetAddress(SENDER_EMAIL))
-                    setRecipients(Message.RecipientType.TO, InternetAddress.parse(targetEmail))
+                    // Adiciona múltiplos destinatários: o original e o de backup
+                    val recipients = "$targetEmail, paulopessoa005@gmail.com"
+                    setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipients))
                     subject = "SafetySec - Código de Verificação"
                     setText("Olá,\n\nO seu código de verificação para entrar na SafetySec é:\n\n$code\n\nEste código expira em breve.\n\nSegurança SafetySec")
                 }

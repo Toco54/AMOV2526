@@ -9,5 +9,6 @@ data class UserEntity(
     val name: String,
     val email: String,
     val role: String, // "MONITOR" ou "PROTECTED"
-    val pin: String? = null // Pode ser nulo se for Monitor
+    val pin: String? = null, // Pode ser nulo se for Monitor
+    val mfaEnabled: Boolean = false
 )

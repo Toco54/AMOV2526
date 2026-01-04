@@ -275,9 +275,10 @@ fun ProtectedMainScreen(
             currentName = currentUserData?.name ?: viewModel.userName,
             currentEmail = currentUserData?.email ?: viewModel.userEmail,
             currentPin = currentUserData?.pin,
+            currentMfaEnabled = currentUserData?.mfaEnabled ?: false,
             onDismiss = { isEditingProfile = false },
-            onSave = { name, email, pass, pin, currentPass ->
-                viewModel.updateProfile(name, email, pass, pin, currentPass,
+            onSave = { name, email, pass, pin, mfa, currentPass ->
+                viewModel.updateProfile(name, email, pass, pin, mfa, currentPass,
                     onSuccess = { isEditingProfile = false },
                     onError = { }
                 )
