@@ -79,19 +79,28 @@ class LocationHandler(
         val detectedInfractions = mutableListOf<RuleInfraction>()
         val monitorsToNotify = mutableSetOf<String>()
 
+        // [DEBUG MODE] FORÇAR VELOCIDADE PARA TESTE
+        // Ignoramos se o location.hasSpeed() é true ou false
+        val debugSpeedKmh = 150f 
+        Log.e("LocationHandler", ">>> DEBUG: Forçando velocidade de $debugSpeedKmh km/h para teste! <<<")
+
         // 1. Verificar Velocidade
-        if (location.hasSpeed()) {
-            val currentSpeedKmh = location.speed * 3.6f
+        // if (location.hasSpeed()) { <--- Comentado para teste
+        if (true) { 
+            val currentSpeedKmh = debugSpeedKmh // location.speed * 3.6f
+            
             val rules = synchronized(speedRules) { speedRules.toList() }
             val rulesByMonitor = rules.groupBy { it.monitorId }
 
             rulesByMonitor.forEach { (monitorId, monitorRules) ->
                 val brokenRules = monitorRules.filter { rule ->
                     // [ATUALIZADO] Verificação Dinâmica (AND: Global && Group && Rule)
-                    if (!isActiveChecker(rule)) return@filter false
-
+                    val active = isActiveChecker(rule)
                     val limit = rule.parameter.toFloatOrNull() ?: Float.MAX_VALUE
-                    currentSpeedKmh > limit
+                    
+                    Log.d("LocationHandler", "Rule Check -> Speed: $currentSpeedKmh | Limit: $limit | Active: $active | Monitor: ${rule.monitorName}")
+
+                    active && currentSpeedKmh > limit
                 }
 
                 if (brokenRules.isNotEmpty()) {
