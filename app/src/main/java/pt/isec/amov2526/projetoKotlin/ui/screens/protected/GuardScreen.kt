@@ -46,15 +46,12 @@ fun GuardScreen(
     LaunchedEffect(Unit) {
         locationHelper.startLocationUpdates(5000L)
     }
-    val currentLocation by locationHelper.currentLocation.collectAsState(initial = null)
 
 
-    val isActive by viewModel.isActive.collectAsState()
     val protectionGroups by viewModel.protectionGroups.collectAsState()
     val globalSchedule by viewModel.globalSchedule.collectAsState()
     val globalPausedUntil by viewModel.globalPausedUntil.collectAsState()
     val batteryLevel by viewModel.batteryLevel.collectAsState()
-    val activeGeofences by viewModel.activeGeofences.collectAsState()
 
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {

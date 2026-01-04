@@ -485,10 +485,10 @@ class MonitorDashboardViewModel(
 
     fun markAlertAsViewed(activityId: String) {
         val activity = alertDataMap[activityId] ?: return
-        val myId = currentMonitorId
-        
-        
-        val me = activity.notifiedMonitors.find { 
+        currentMonitorId
+
+
+        activity.notifiedMonitors.find {
              
              
              
@@ -526,7 +526,7 @@ class MonitorDashboardViewModel(
                             if (uid == currentMonitorId && m["state"] != "VIEWED") {
                                 m.toMutableMap().apply {
                                     put("state", "VIEWED")
-                                    put("time", pt.isec.amov2526.projetoKotlin.utils.TimeUtils.getCurrentTime())
+                                    put("time", TimeUtils.getCurrentTime())
                                 }
                             } else {
                                 m

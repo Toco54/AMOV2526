@@ -103,7 +103,7 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
         val context = getApplication<Application>().applicationContext
         val intent = Intent(context, SafetyMonitorService::class.java)
         val uid = auth.currentUser?.uid ?: return
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val db = FirebaseFirestore.getInstance()
 
         if (isProtectionActive) {
 

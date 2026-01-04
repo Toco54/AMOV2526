@@ -32,7 +32,7 @@ import pt.isec.amov2526.projetoKotlin.ui.theme.*
 fun SystemStatusCard(
     isActive: Boolean,
     isGlobalScheduleEnabled: Boolean,
-    globalScheduleStatus: pt.isec.amov2526.projetoKotlin.utils.StatusResult,
+    globalScheduleStatus: StatusResult,
     rawSystemStatus: String,
     batteryLevel: Int,
     onPlanClick: () -> Unit,

@@ -107,7 +107,7 @@ class LocationHandler(
                             it.parameter.toFloatOrNull() ?: 0f 
                         }
                         if (highestLimitRule != null) {
-                            val limit = highestLimitRule.parameter.toFloat()
+                            highestLimitRule.parameter.toFloat()
                             monitorsToNotify.add(monitorId)
                             detectedInfractions.add(
                                 RuleInfraction(

@@ -234,7 +234,7 @@ fun ScheduleSystemModal(
                         textStyle = TextStyle(
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            textAlign = TextAlign.Center,
                             color = Slate900,
                             letterSpacing = 8.sp
                         )

@@ -271,8 +271,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
                 loadUserData(u.uid, email)
                 onSuccess()
             } else {
-                val exception = result.exceptionOrNull()
-                val error = when (exception) {
+                val error = when (val exception = result.exceptionOrNull()) {
                     is com.google.firebase.auth.FirebaseAuthInvalidCredentialsException -> "Current Password Incorrect"
                     is com.google.firebase.FirebaseNetworkException -> "Network Error"
                     else -> exception?.message ?: "Update Failed"
