@@ -8,12 +8,13 @@ enum class ActivityAlertStatus {
     CONFIRMED, CANCELLED, PENDING
 }
 
-enum class MonitorActionState { SENT, VIEWED, CALLED_USER, CALLED_112, ON_THE_WAY, MARKED_SAFE}
+enum class MonitorActionState { SENT, VIEWED }
 
 data class MonitorAction(
     val name: String,
     val state: MonitorActionState,
-    val time: String
+    val time: String,
+    val uid: String? = null // [NOVO] Identificador para permitir updates
 )
 
 data class ActivityItem(
@@ -25,5 +26,6 @@ data class ActivityItem(
     val status: ActivityAlertStatus,
     val notifiedMonitors: List<MonitorAction> = emptyList(),
     val latitude: Double? = null,
-    val longitude: Double? = null
+    val longitude: Double? = null,
+    val videoUrl: String? = null
 )

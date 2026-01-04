@@ -56,7 +56,7 @@ fun AlertScreen(
     val previewView = remember { PreviewView(context) }
     
     // Flag para facilitar testes sem carregar para o Firebase (mudar para false em produção)
-    val SKIP_UPLOAD_FOR_TESTING = true
+    val SKIP_UPLOAD_FOR_TESTING = false
 
     fun performUpload(file: File, id: String) {
         if (isUploading) return

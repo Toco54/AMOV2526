@@ -26,10 +26,6 @@ private val Slate200 = Color(0xFFE2E8F0)
 private val Slate400 = Color(0xFF94A3B8)
 private val Slate500 = Color(0xFF64748B)
 private val Slate900 = Color(0xFF0F172A)
-private val Red100 = Color(0xFFFEE2E2)
-private val Red700 = Color(0xFFB91C1C)
-private val Amber50 = Color(0xFFFFFBEB)
-private val Amber700 = Color(0xFFB45309)
 
 @Composable
 fun ActivityCard(activity: ActivityItem, onClick: () -> Unit) {
@@ -82,7 +78,6 @@ fun ActivityCard(activity: ActivityItem, onClick: () -> Unit) {
                     )
                 }
             }
-            StatusChip(activity.status)
             Spacer(modifier = Modifier.width(8.dp))
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
@@ -91,34 +86,6 @@ fun ActivityCard(activity: ActivityItem, onClick: () -> Unit) {
                 modifier = Modifier.size(16.dp)
             )
         }
-    }
-}
-
-@Composable
-fun StatusChip(status: ActivityAlertStatus) {
-    val (bg, txt) = when (status) {
-        ActivityAlertStatus.CONFIRMED -> {
-            Red100 to Red700
-        }
-        ActivityAlertStatus.PENDING -> {
-            Amber50 to Amber700
-        }
-        ActivityAlertStatus.CANCELLED -> {
-            Slate100 to Slate500
-        }
-    }
-    Box(
-        modifier = Modifier
-            .background(bg, RoundedCornerShape(4.dp))
-            .padding(horizontal = 8.dp, vertical = 2.dp)
-    ) {
-        Text(
-            text = status.name,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = txt,
-            fontSize = 10.sp
-        )
     }
 }
 

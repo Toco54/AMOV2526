@@ -275,7 +275,7 @@ class SafetyMonitorService : Service() {
         
         if (infractions != null && infractions.isNotEmpty()) {
             initialActions = infractions.map { inf ->
-                MonitorAction(inf.monitorName, MonitorActionState.SENT, java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date()))
+                MonitorAction(inf.monitorName, MonitorActionState.SENT, java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date()), inf.monitorId)
             }
             // Preenche targetMonitors com os IDs únicos das infrações
             targetMonitors = infractions.map { it.monitorId }.distinct()
@@ -289,11 +289,11 @@ class SafetyMonitorService : Service() {
                         .get().await()
                     
                     initialActions = snapshot.documents.map { doc ->
-                        MonitorAction(doc.getString("name") ?: "Monitor", MonitorActionState.SENT, java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date()))
+                        MonitorAction(doc.getString("name") ?: "Monitor", MonitorActionState.SENT, java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date()), doc.getString("uid"))
                     }
                 }
             } catch (e: Exception) {
-                initialActions = monitors.map { MonitorAction("Monitor", MonitorActionState.SENT, "") }
+                initialActions = monitors.map { MonitorAction("Monitor", MonitorActionState.SENT, "", it) }
             }
         }
         
@@ -305,7 +305,7 @@ class SafetyMonitorService : Service() {
                     val snapshot = db.collection("users").document(uid).collection("connections").whereEqualTo("role", "Monitor").get().await()
                     targetMonitors = snapshot.documents.mapNotNull { it.getString("uid") }
                     initialActions = snapshot.documents.map { doc ->
-                        MonitorAction(doc.getString("name") ?: "Monitor", MonitorActionState.SENT, java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date()))
+                        MonitorAction(doc.getString("name") ?: "Monitor", MonitorActionState.SENT, java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date()), doc.getString("uid"))
                     }
                 }
             } catch (e: Exception) {}

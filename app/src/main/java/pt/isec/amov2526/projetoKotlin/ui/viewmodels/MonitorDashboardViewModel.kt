@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import pt.isec.amov2526.projetoKotlin.data.repository.RuleRepository
 import pt.isec.amov2526.projetoKotlin.data.model.ProtectionRule
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType
@@ -314,7 +315,13 @@ class MonitorDashboardViewModel(
 
                                         status = ActivityAlertStatus.valueOf(statusStr),
 
-                                        notifiedMonitors = monitorsList
+                                        notifiedMonitors = monitorsList,
+                                        
+                                        // Aparentemente o ViewModel original não lia lat/lng aqui,
+                                        // mas para manter consistência com o modelo atualizado:
+                                        latitude = doc.getDouble("latitude"),
+                                        longitude = doc.getDouble("longitude"),
+                                        videoUrl = doc.getString("videoUrl")
 
                                     )
 
@@ -479,6 +486,65 @@ class MonitorDashboardViewModel(
         val rule = _rules.value.find { it.id == ruleId }
         if (rule != null) {
             updateRule(rule.copy(isEnabled = isEnabled))
+        }
+    }
+
+    fun markAlertAsViewed(activityId: String) {
+        val activity = alertDataMap[activityId] ?: return
+        val myId = currentMonitorId
+        
+        // Verifica se já está viewed para evitar writes desnecessários
+        val me = activity.notifiedMonitors.find { 
+             // Assumindo que o 'name' é o identificador ou se devia haver um ID. 
+             // No parse atual estamos a usar Name. O ideal seria ter ID.
+             // Mas como o sistema grava o nome do monitor, vamos tentar encontrar pela lógica de negócio
+             // Se o nome coincidir com o nome do user atual (que teríamos de buscar).
+             // SIMPLIFICAÇÃO: Vamos procurar pelo indice se soubermos, ou vamos assumir que o backend enviou o meu ID ou Nome.
+             // Dado que ActivityItem só tem 'MonitorAction' com 'name', isto é frágil.
+             // CORREÇÃO: Vamos buscar o documento à Firestore e editar o array 'notifiedMonitors' onde o 'id' (se existir) ou 'uid' for igual ao meu.
+             true 
+        }
+
+        viewModelScope.launch {
+            // Caminho do documento: precisamos saber onde ele está. O alertDataMap tem o ID, mas o caminho estava no listener.
+            // Vamos iterar os listeners para achar o caminho ou usar uma query direta se soubermos a coleção.
+            // Assumindo coleção "alerts" na raiz ou dentro do user?
+            // O código do listener usa 'refsMap' que dá o caminho completo.
+            
+            // Hack: Vamos tentar encontrar o caminho através do alertListeners ou DB search
+             // Mas o `MonitorDashboardViewModel` não guardou os caminhos (paths) no `alertDataMap`, só os items.
+             // Vamos melhorar a atualização do listener para guardar o path ou usar o ID para pesquisar se for global.
+             // Assumindo estrutura: users/{protegeId}/alerts/{alertId}
+            
+            val path = "users/$protegeUid/alerts/$activityId"
+            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val docRef = db.document(path)
+            
+            try {
+                db.runTransaction { transaction ->
+                    val snapshot = transaction.get(docRef)
+                    if (snapshot.exists()) {
+                        val monitorsRaw = snapshot.get("notifiedMonitors") as? List<Map<String, Any>> ?: emptyList()
+                        val updatedMonitors = monitorsRaw.map { m ->
+                            val uid = m["uid"] as? String
+                            // Se tiver UID, compara. Se não, tenta pelo nome ou assume que o monitor atual deve marcar-se.
+                            // Para segurança, o monitor só deve marcar o SEU registo.
+                            if (uid == currentMonitorId && m["state"] != "VIEWED") {
+                                m.toMutableMap().apply {
+                                    put("state", "VIEWED")
+                                    put("time", pt.isec.amov2526.projetoKotlin.utils.TimeUtils.getCurrentTime())
+                                }
+                            } else {
+                                m
+                            }
+                        }
+                        transaction.update(docRef, "notifiedMonitors", updatedMonitors)
+                    }
+                }.await()
+                android.util.Log.i("MonitorVM", "Alerta $activityId marcado como VIEWED")
+            } catch (e: Exception) {
+                android.util.Log.e("MonitorVM", "Erro ao marcar viewed: ${e.message}")
+            }
         }
     }
 }

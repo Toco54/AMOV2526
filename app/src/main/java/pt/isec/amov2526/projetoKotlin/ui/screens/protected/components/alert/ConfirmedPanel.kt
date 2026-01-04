@@ -262,33 +262,29 @@ fun ConfirmedPanel(
                         // Limpar marcadores e overlays antigos
                         map.overlays.clear()
 
-                        // 1. Desenhar Geofences (Apenas dos monitores visíveis)
-                        Log.d("ConfirmedPanel", "Active Geofences: ${activeGeofences.size}")
+                        // 1. Desenhar Geofences (Apenas as INFRINGIDAS)
                         activeGeofences.forEach { rule ->
-                            // Só desenha se o monitor estiver na lista de visíveis
                             val isVisible = visibleMonitors.contains(rule.monitorName)
-                            Log.d("ConfirmedPanel", "Rule for ${rule.monitorName}: isVisible=$isVisible, hasGeoData=${rule.geofenceData != null}")
                             
                             if (isVisible) {
                                 rule.geofenceData?.let { (lat, lng, radius) ->
-                                    val circle = Polygon(map)
-                                    circle.points = Polygon.pointsAsCircle(GeoPoint(lat, lng), radius.toDouble())
-                                    
                                     // Verificar se esta regra pertence a um monitor que gerou infração de Geofence
                                     val hasInfraction = infractions.any { 
                                         it.monitorName == rule.monitorName && it.ruleType == "GEOFENCING" 
                                     }
 
-                                    Log.d("ConfirmedPanel", "  -> Drawing Zone: Lat=$lat, Lng=$lng, Radius=$radius, Color=${if(hasInfraction) "RED" else "GREEN"}")
+                                    // [MODIFICADO] Apenas desenha se houver infração (Zonas Violadas)
+                                    if (hasInfraction) {
+                                        val circle = Polygon(map)
+                                        circle.points = Polygon.pointsAsCircle(GeoPoint(lat, lng), radius.toDouble())
+                                        
+                                        val color = AlertRed
+                                        circle.fillPaint.color = android.graphics.Color.argb(70, (color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt())
+                                        circle.outlinePaint.color = android.graphics.Color.argb(255, (color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt())
+                                        circle.outlinePaint.strokeWidth = 3f
 
-                                    // Cor: Vermelho se houve infração (violada), Verde se está seguro
-                                    val color = if (hasInfraction) AlertRed else SafeGreen
-                                    
-                                    circle.fillPaint.color = android.graphics.Color.argb(70, (color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt()) // Transparente
-                                    circle.outlinePaint.color = android.graphics.Color.argb(255, (color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt())
-                                    circle.outlinePaint.strokeWidth = 3f
-
-                                    map.overlays.add(circle)
+                                        map.overlays.add(circle)
+                                    }
                                 }
                             }
                         }

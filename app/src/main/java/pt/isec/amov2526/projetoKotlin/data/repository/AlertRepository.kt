@@ -48,9 +48,7 @@ class AlertRepository {
             "latitude" to latitude,
             "longitude" to longitude,
             "created_at" to System.currentTimeMillis(),
-            "media" to hashMapOf(
-                "videoBack" to "PENDING/UNAVAILABLE" // Valor padrão inicial
-            )
+            "videoUrl" to null // [ALTERADO] Campo direto
         )
         
         // Se a lista for null ou vazia, assume-se que é visível a TODOS (comportamento fallback)
@@ -65,7 +63,8 @@ class AlertRepository {
                 mapOf(
                     "name" to action.name,
                     "state" to action.state.name,
-                    "time" to action.time
+                    "time" to action.time,
+                    "uid" to (action.uid ?: "") // [NOVO] Guardar UID
                 )
             }
             alertData["notifiedMonitors"] = actionsList
@@ -105,7 +104,7 @@ class AlertRepository {
         try {
             db.collection("users").document(currentUser.uid)
                 .collection("alerts").document(alertId)
-                .update("media.videoBack", videoUrl)
+                .update("videoUrl", videoUrl)
                 .await()
         } catch (e: Exception) {
             e.printStackTrace()
@@ -134,7 +133,8 @@ class AlertRepository {
                         monitorsList.add(MonitorAction(
                             name = m["name"] as? String ?: "Unknown",
                             state = MonitorActionState.valueOf(m["state"] as? String ?: "SENT"),
-                            time = m["time"] as? String ?: ""
+                            time = m["time"] as? String ?: "",
+                            uid = m["uid"] as? String // [NOVO] Ler UID
                         ))
                     }
 
@@ -147,7 +147,8 @@ class AlertRepository {
                         status = ActivityAlertStatus.valueOf(statusStr),
                         notifiedMonitors = monitorsList,
                         latitude = doc.getDouble("latitude"),
-                        longitude = doc.getDouble("longitude")
+                        longitude = doc.getDouble("longitude"),
+                        videoUrl = doc.getString("videoUrl")
                     )
                 } catch (ex: Exception) {
                     null

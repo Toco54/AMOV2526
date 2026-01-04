@@ -50,12 +50,20 @@ class AccelerometerHandler(
         monitoringJob = scope.launch {
             sensorHelper.accelerometerData.collect { (x, y, z) ->
                 val magnitude = sqrt((x * x + y * y + z * z).toDouble()).toFloat()
+                
+                // Log apenas se for um movimento relevante (> 15 m/s²) para não inundar o logcat
+                if (magnitude > 15f) {
+                    Log.d("AccelerometerHandler", "Magnitude detetada: ${String.format("%.2f", magnitude)} m/s² (~${String.format("%.2f", magnitude/9.81f)}G)")
+                }
+
                 val currentTime = System.currentTimeMillis()
                 if (currentTime - lastAlertTime >= ALERT_COOLDOWN_MS) {
                     if (magnitude > ACCIDENT_G_THRESHOLD) {
+                        Log.i("AccelerometerHandler", "!!! LIMIAR DE ACIDENTE EXCEDIDO: $magnitude !!!")
                         handleEvent(RuleType.ACCIDENT, magnitude)
                         lastAlertTime = currentTime
                     } else if (magnitude > FALL_G_THRESHOLD) {
+                        Log.i("AccelerometerHandler", "!!! LIMIAR DE QUEDA EXCEDIDO: $magnitude !!!")
                         handleEvent(RuleType.FALL, magnitude)
                         lastAlertTime = currentTime
                     }
@@ -68,10 +76,19 @@ class AccelerometerHandler(
         val rawRules = if (type == RuleType.FALL) synchronized(fallRules) { fallRules.toList() } 
                        else synchronized(accidentRules) { accidentRules.toList() }
 
-        // [ATUALIZADO] Verificação Dinâmica (AND)
-        val activeRules = rawRules.filter { isActiveChecker(it) }
+        Log.d("AccelerometerHandler", "Avaliar evento $type. Regras totais: ${rawRules.size}")
 
-        if (activeRules.isEmpty()) return
+        // [ATUALIZADO] Verificação Dinâmica (AND)
+        val activeRules = rawRules.filter { rule ->
+            val active = isActiveChecker(rule)
+            Log.v("AccelerometerHandler", "Regra ${rule.id} (Monitor: ${rule.monitorName}) ativa: $active")
+            active
+        }
+
+        if (activeRules.isEmpty()) {
+            Log.w("AccelerometerHandler", "Evento descartado: Nenhuma regra ativa para $type")
+            return
+        }
 
         val monitorsToNotify = activeRules.map { it.monitorId }.toSet()
         val infractionsList = activeRules.map { rule ->

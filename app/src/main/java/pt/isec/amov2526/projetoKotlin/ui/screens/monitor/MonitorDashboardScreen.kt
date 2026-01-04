@@ -538,6 +538,32 @@ fun MonitorDashboardScreen(
     }
 
     if (selectedActivity != null) {
-        MonitorAlertDetailModal(activity = selectedActivity!!, onDismiss = { selectedActivity = null })
+        // [NOVO] Converter ProtectionRules (MonitorDashboard) em MonitorRules (Shared Model) para o Mapa
+        val activeGeofences = rules
+            .filter { it.type == MonitorRuleType.GEOFENCING }
+            .map { rule ->
+                // Parse Lat,Lng from param2
+                val coords = rule.param2.split(",").mapNotNull { it.trim().toDoubleOrNull() }
+                val lat = coords.getOrNull(0) ?: 0.0
+                val lng = coords.getOrNull(1) ?: 0.0
+                val radius = rule.param1.toFloatOrNull() ?: 100f
+                
+                MonitorRule(
+                    id = rule.id,
+                    monitorId = "CURRENT_MONITOR", // Placeholder, não critico para visualização visual
+                    monitorName = "Me",
+                    parameter = rule.param1,
+                    isEnabled = rule.isEnabled,
+                    type = RuleType.GEOFENCING, // Enum Mapping
+                    geofenceData = Triple(lat, lng, radius)
+                )
+            }
+
+        MonitorAlertDetailModal(
+            activity = selectedActivity!!, 
+            onDismiss = { selectedActivity = null },
+            activeGeofences = activeGeofences,
+            onMarkAsViewed = { viewModel.markAlertAsViewed(it) }
+        )
     }
 }
