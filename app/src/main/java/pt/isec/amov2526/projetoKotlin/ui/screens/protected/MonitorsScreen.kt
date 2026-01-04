@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import pt.isec.amov2526.projetoKotlin.data.model.ConnectedUser
-import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.monitors.AccessSelectionDialog
+// [REMOVIDO] Import do AccessSelectionDialog desnecessário
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.monitors.GenerateCodeModal
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.monitors.MonitorCard
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
@@ -45,7 +45,7 @@ fun MonitorsScreen(
     val monitors = viewModel.monitors
     var showRemoveDialog by remember { mutableStateOf<ConnectedUser?>(null) }
     var showGenerateCodeModal by remember { mutableStateOf(false) }
-    var showAccessSelectionDialog by remember { mutableStateOf(false) }
+    // [REMOVIDO] var showAccessSelectionDialog
 
     Box(
         modifier = Modifier
@@ -103,7 +103,11 @@ fun MonitorsScreen(
         }
 
         FloatingActionButton(
-            onClick = { showAccessSelectionDialog = true },
+            onClick = {
+                // [ALTERADO] Gera logo o código com permissão "Full Monitoring" e abre o modal
+                viewModel.generateCode("Full Monitoring")
+                showGenerateCodeModal = true
+            },
             containerColor = Indigo600,
             contentColor = Color.White,
             shape = CircleShape,
@@ -197,18 +201,7 @@ fun MonitorsScreen(
         }
     }
 
-    if (showAccessSelectionDialog) {
-        AccessSelectionDialog(
-            title = "New Connection",
-            targetName = "a Monitor",
-            onDismiss = { showAccessSelectionDialog = false },
-            onConfirm = { level ->
-                viewModel.generateCode(level)
-                showAccessSelectionDialog = false
-                showGenerateCodeModal = true
-            }
-        )
-    }
+    // [REMOVIDO] Bloco do AccessSelectionDialog
 
     if (showGenerateCodeModal) {
         GenerateCodeModal(
