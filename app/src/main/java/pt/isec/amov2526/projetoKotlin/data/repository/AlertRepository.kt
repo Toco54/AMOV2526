@@ -48,9 +48,7 @@ class AlertRepository {
             "latitude" to latitude,
             "longitude" to longitude,
             "created_at" to System.currentTimeMillis(),
-            "media" to hashMapOf(
-                "videoBack" to "PENDING/UNAVAILABLE" // Valor padrão inicial
-            )
+            "videoUrl" to null // [ALTERADO] Campo direto
         )
         
         // Se a lista for null ou vazia, assume-se que é visível a TODOS (comportamento fallback)
@@ -105,7 +103,7 @@ class AlertRepository {
         try {
             db.collection("users").document(currentUser.uid)
                 .collection("alerts").document(alertId)
-                .update("media.videoBack", videoUrl)
+                .update("videoUrl", videoUrl)
                 .await()
         } catch (e: Exception) {
             e.printStackTrace()
@@ -147,7 +145,8 @@ class AlertRepository {
                         status = ActivityAlertStatus.valueOf(statusStr),
                         notifiedMonitors = monitorsList,
                         latitude = doc.getDouble("latitude"),
-                        longitude = doc.getDouble("longitude")
+                        longitude = doc.getDouble("longitude"),
+                        videoUrl = doc.getString("videoUrl")
                     )
                 } catch (ex: Exception) {
                     null

@@ -3,6 +3,12 @@ package pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.activity
 import android.preference.PreferenceManager
 import android.util.Log
 import android.view.ViewGroup
+import android.view.TextureView
+import android.view.Surface
+import android.graphics.SurfaceTexture
+import android.media.MediaPlayer
+import android.net.Uri
+import android.widget.MediaController
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,6 +33,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -35,6 +44,9 @@ import org.osmdroid.views.overlay.Polygon
 import pt.isec.amov2526.projetoKotlin.data.model.ActivityItem
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
+import java.io.File
+import java.io.FileOutputStream
+import java.net.URL
 
 // --- CORES ---
 private val Slate50 = Color(0xFFF8FAFC)
@@ -45,8 +57,6 @@ private val Slate900 = Color(0xFF0F172A)
 private val Red700 = Color(0xFFB91C1C)
 private val Amber100 = Color(0xFFFEF3C7)
 private val Amber700 = Color(0xFFB45309)
-private val TabSelectedColor = Color(0xFF334155)
-private val TabUnselectedColor = Color(0xFF1E293B)
 private val SafeGreen = Color(0xFF4CAF50)
 
 @Composable
@@ -55,11 +65,19 @@ fun AlertDetailModal(
     onDismiss: () -> Unit,
     activeGeofences: List<MonitorRule> = emptyList() // [NOVO]
 ) {
-    var selectedCameraTab by remember { mutableIntStateOf(0) } // 0 = Rear, 1 = Front
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     // [NOVO] Estado para controlar visibilidade das zonas por monitor
     val visibleMonitors = remember { mutableStateListOf<String>() }
+    
+    // [NOVO] Estado do Video
+    var localVideoFile by remember { mutableStateOf<File?>(null) }
+    var isDownloading by remember { mutableStateOf(false) }
+    var downloadError by remember { mutableStateOf<String?>(null) }
+    var isPlaying by remember { mutableStateOf(true) }
+    
+    val videoUrl = activity.videoUrl
 
     LaunchedEffect(activity) {
         visibleMonitors.clear()
@@ -69,11 +87,52 @@ fun AlertDetailModal(
                  visibleMonitors.add(rule.monitorName)
              }
         }
+        
+        // Verificar se o ficheiro já existe localmente
+        val file = File(context.filesDir, "alert_video_${activity.id}.mp4")
+        if (file.exists() && file.length() > 0) {
+            localVideoFile = file
+        } else {
+            localVideoFile = null
+        }
     }
 
     LaunchedEffect(Unit) {
         Configuration.getInstance().load(context, PreferenceManager.getDefaultSharedPreferences(context))
         Configuration.getInstance().userAgentValue = context.packageName
+    }
+    
+    fun downloadVideo() {
+        if (videoUrl == null || videoUrl == "PENDING/UNAVAILABLE") {
+            downloadError = "Video unavailable"
+            return
+        }
+        
+        scope.launch(Dispatchers.IO) {
+            isDownloading = true
+            downloadError = null
+            try {
+                val connection = URL(videoUrl).openConnection()
+                connection.connect()
+                val input = connection.getInputStream()
+                val file = File(context.filesDir, "alert_video_${activity.id}.mp4")
+                val output = FileOutputStream(file)
+                input.copyTo(output)
+                output.close()
+                input.close()
+                
+                withContext(Dispatchers.Main) {
+                    localVideoFile = file
+                    isDownloading = false
+                }
+            } catch(e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    downloadError = "Download failed"
+                    isDownloading = false
+                }
+            }
+        }
     }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -131,66 +190,135 @@ fun AlertDetailModal(
                     }
                 }
 
-                // Camera Tabs
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                        .background(TabUnselectedColor)
-                ) {
-                    DetailCameraTab(
-                        title = "REAR CAM",
-                        isSelected = selectedCameraTab == 0,
-                        onClick = { selectedCameraTab = 0 },
-                        modifier = Modifier.weight(1f)
-                    )
-                    DetailCameraTab(
-                        title = "FRONT CAM",
-                        isSelected = selectedCameraTab == 1,
-                        onClick = { selectedCameraTab = 1 },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                // Video Feed Area
+                // Video Feed Area (Substitui as Tabs)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
-                        .height(200.dp)
-                        .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
-                        .background(Color.Black),
+                        .height(250.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.Black)
+                        .clickable(enabled = localVideoFile != null) { isPlaying = !isPlaying }, // [CORREÇÃO] Click no Box pai
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = if (selectedCameraTab == 0) Icons.Default.Videocam else Icons.Default.Face,
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.5f),
-                            modifier = Modifier
-                                .size(48.dp)
-                                .background(Color.White.copy(alpha = 0.1f), CircleShape)
-                                .padding(12.dp)
+                    if (localVideoFile != null) {
+                        // Managed MediaPlayer State
+                        val mediaPlayer = remember { MediaPlayer() }
+                        
+                        DisposableEffect(Unit) {
+                            onDispose {
+                                try {
+                                    if (mediaPlayer.isPlaying) mediaPlayer.stop()
+                                    mediaPlayer.release()
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
+                            }
+                        }
+
+                        // React to isPlaying state changes
+                        LaunchedEffect(isPlaying) {
+                            try {
+                                if (isPlaying && !mediaPlayer.isPlaying) {
+                                    mediaPlayer.start()
+                                } else if (!isPlaying && mediaPlayer.isPlaying) {
+                                    mediaPlayer.pause()
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+
+                        // Show Video Player (TextureView)
+                        AndroidView(
+                            factory = { ctx ->
+                                TextureView(ctx).apply {
+                                    surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                                        override fun onSurfaceTextureAvailable(surface: SurfaceTexture, w: Int, h: Int) {
+                                            try {
+                                                mediaPlayer.setDataSource(ctx, Uri.fromFile(localVideoFile))
+                                                mediaPlayer.setSurface(Surface(surface))
+                                                mediaPlayer.isLooping = true
+                                                mediaPlayer.prepare()
+                                                if (isPlaying) mediaPlayer.start()
+                                            } catch (e: Exception) {
+                                                e.printStackTrace()
+                                            }
+                                        }
+
+                                        override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, w: Int, h: Int) {}
+                                        override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean = true
+                                        override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize() // Click handled by parent Box
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = if (selectedCameraTab == 0) "REAR RECORDING" else "FRONT RECORDING",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White.copy(alpha = 0.4f),
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
+                        
+                        // Overlay de Pause quando não está a reproduzir
+                        if (!isPlaying) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                                    .padding(16.dp)
+                            )
+                        }
+                    } else {
+                        // Show Download / Placeholder
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            if (isDownloading) {
+                                CircularProgressIndicator(color = Color.White)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Downloading Evidence...",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White.copy(alpha = 0.7f)
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.CloudDownload,
+                                    contentDescription = "Download",
+                                    tint = Color.White.copy(alpha = 0.8f),
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .background(Color.White.copy(alpha = 0.1f), CircleShape)
+                                        .padding(12.dp)
+                                        .clickable { downloadVideo() }
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = if (downloadError != null) "Error: $downloadError" else "TAP TO DOWNLOAD VIDEO",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (downloadError != null) Red700 else Color.White.copy(alpha = 0.4f),
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp
+                                )
+                                if (videoUrl == null || videoUrl == "PENDING/UNAVAILABLE") {
+                                      Text(
+                                        text = "(No video available)",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White.copy(alpha = 0.3f),
+                                        fontSize = 10.sp
+                                    )
+                                }
+                            }
+                        }
                     }
+                    
+                    // Recording Label (Always visible)
                     Box(
                         modifier = Modifier
-                            .align(Alignment.BottomEnd)
+                            .align(Alignment.TopStart)
                             .padding(12.dp)
-                            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                            .background(Color.Red.copy(alpha = 0.8f), RoundedCornerShape(4.dp))
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "00:30",
+                            text = "REC",
                             color = Color.White,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold
@@ -263,17 +391,18 @@ fun AlertDetailModal(
                                 
                                 map.controller.setCenter(centerPoint)
 
-                                // 2. Draw Geofences
+                                // 2. Draw Geofences (Apenas as INFRINGIDAS)
                                 activeGeofences.forEach { rule ->
-                                    if (visibleMonitors.contains(rule.monitorName)) {
+                                    val isAlertContext = activity.type == pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType.GEOFENCE
+                                    val wasNotified = activity.notifiedMonitors.any { it.name == rule.monitorName }
+                                    val isVisible = visibleMonitors.contains(rule.monitorName)
+
+                                    if (isAlertContext && wasNotified && isVisible) {
                                         rule.geofenceData?.let { (lat, lng, radius) ->
                                             val circle = Polygon(map)
                                             circle.points = Polygon.pointsAsCircle(GeoPoint(lat, lng), radius.toDouble())
                                             
-                                            // Check infraction logic
-                                            val isAlertContext = activity.type == pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType.GEOFENCE
-                                            val wasNotified = activity.notifiedMonitors.any { it.name == rule.monitorName }
-                                            val color = if (isAlertContext && wasNotified) Red700 else SafeGreen
+                                            val color = Red700
                                             
                                             circle.fillPaint.color = android.graphics.Color.argb(70, (color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt())
                                             circle.outlinePaint.color = android.graphics.Color.argb(255, (color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt())
@@ -343,55 +472,45 @@ fun AlertDetailModal(
                                         Color(0xFF6366F1),
                                         "Viewed"
                                     )
-                                    MonitorActionState.CALLED_USER -> Triple(
-                                        Icons.Default.Phone,
-                                        Color(0xFF6366F1),
-                                        "Calling..."
-                                    )
-                                    MonitorActionState.CALLED_112 -> Triple(
-                                        Icons.Default.LocalPolice,
-                                        Red700,
-                                        "Called 112"
-                                    )
-                                    MonitorActionState.ON_THE_WAY -> Triple(
-                                        Icons.AutoMirrored.Filled.DirectionsRun,
-                                        Amber700,
-                                        "On My Way"
-                                    )
-                                    MonitorActionState.MARKED_SAFE -> Triple(
-                                        Icons.Default.CheckCircle,
-                                        Color(0xFF10B981),
-                                        "Marked Safe"
-                                    )
                                 }
                                 
                                 val isSelected = visibleMonitors.contains(action.name)
+                                val isGeofenceAlert = activity.type == pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType.GEOFENCE
     
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .background(Slate50, RoundedCornerShape(8.dp))
                                         .padding(8.dp)
-                                        .clickable {
-                                            if (isSelected) visibleMonitors.remove(action.name)
-                                            else visibleMonitors.add(action.name)
-                                        },
+                                        .then(
+                                            if (isGeofenceAlert) {
+                                                Modifier.clickable {
+                                                    if (isSelected) visibleMonitors.remove(action.name)
+                                                    else visibleMonitors.add(action.name)
+                                                }
+                                            } else Modifier
+                                        ),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    // [NOVO] Checkbox
-                                    Checkbox(
-                                        checked = isSelected,
-                                        onCheckedChange = { checked ->
-                                            if (checked) visibleMonitors.add(action.name)
-                                            else visibleMonitors.remove(action.name)
-                                        },
-                                        colors = CheckboxDefaults.colors(
-                                            checkedColor = Red700,
-                                            uncheckedColor = Slate400,
-                                            checkmarkColor = Color.White
-                                        ),
-                                        modifier = Modifier.scale(0.8f)
-                                    )
+                                    // [MODIFICADO] Checkbox apenas para Geofencing
+                                    if (isGeofenceAlert) {
+                                        Checkbox(
+                                            checked = isSelected,
+                                            onCheckedChange = { checked ->
+                                                if (checked) visibleMonitors.add(action.name)
+                                                else visibleMonitors.remove(action.name)
+                                            },
+                                            colors = CheckboxDefaults.colors(
+                                                checkedColor = Red700,
+                                                uncheckedColor = Slate400,
+                                                checkmarkColor = Color.White
+                                            ),
+                                            modifier = Modifier.scale(0.8f)
+                                        )
+                                    } else {
+                                        // Espaçamento pequeno se não houver checkbox para manter alinhamento
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                    }
     
                                     Box(
                                         modifier = Modifier
@@ -455,34 +574,4 @@ fun AlertDetailModal(
     }
 }
 
-@Composable
-fun DetailCameraTab(
-    title: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier
-) {
-    Box(
-        modifier = modifier
-            .clickable(onClick = onClick)
-            .background(if (isSelected) TabSelectedColor else Color.Transparent)
-            .padding(vertical = 10.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = title,
-            color = if (isSelected) Color.White else Color.Gray,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-            fontSize = 11.sp
-        )
-        if (isSelected) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(2.dp)
-                    .background(Color.Red)
-            )
-        }
-    }
-}
+

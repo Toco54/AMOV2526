@@ -314,7 +314,13 @@ class MonitorDashboardViewModel(
 
                                         status = ActivityAlertStatus.valueOf(statusStr),
 
-                                        notifiedMonitors = monitorsList
+                                        notifiedMonitors = monitorsList,
+                                        
+                                        // Aparentemente o ViewModel original não lia lat/lng aqui,
+                                        // mas para manter consistência com o modelo atualizado:
+                                        latitude = doc.getDouble("latitude"),
+                                        longitude = doc.getDouble("longitude"),
+                                        videoUrl = doc.getString("videoUrl")
 
                                     )
 
