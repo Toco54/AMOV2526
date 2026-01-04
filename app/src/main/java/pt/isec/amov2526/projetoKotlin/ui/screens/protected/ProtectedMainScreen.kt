@@ -50,6 +50,12 @@ fun ProtectedMainScreen(
     val guardViewModel: GuardViewModel = viewModel(factory = GuardViewModelFactory())
 
     var showAlertScreen by remember { mutableStateOf(false) }
+    
+    // [NOVO] Sincronizar estado de emergência com o ViewModel Global para prevenir navegação externa
+    LaunchedEffect(showAlertScreen) {
+        viewModel.isUserInEmergency = showAlertScreen
+    }
+
     var isAlertConfirmed by remember { mutableStateOf(false) }
     var pendingAlertType by remember { mutableStateOf(ActivityAlertType.PANIC) }
     val scope = rememberCoroutineScope()

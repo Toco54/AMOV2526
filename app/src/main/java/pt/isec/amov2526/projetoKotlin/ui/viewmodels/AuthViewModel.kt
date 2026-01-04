@@ -31,6 +31,10 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
     // Dados completos do perfil (para edição)
     var currentUserData by mutableStateOf<UserEntity?>(null)
 
+    // [NOVO] Flag global para indicar que o utilizador está em situação de emergência (AlertScreen ativo)
+    // Isto impede a navegação forçada para o Dashboard de Monitor se receber uma notificação
+    var isUserInEmergency by mutableStateOf(false)
+
     var userName by mutableStateOf<String>("Carregando...")
     var userEmail by mutableStateOf<String>("")
 

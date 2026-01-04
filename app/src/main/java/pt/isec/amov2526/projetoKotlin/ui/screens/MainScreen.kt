@@ -42,19 +42,53 @@ fun MainScreen() {
         val currentViewMode = authViewModel.currentViewMode
         val user = authViewModel.user
         
-        // [NOVO] Observador Global de Alertas para Utilizadores "BOTH"
+        // Observador Global de Alertas para Utilizadores "BOTH"
         // Se o utilizador estiver no modo MONITOR e receber um alerta, forçamos a ida para PROTECTED
         val context = LocalContext.current
         val lifecycleOwner = LocalLifecycleOwner.current
+        
+        // [NOVO] Iniciar Serviço de Notificações do Monitor
+        LaunchedEffect(user) {
+            val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.MonitorNotificationService::class.java)
+            if (user != null) {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            } else {
+                context.stopService(intent)
+            }
+        }
         
         DisposableEffect(lifecycleOwner) {
             val observer = LifecycleEventObserver { _, event ->
                 if (event == Lifecycle.Event.ON_RESUME) {
                     val activity = context as? android.app.Activity
-                    if (activity?.intent?.action == "ACTION_SHOW_ALERT") {
+                    val intent = activity?.intent
+                    
+                    if (intent?.action == "ACTION_SHOW_ALERT") {
                         // Se temos um alerta e não estamos no modo protegido, muda para lá
                         if (authViewModel.currentViewMode != "PROTECTED") {
                             authViewModel.currentViewMode = "PROTECTED"
+                        }
+                    } else if (intent?.action == "ACTION_MONITOR_ALERT") {
+                        // [NOVO] Navegação direta para o Dashboard do Monitor
+                        val targetUid = intent.getStringExtra("TARGET_PROTEGE_ID")
+                        val targetName = intent.getStringExtra("TARGET_PROTEGE_NAME")
+                        
+                        // [CORREÇÃO] Se o utilizador estiver em emergência (AlertScreen aberto), IGNORA a navegação
+                        if (targetUid != null && targetName != null && !authViewModel.isUserInEmergency) {
+                            if (authViewModel.currentViewMode != "MONITOR") {
+                                authViewModel.currentViewMode = "MONITOR"
+                            }
+                            // Navega diretamente, limpando backstack relativo ao monitor se necessário
+                            navController.navigate("monitor/dashboard/$targetUid/$targetName") {
+                                // Evita duplicar se já estiver lá
+                                launchSingleTop = true 
+                            }
+                            // Limpa a action para não re-navegar ao rodar o ecrã
+                            intent.action = null 
                         }
                     }
                 }
