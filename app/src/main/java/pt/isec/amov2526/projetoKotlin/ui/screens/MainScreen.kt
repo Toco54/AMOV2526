@@ -6,18 +6,58 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
-import androidx.navigation.compose.*
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import pt.isec.amov2526.projetoKotlin.ui.screens.auth.ForgotPasswordScreen
+import pt.isec.amov2526.projetoKotlin.ui.screens.auth.LandingScreen
+import pt.isec.amov2526.projetoKotlin.ui.screens.auth.LoginScreen
+import pt.isec.amov2526.projetoKotlin.ui.screens.auth.RegisterScreen
 import pt.isec.amov2526.projetoKotlin.ui.screens.monitor.MonitorDashboardScreen
 import pt.isec.amov2526.projetoKotlin.ui.screens.monitor.MonitorMainScreen
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.ProtectedMainScreen
 import pt.isec.amov2526.projetoKotlin.ui.theme.ProjetoKotlinTheme
+import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
 
 @Composable
 fun MainScreen() {
     ProjetoKotlinTheme {
         val navController = rememberNavController()
+
+        // [CORREÇÃO CRÍTICA] Instanciamos o ViewModel AQUI (no topo).
+        // Esta instância será passada para todos os ecrãs filhos para garantir consistência.
+        val authViewModel: AuthViewModel = viewModel()
+
+        // Observar estado para navegação automática
+        val currentViewMode = authViewModel.currentViewMode
+        val user = authViewModel.user
+
+        // Observador Global de Mudança de Modo e Login
+        LaunchedEffect(user, currentViewMode) {
+            if (user != null && currentViewMode != null) {
+                val destination = if (currentViewMode == "MONITOR") "monitor" else "protected"
+                val currentRoute = navController.currentBackStackEntry?.destination?.route
+
+                // Só navega se não estivermos já no destino correto
+                if (currentRoute != destination) {
+                    navController.navigate(destination) {
+                        // Limpa a pilha até ao início para evitar voltar ao login com "Back"
+                        popUpTo("landing") { inclusive = true }
+                    }
+                }
+            } else if (user == null) {
+                // Se o user for null (logout), volta forçosamente ao landing
+                if (navController.currentBackStackEntry?.destination?.route != "landing") {
+                    navController.navigate("landing") {
+                        popUpTo(0)
+                    }
+                }
+            }
+        }
 
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -29,37 +69,21 @@ fun MainScreen() {
             ) {
                 // --- AUTHENTICATION ---
                 composable("landing") {
-
-                    // Obtemos o estado do ViewModel (que é injetado automaticamente)
-                    val viewModel: pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
-                    val userRole = viewModel.userRole
-                    val user = viewModel.user
-
-                    // Se já houver User e Role carregados, salta para a homepage
-                    LaunchedEffect(key1 = user, key2 = userRole) {
-                        if (user != null && userRole != null) {
-                            val destination = if (userRole == "MONITOR") "monitor" else "protected"
-                            navController.navigate(destination) {
-                                popUpTo("landing") { inclusive = true }
-                            }
-                        }
-                    }
-
-
-                    pt.isec.amov2526.projetoKotlin.ui.screens.auth.LandingScreen(
+                    LandingScreen(
+                        // Passamos o VM se necessário, ou deixamos o Landing criar o seu,
+                        // pois a navegação é gerida pelo LaunchedEffect acima.
                         onLoginClick = { navController.navigate("login") },
                         onRegisterClick = { navController.navigate("register") }
                     )
                 }
 
                 composable("login") {
-                    pt.isec.amov2526.projetoKotlin.ui.screens.auth.LoginScreen(
+                    // [CORREÇÃO] Passamos a MESMA instância do ViewModel
+                    LoginScreen(
+                        viewModel = authViewModel,
                         onBack = { navController.popBackStack() },
-                        onLogin = { role ->
-                            val destination = if(role == "MONITOR") "monitor" else "protected"
-                            navController.navigate(destination) {
-                                popUpTo("landing") { inclusive = true }
-                            }
+                        onLogin = { _ ->
+                            // A navegação é automática pelo LaunchedEffect no MainScreen
                         },
                         onForgotPassword = { navController.navigate("forgot_password") },
                         onSignUpClick = {
@@ -71,14 +95,12 @@ fun MainScreen() {
                 }
 
                 composable("register") {
-                    pt.isec.amov2526.projetoKotlin.ui.screens.auth.RegisterScreen(
+                    // [CORREÇÃO] Passamos a MESMA instância do ViewModel
+                    RegisterScreen(
+                        viewModel = authViewModel,
                         onBack = { navController.popBackStack() },
-                        onSignUp = { role ->
-                            val destination = if (role == "MONITOR") "monitor" else "protected"
-
-                            navController.navigate(destination) {
-                                popUpTo("landing") { inclusive = true }
-                            }
+                        onSignUp = { _ ->
+                            // Navegação automática
                         },
                         onLoginClick = {
                             navController.navigate("login") {
@@ -89,29 +111,32 @@ fun MainScreen() {
                 }
 
                 composable("forgot_password") {
-                    pt.isec.amov2526.projetoKotlin.ui.screens.auth.ForgotPasswordScreen(
-                        onBack = { navController.popBackStack() }
+                    ForgotPasswordScreen(
+                        onBack = {
+                            navController.popBackStack()
+                        }
                     )
                 }
 
                 // --- PERFIL PROTEGIDO ---
                 composable("protected") {
+                    // [CORREÇÃO] Passamos a instância para permitir o Switch Mode e Logout
                     ProtectedMainScreen(
+                        viewModel = authViewModel, // Usa o parametro viewModel do ProtectedMainScreen
                         onLogout = {
-                            navController.navigate("landing") {
-                                popUpTo("protected") { inclusive = true }
-                            }
+                            authViewModel.logout()
+                            // Navegação tratada pelo LaunchedEffect
                         }
                     )
                 }
 
                 // --- PERFIL MONITOR ---
                 composable("monitor") {
+                    // [CORREÇÃO] Passamos a instância para permitir o Switch Mode e Logout
                     MonitorMainScreen(
+                        viewModel = authViewModel, // Passamos como viewModel (AuthViewModel)
                         onLogout = {
-                            navController.navigate("landing") {
-                                popUpTo("monitor") { inclusive = true }
-                            }
+                            authViewModel.logout()
                         },
                         onProtegeClick = { protegeName, protegeUid ->
                             navController.navigate("monitor/dashboard/$protegeUid/$protegeName")
@@ -129,7 +154,7 @@ fun MainScreen() {
                 ) { backStackEntry ->
                     val uid = backStackEntry.arguments?.getString("uid") ?: ""
                     val name = backStackEntry.arguments?.getString("name") ?: "Unknown"
-                    
+
                     MonitorDashboardScreen(
                         protegeUid = uid,
                         protegeName = name,

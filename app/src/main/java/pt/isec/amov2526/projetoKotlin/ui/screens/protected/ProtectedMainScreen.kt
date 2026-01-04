@@ -28,7 +28,6 @@ import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
 import pt.isec.amov2526.projetoKotlin.utils.LocationHelper
 import pt.isec.amov2526.projetoKotlin.data.model.InfractionDisplayInfo
 
-// [NOVO] Estrutura para fila de alertas
 data class PendingAlert(
     val type: ActivityAlertType,
     val details: String?,
@@ -48,30 +47,24 @@ fun ProtectedMainScreen(
     val context = LocalContext.current
     val keyguardManager = context.getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
 
-    // --- VIEWMODEL PARTILHADO ---
-    // Instanciamos aqui para partilhar o mesmo LocationHelper com o GuardScreen
     val guardViewModel: GuardViewModel = viewModel(factory = GuardViewModelFactory())
 
-    // --- ESTADOS GLOBAIS DE ALERTA ---
     var showAlertScreen by remember { mutableStateOf(false) }
-    var isAlertConfirmed by remember { mutableStateOf(false) } // [NOVO] Estado "Lifted"
+    var isAlertConfirmed by remember { mutableStateOf(false) }
     var pendingAlertType by remember { mutableStateOf(ActivityAlertType.PANIC) }
     val scope = rememberCoroutineScope()
-    
-    // [NOVO] Fila de Alertas
+
     val alertQueue = remember { mutableStateListOf<PendingAlert>() }
 
-    // Location Helper Global
     val locationHelper = remember { LocationHelper(context) }
     val currentLocation by locationHelper.currentLocation.collectAsState(initial = null)
-    val activeGeofences by guardViewModel.activeGeofences.collectAsState() // [NOVO]
+    val activeGeofences by guardViewModel.activeGeofences.collectAsState()
 
     LaunchedEffect(Unit) {
         guardViewModel.setLocationHelper(locationHelper)
         locationHelper.startLocationUpdates(2000L)
     }
 
-    // Listener de Logout
     LaunchedEffect(viewModel.user) {
         if (viewModel.user == null) {
             if (protectedViewModel.isProtectionActive) protectedViewModel.toggleProtection()
@@ -79,15 +72,13 @@ fun ProtectedMainScreen(
         }
     }
 
-    // --- DETETOR DE ALERTAS (INTENTS) ---
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val activity = LocalContext.current as? android.app.Activity
-    var alertInitialSeconds by remember { mutableIntStateOf(10) } // [NOVO]
-    var alertDetails by remember { mutableStateOf<String?>(null) } // [NOVO]
-    var alertId by remember { mutableStateOf<String?>(null) } // [NOVO] Renomeado de alertIdFromIntent
-    var alertInfractions by remember { mutableStateOf<List<InfractionDisplayInfo>>(emptyList()) } // [NOVO]
+    var alertInitialSeconds by remember { mutableIntStateOf(10) }
+    var alertDetails by remember { mutableStateOf<String?>(null) }
+    var alertId by remember { mutableStateOf<String?>(null) }
+    var alertInfractions by remember { mutableStateOf<List<InfractionDisplayInfo>>(emptyList()) }
 
-    // Função auxiliar para processar o próximo alerta da fila
     fun processNextAlert() {
         if (alertQueue.isNotEmpty()) {
             val next = alertQueue.removeAt(0)
@@ -95,18 +86,17 @@ fun ProtectedMainScreen(
             alertDetails = next.details
             alertId = next.id
             alertInfractions = next.infractions
-            
+
             val elapsed = (System.currentTimeMillis() - next.timestamp) / 1000
             val remaining = (10 - elapsed).toInt()
             alertInitialSeconds = if (remaining > 0) remaining else 0
-            
+
             isAlertConfirmed = false
             showAlertScreen = true
         } else {
             showAlertScreen = false
             alertId = null
-            
-            // [NOVO] Avisar o serviço que terminámos tudo para processar a fila dele
+
             val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
                 action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_FINISH_ALERT
             }
@@ -121,21 +111,20 @@ fun ProtectedMainScreen(
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 if (activity?.intent?.action == "ACTION_SHOW_ALERT") {
                     val typeStr = activity.intent.getStringExtra("ALERT_TYPE")
-                    val details = activity.intent.getStringExtra("ALERT_DETAILS") // [NOVO]
-                    val incomingId = activity.intent.getStringExtra("ALERT_ID") // [NOVO] ID do Serviço
+                    val details = activity.intent.getStringExtra("ALERT_DETAILS")
+                    val incomingId = activity.intent.getStringExtra("ALERT_ID")
                     val timestamp = activity.intent.getLongExtra("ALERT_TIMESTAMP", -1L)
 
-                    // [NOVO] Extração das infrações
                     val infractionsStr = activity.intent.getStringExtra("ALERT_INFRACTIONS")
                     val infractionsList = if (infractionsStr != null) {
-                         infractionsStr.split(";").mapNotNull { 
-                             val parts = it.split("|")
-                             if (parts.size >= 3) {
-                                 val param = if(parts.size >= 4) parts[3].ifEmpty { null } else null
-                                 val monId = if(parts.size >= 5) parts[4].ifEmpty { null } else null
-                                 InfractionDisplayInfo(parts[0], parts[1], parts[2], param, monId)
-                             } else null
-                         }
+                        infractionsStr.split(";").mapNotNull {
+                            val parts = it.split("|")
+                            if (parts.size >= 3) {
+                                val param = if(parts.size >= 4) parts[3].ifEmpty { null } else null
+                                val monId = if(parts.size >= 5) parts[4].ifEmpty { null } else null
+                                InfractionDisplayInfo(parts[0], parts[1], parts[2], param, monId)
+                            } else null
+                        }
                     } else {
                         emptyList()
                     }
@@ -144,16 +133,13 @@ fun ProtectedMainScreen(
                         try { ActivityAlertType.valueOf(typeStr) }
                         catch (e: Exception) { ActivityAlertType.PANIC }
                     } else { ActivityAlertType.PANIC }
-                    
+
                     val safeId = incomingId ?: java.util.UUID.randomUUID().toString()
 
-                    // [LÓGICA DE FILA]
                     if (showAlertScreen) {
-                        // Se já estamos num alerta, adiciona à fila
                         alertQueue.add(PendingAlert(type, details, safeId, infractionsList, timestamp))
                         android.util.Log.d("ProtectedMainScreen", "Alert enqueued. Queue size: ${alertQueue.size}")
                     } else {
-                        // Processa imediatamente
                         pendingAlertType = type
                         alertDetails = details
                         alertId = safeId
@@ -179,7 +165,6 @@ fun ProtectedMainScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // --- O POPUP DE ALERTA GLOBAL ---
     if (showAlertScreen) {
         android.util.Log.d("ProtectedMainScreen", "Showing AlertScreen. Active Geofences Count: ${activeGeofences.size}")
         Dialog(
@@ -192,32 +177,19 @@ fun ProtectedMainScreen(
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 AlertScreen(
-                    alertType = pendingAlertType.name, 
-                    alertDetails = alertDetails, 
-                    alertIdFromIntent = alertId, // [NOVO]
+                    alertType = pendingAlertType.name,
+                    alertDetails = alertDetails,
+                    alertIdFromIntent = alertId,
                     currentLocation = currentLocation,
-                    activeGeofences = activeGeofences, // [NOVO]
-                    infractions = alertInfractions, // [NOVO]
+                    activeGeofences = activeGeofences,
+                    infractions = alertInfractions,
                     initialSeconds = alertInitialSeconds,
-                    isConfirmedState = isAlertConfirmed, // [NOVO] Passar estado
-                    onCancel = {
-                        // Cancelar ANTES de confirmar: Tenta processar o próximo
-                        processNextAlert()
-                    },
+                    isConfirmedState = isAlertConfirmed,
+                    onCancel = { processNextAlert() },
                     onConfirm = {
-                        isAlertConfirmed = true // [CORREÇÃO] Confirmar (UI Only)
-                        
-                        // [NOVO] Extrair UIDs alvo das infrações (se houver)
+                        isAlertConfirmed = true
                         val targetMonitors = alertInfractions.mapNotNull { it.monitorId }.distinct().ifEmpty { null }
-
-                        // Confirmar (SOS enviado):
-                        // 1. Envia para a Firebase usando o ID QUE JÁ EXISTE (alertId)
-                        // Passamos os monitores alvo para evitar enviar a todos
-                        guardViewModel.sendAlert(pendingAlertType, alertId, targetMonitors) { 
-                            // Callback opcional, ID manteve-se
-                        }
-
-                        // 2. Avisa o Serviço para parar o timer de contagem, mas manter bloqueado
+                        guardViewModel.sendAlert(pendingAlertType, alertId, targetMonitors) { }
                         val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
                             action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_STOP_TIMER
                         }
@@ -227,45 +199,36 @@ fun ProtectedMainScreen(
                         scope.launch {
                             val isValid = guardViewModel.verifyPin(pin)
                             if (isValid) {
-                                // PIN Válido: Para o alerta no serviço
                                 val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
                                     action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_FINISH_ALERT
                                 }
                                 context.startService(intent)
-
                                 if (keyguardManager.isDeviceLocked) activity?.finish()
-                                
-                                // Verifica a fila local
                                 processNextAlert()
                             } else {
                                 Toast.makeText(context, "Invalid PIN", Toast.LENGTH_SHORT).show()
                             }
                         }
-                        false // Retorna false para impedir fecho automático pelo componente
+                        false
                     }
                 )
             }
         }
     }
 
-    // --- UI NORMAL DA APP ---
     var isEditingProfile by remember { mutableStateOf(false) }
     var showGoOnlineDialog by remember { mutableStateOf(false) }
-    var showOverlayPermissionDialog by remember { mutableStateOf(false) } // [NOVO] Dialogo para permissão de Overlay
+    var showOverlayPermissionDialog by remember { mutableStateOf(false) }
     val currentUserData = viewModel.currentUserData
 
-    // Verificar permissoes ao iniciar
     LaunchedEffect(Unit) {
         if (!protectedViewModel.isProtectionActive) showGoOnlineDialog = true
-
-        // [NOVO] Verifica se tem permissão para sobrepor outras apps (Android 10+)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M &&
             !android.provider.Settings.canDrawOverlays(context)) {
             showOverlayPermissionDialog = true
         }
     }
 
-    // [NOVO] Dialogo para pedir permissão de sobreposição
     if (showOverlayPermissionDialog) {
         AlertDialog(
             onDismissRequest = { showOverlayPermissionDialog = false },
@@ -327,20 +290,18 @@ fun ProtectedMainScreen(
         ) { innerPadding ->
             NavHost(navController = navController, startDestination = "guard", modifier = Modifier.padding(innerPadding)) {
                 composable("guard") {
-                    // Passamos o ViewModel partilhado e o callback de Pânico
                     GuardScreen(
                         viewModel = guardViewModel,
                         protectedViewModel = protectedViewModel,
                         onPanic = {
                             pendingAlertType = ActivityAlertType.PANIC
-                            alertId = java.util.UUID.randomUUID().toString() 
-                            alertInitialSeconds = 10 
-                            alertDetails = null // [CORREÇÃO] Limpar detalhes anteriores
-                            alertInfractions = emptyList() // [CORREÇÃO] Limpar infrações anteriores
+                            alertId = java.util.UUID.randomUUID().toString()
+                            alertInitialSeconds = 10
+                            alertDetails = null
+                            alertInfractions = emptyList()
                             isAlertConfirmed = false
                             showAlertScreen = true
 
-                            // [NOVO] Avisar serviço que começou alerta manual
                             val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
                                 action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_START_ALERT
                             }
@@ -349,10 +310,10 @@ fun ProtectedMainScreen(
                     )
                 }
                 composable("monitors") { MonitorsScreen() }
-                composable("activity") { 
+                composable("activity") {
                     ActivityScreen(
-                        activeGeofences = activeGeofences // [NOVO] Passa as regras de geofence para o ecrã de histórico
-                    ) 
+                        activeGeofences = activeGeofences
+                    )
                 }
                 composable("profile") {
                     ProfileScreen(
@@ -365,6 +326,9 @@ fun ProtectedMainScreen(
                                 if (protectedViewModel.isProtectionActive) protectedViewModel.toggleProtection()
                                 viewModel.logout()
                             }
+                        },
+                        onSwitchMode = {
+                            viewModel.switchViewMode()
                         }
                     )
                 }

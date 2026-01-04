@@ -7,10 +7,6 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,12 +26,10 @@ fun ProfileScreen(
     email: String = "email@example.com",
     currentPin: String = "1234",
     onEditProfile: () -> Unit = {},
-    onConfigureMonitor: () -> Unit = {},
     onAppSettings: () -> Unit = {},
-    onLogout: () -> Unit = {}
+    onLogout: () -> Unit = {},
+    onSwitchMode: () -> Unit = {}
 ) {
-    var showMonitorDialog by remember { mutableStateOf(false) }
-
     // Vista Principal do Perfil
     Column(
         modifier = Modifier
@@ -97,11 +91,11 @@ fun ProfileScreen(
                 onClick = onEditProfile
             )
 
+            // Botão único para troca de modo
             ProfileActionButton(
-                text = "Configure Monitor Profile",
-                icon = Icons.Default.Visibility,
-                onClick = { showMonitorDialog = true },
-                customContentColor = Color(0xFF4CAF50)
+                text = "Switch to Monitor Mode",
+                icon = Icons.Default.SwapHoriz,
+                onClick = onSwitchMode
             )
 
             ProfileActionButton(
@@ -118,38 +112,5 @@ fun ProfileScreen(
                 showArrow = false
             )
         }
-    }
-
-    // Diálogo de Confirmação Monitor
-    if (showMonitorDialog) {
-        AlertDialog(
-            onDismissRequest = { showMonitorDialog = false },
-            title = {
-                Text(text = "Configure Monitor Profile")
-            },
-            text = {
-                Text(
-                    text = "Are you sure you want to Configure a Monitor profile? " +
-                            "You will be able to supervise Protected users."
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showMonitorDialog = false
-                        onConfigureMonitor()
-                    }
-                ) {
-                    Text(text = "Confirm")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showMonitorDialog = false }
-                ) {
-                    Text(text = "Cancel")
-                }
-            }
-        )
     }
 }

@@ -19,7 +19,10 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
 
     // Para navegação: guardar se é Monitor ou Protegido
     var userRole by mutableStateOf<String?>(null)
-    
+
+    // [NOVO] Modo de Visualização Atual (Dinâmico para permitir switch)
+    var currentViewMode by mutableStateOf<String?>(null)
+
     // Dados completos do perfil (para edição)
     var currentUserData by mutableStateOf<UserEntity?>(null)
 
@@ -43,13 +46,31 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
                 currentUserData = fullUser
                 userRole = fullUser.role
                 userName = fullUser.name
+
+                // [NOVO] Inicializa o modo de visualização com o role da BD se ainda não estiver definido
+                if (currentViewMode == null) {
+                    currentViewMode = fullUser.role
+                }
             } else {
                 // Fallback (ex: erro de rede ou não encontrado)
                 userRole = repository.getUserRole(uid)
+                if (currentViewMode == null) {
+                    currentViewMode = userRole
+                }
+
                 val nameFromDb = repository.getUserName(uid)
                 if (nameFromDb != null) userName = nameFromDb
             }
             isLoading = false
+        }
+    }
+
+    // [NOVO] Função para alternar entre modos
+    fun switchViewMode() {
+        currentViewMode = if (currentViewMode == "MONITOR") {
+            "PROTECTED"
+        } else {
+            "MONITOR"
         }
     }
 
@@ -60,7 +81,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
             val result = repository.login(email, pass)
             if (result.isSuccess) {
                 user = repository.currentUser
-                
+
                 // Initial Ping: Set lastUpdate immediately so Monitor sees user as Online
                 if (user != null) {
                     try {
@@ -71,7 +92,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
                         // Ignore network error on initial ping
                     }
                 }
-                
+
                 loadUserData(user!!.uid, user!!.email ?: "")
             } else {
                 val exception = result.exceptionOrNull()
@@ -96,6 +117,10 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
                 userRole = if (isMonitor) "MONITOR" else "PROTECTED"
                 userName = name
                 userEmail = email
+
+                // [NOVO] Define o modo inicial após registo
+                currentViewMode = userRole
+
                 // Force load to set currentUserData
                 loadUserData(user!!.uid, email)
             } else {
@@ -133,10 +158,10 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
     }
 
     fun updateProfile(
-        name: String, 
-        email: String, 
-        pass: String?, 
-        pin: String?, 
+        name: String,
+        email: String,
+        pass: String?,
+        pin: String?,
         currentPass: String? = null,
         onSuccess: () -> Unit = {},
         onError: (String) -> Unit = {}
@@ -169,6 +194,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
             repository.logout()
             user = null
             userRole = null
+            currentViewMode = null // [NOVO] Reset ao modo
             userName = ""
             currentUserData = null
         }

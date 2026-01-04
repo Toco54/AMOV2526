@@ -7,15 +7,22 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import pt.isec.amov2526.projetoKotlin.ui.components.EditProfileView
 import pt.isec.amov2526.projetoKotlin.ui.screens.monitor.components.main.*
@@ -26,6 +33,7 @@ import pt.isec.amov2526.projetoKotlin.ui.viewmodels.MonitorMainViewModel
 private val Slate50 = Color(0xFFF8FAFC)
 private val Slate400 = Color(0xFF94A3B8)
 private val Slate900 = Color(0xFF0F172A)
+private val Indigo600 = Color(0xFF4F46E5)
 
 @Composable
 fun MonitorMainScreen(
@@ -37,11 +45,17 @@ fun MonitorMainScreen(
     val realName = viewModel.userName
     val realEmail = viewModel.userEmail
     val proteges = monitorViewModel.proteges
+
+    // Estados de UI
     var showProfileMenu by remember { mutableStateOf(false) }
-    var showConfigureProtectedModal by remember { mutableStateOf(false) }
     var showEnterCodeModal by remember { mutableStateOf(false) }
     var isEditingProfile by remember { mutableStateOf(false) }
     val connectionCandidate = monitorViewModel.connectionCandidate
+
+    // Estados para Switch Mode (PIN Check)
+    var showSetPinDialog by remember { mutableStateOf(false) }
+    var newPin by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf<String?>(null) }
 
     // Observe user state to trigger navigation after logout
     LaunchedEffect(viewModel.user) {
@@ -55,7 +69,7 @@ fun MonitorMainScreen(
             showEnterCodeModal = false
         }
     }
-    
+
     val context = LocalContext.current
 
     if (isEditingProfile) {
@@ -172,12 +186,19 @@ fun MonitorMainScreen(
                             showProfileMenu = false
                             isEditingProfile = true
                         },
-                        onConfigureProtected = {
-                            showProfileMenu = false
-                            showConfigureProtectedModal = true
-                        },
                         onLogout = {
                             viewModel.logout()
+                        },
+                        onSwitchMode = {
+                            val currentPin = viewModel.currentUserData?.pin
+                            if (!currentPin.isNullOrBlank()) {
+                                // Se já tem PIN, troca direto
+                                viewModel.switchViewMode()
+                            } else {
+                                // Se não tem PIN, pede para definir
+                                showProfileMenu = false
+                                showSetPinDialog = true
+                            }
                         }
                     )
                 }
@@ -188,11 +209,11 @@ fun MonitorMainScreen(
     if (connectionCandidate != null) {
         ConfirmConnectionDialog(
             candidate = connectionCandidate,
-            errorMsg = monitorViewModel.errorMsg, // Pass Error
+            errorMsg = monitorViewModel.errorMsg,
             onAccept = {
                 monitorViewModel.acceptConnection {
                     Toast.makeText(context, "Protege Connected Successfully!", Toast.LENGTH_LONG).show()
-                    showEnterCodeModal = false // Close code modal too
+                    showEnterCodeModal = false
                 }
             },
             onReject = {
@@ -201,17 +222,106 @@ fun MonitorMainScreen(
         )
     }
 
-    if (showConfigureProtectedModal) {
-        ConfigureProtectedModal(
-            onDismiss = { showConfigureProtectedModal = false },
-            onConfirm = { showConfigureProtectedModal = false }
-        )
-    }
-
     if (showEnterCodeModal) {
         EnterCodeModal(
             viewModel = monitorViewModel,
             onDismiss = { showEnterCodeModal = false }
         )
+    }
+
+    // Dialog para Definir PIN (caso o Monitor não tenha)
+    if (showSetPinDialog) {
+        Dialog(onDismissRequest = { showSetPinDialog = false }) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = Indigo600,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Set Security PIN",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "To use Protected Mode, you must define a 4-digit PIN for cancelling alerts.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = newPin,
+                        onValueChange = {
+                            if (it.length <= 4 && it.all { char -> char.isDigit() }) {
+                                newPin = it
+                            }
+                        },
+                        label = { Text("Enter 4-digit PIN") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        isError = pinError != null,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (pinError != null) {
+                        Text(
+                            text = pinError!!,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(start = 8.dp, top = 4.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Row(
+                        horizontalArrangement = Arrangement.End,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        TextButton(onClick = { showSetPinDialog = false }) {
+                            Text("Cancel")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                if (newPin.length == 4) {
+                                    // Atualiza o perfil com o novo PIN
+                                    viewModel.updateProfile(
+                                        name = viewModel.userName,
+                                        email = viewModel.userEmail,
+                                        pass = null,
+                                        pin = newPin,
+                                        onSuccess = {
+                                            showSetPinDialog = false
+                                            viewModel.switchViewMode() // Troca após sucesso
+                                        },
+                                        onError = {
+                                            pinError = it
+                                        }
+                                    )
+                                } else {
+                                    pinError = "PIN must be 4 digits"
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Indigo600)
+                        ) {
+                            Text("Set PIN & Switch")
+                        }
+                    }
+                }
+            }
+        }
     }
 }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.outlined.ManageAccounts
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Shield
@@ -29,7 +30,6 @@ private val Slate100 = Color(0xFFF1F5F9)
 private val Slate200 = Color(0xFFE2E8F0)
 private val Slate500 = Color(0xFF64748B)
 private val Slate900 = Color(0xFF0F172A)
-private val Emerald500 = Color(0xFF10B981)
 private val Red50 = Color(0xFFFEF2F2)
 private val Red600 = Color(0xFFDC2626)
 
@@ -39,8 +39,8 @@ fun ProfileMenuOverlay(
     email: String,
     onDismiss: () -> Unit,
     onEditProfile: () -> Unit,
-    onConfigureProtected: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onSwitchMode: () -> Unit
 ) {
     Card(
         shape = RoundedCornerShape(24.dp),
@@ -74,13 +74,14 @@ fun ProfileMenuOverlay(
                     text = "Edit Profile",
                     onClick = onEditProfile
                 )
+
+                // Botão único para troca de modo
                 MenuOptionButton(
-                    icon = Icons.Outlined.Shield,
-                    text = "Configure Protected Profile",
-                    iconColor = Emerald500,
-                    textColor = Emerald500,
-                    onClick = onConfigureProtected
+                    icon = Icons.Default.SwapHoriz,
+                    text = "Switch to Protected Mode",
+                    onClick = onSwitchMode
                 )
+
                 MenuOptionButton(
                     icon = Icons.Outlined.Settings,
                     text = "App Settings",
