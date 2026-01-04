@@ -20,6 +20,9 @@ import pt.isec.amov2526.projetoKotlin.data.model.MonitorAction
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
 import pt.isec.amov2526.projetoKotlin.data.model.RuleType
+import pt.isec.amov2526.projetoKotlin.data.model.RuleInfraction
+import pt.isec.amov2526.projetoKotlin.ui.MainActivity
+import pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel
 import pt.isec.amov2526.projetoKotlin.utils.*
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -51,7 +54,7 @@ class SafetyMonitorService : Service() {
     private var pausedUntil: Long = 0L
 
 
-    private var groupStatuses = mutableMapOf<RuleType, pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel.ProtectionStatus>()
+    private var groupStatuses = mutableMapOf<RuleType, GuardViewModel.ProtectionStatus>()
     private val ruleStatusCache = mutableMapOf<String, Boolean>()
 
     private lateinit var locationHelper: LocationHelper
@@ -68,7 +71,7 @@ class SafetyMonitorService : Service() {
         val type: ActivityAlertType,
         val details: String?,
         val monitors: List<String>?,
-        val infractions: List<pt.isec.amov2526.projetoKotlin.data.model.RuleInfraction>?,
+        val infractions: List<RuleInfraction>?,
         val alertId: String
     )
     private val serviceQueue = mutableListOf<PendingServiceAlert>()
@@ -228,7 +231,7 @@ class SafetyMonitorService : Service() {
         }
     }
 
-    private fun triggerAlertSequence(type: ActivityAlertType, details: String?, monitors: List<String>?, infractions: List<pt.isec.amov2526.projetoKotlin.data.model.RuleInfraction>?) {
+    private fun triggerAlertSequence(type: ActivityAlertType, details: String?, monitors: List<String>?, infractions: List<RuleInfraction>?) {
         val alertId = java.util.UUID.randomUUID().toString()
         if (isAlertInProgress) {
             Log.d("SafetyMonitorService", "Alert in progress. Enqueuing $type")
@@ -240,7 +243,7 @@ class SafetyMonitorService : Service() {
         scheduleAlertCreation(type, details, monitors, infractions, alertId)
     }
 
-    private fun scheduleAlertCreation(type: ActivityAlertType, details: String?, monitors: List<String>?, infractions: List<pt.isec.amov2526.projetoKotlin.data.model.RuleInfraction>?, alertId: String) {
+    private fun scheduleAlertCreation(type: ActivityAlertType, details: String?, monitors: List<String>?, infractions: List<RuleInfraction>?, alertId: String) {
         alertJob = serviceScope.launch {
             delay(10000L)
             if (isActive) {
@@ -266,7 +269,7 @@ class SafetyMonitorService : Service() {
         }
     }
 
-    private fun launchAlertUI(type: ActivityAlertType, details: String?, infractions: List<pt.isec.amov2526.projetoKotlin.data.model.RuleInfraction>?, alertId: String) {
+    private fun launchAlertUI(type: ActivityAlertType, details: String?, infractions: List<RuleInfraction>?, alertId: String) {
         
         uiTimeoutJob?.cancel()
         uiTimeoutJob = serviceScope.launch {
@@ -277,7 +280,7 @@ class SafetyMonitorService : Service() {
             }
         }
 
-        val intent = Intent(this, pt.isec.amov2526.projetoKotlin.ui.MainActivity::class.java).apply {
+        val intent = Intent(this, MainActivity::class.java).apply {
             action = "ACTION_SHOW_ALERT"
             putExtra("ALERT_TYPE", type.name)
             putExtra("ALERT_TIMESTAMP", System.currentTimeMillis())
@@ -317,7 +320,7 @@ class SafetyMonitorService : Service() {
         } catch (e: Exception) {}
     }
 
-    private suspend fun createAlert(type: ActivityAlertType, title: String, monitors: List<String>?, infractions: List<pt.isec.amov2526.projetoKotlin.data.model.RuleInfraction>?, alertId: String) {
+    private suspend fun createAlert(type: ActivityAlertType, title: String, monitors: List<String>?, infractions: List<RuleInfraction>?, alertId: String) {
         if (!isProtectionActive) return
         val loc = locationHelper.currentLocation.value
         var initialActions: List<MonitorAction>? = null
@@ -407,12 +410,12 @@ class SafetyMonitorService : Service() {
                     
                     val rawGroups = snapshot.get("activeProtections") as? Map<String, Any>
                     if (rawGroups != null) {
-                        val newMap = mutableMapOf<RuleType, pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel.ProtectionStatus>()
+                        val newMap = mutableMapOf<RuleType, GuardViewModel.ProtectionStatus>()
                         rawGroups.forEach { (key, value) ->
                             try {
                                 val type = RuleType.valueOf(key)
                                 if (value is Map<*, *>) {
-                                    newMap[type] = pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel.ProtectionStatus(
+                                    newMap[type] = GuardViewModel.ProtectionStatus(
                                         isEnabled = value["enabled"] as? Boolean ?: true,
                                         pausedUntil = (value["pausedUntil"] as? Number)?.toLong() ?: 0L,
                                         scheduleDays = (value["scheduleDays"] as? List<Number>)?.map { it.toInt() } ?: emptyList(),

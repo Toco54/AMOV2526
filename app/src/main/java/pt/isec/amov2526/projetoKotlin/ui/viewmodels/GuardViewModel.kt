@@ -15,7 +15,10 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorAction
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType
 import pt.isec.amov2526.projetoKotlin.data.model.ProtectionGroup
 import pt.isec.amov2526.projetoKotlin.data.model.RuleType
 import pt.isec.amov2526.projetoKotlin.data.repository.AlertRepository

@@ -15,7 +15,9 @@ import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import pt.isec.amov2526.projetoKotlin.data.model.ConnectedUser
+import pt.isec.amov2526.projetoKotlin.data.model.ActivityItem
 import pt.isec.amov2526.projetoKotlin.data.repository.ConnectionRepository
+import pt.isec.amov2526.projetoKotlin.data.repository.AlertRepository
 import pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService
 
 
@@ -26,11 +28,10 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
     private val db = FirebaseFirestore.getInstance()
     private var monitorListener: ListenerRegistration? = null
 
-    private val alertRepository = pt.isec.amov2526.projetoKotlin.data.repository.AlertRepository()
+    private val alertRepository = AlertRepository()
     private var alertsListener: ListenerRegistration? = null
 
-    var activities =
-        androidx.compose.runtime.mutableStateListOf<pt.isec.amov2526.projetoKotlin.data.model.ActivityItem>()
+    var activities = mutableStateListOf<ActivityItem>()
 
 
     var isLoading by mutableStateOf(false)
