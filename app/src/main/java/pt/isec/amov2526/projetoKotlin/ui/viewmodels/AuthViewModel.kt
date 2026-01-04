@@ -1,17 +1,30 @@
 package pt.isec.amov2526.projetoKotlin.ui.viewmodels
 
+import android.app.Application
+import android.content.Intent
+import android.os.Build
+import androidx.lifecycle.AndroidViewModel
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
+import pt.isec.amov2526.projetoKotlin.SafetySecApp
 import pt.isec.amov2526.projetoKotlin.data.local.UserEntity
 import pt.isec.amov2526.projetoKotlin.data.repository.AuthRepository
+import pt.isec.amov2526.projetoKotlin.services.MonitorNotificationService
+import pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService
 
-class AuthViewModel(application: android.app.Application) :
-    androidx.lifecycle.AndroidViewModel(application) {
+class AuthViewModel(application: Application) :
+    AndroidViewModel(application) {
     private val repository =
-        AuthRepository(application as pt.isec.amov2526.projetoKotlin.SafetySecApp)
+        AuthRepository(application as SafetySecApp)
 
 
     var user by mutableStateOf(repository.currentUser)
@@ -66,17 +79,17 @@ class AuthViewModel(application: android.app.Application) :
 
                 if (fullUser.role == "PROTECTED" || fullUser.role == "BOTH") {
                     try {
-                        com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                        FirebaseFirestore.getInstance()
                             .collection("users").document(uid).get()
                             .addOnSuccessListener { doc ->
                                 val status = doc.getString("systemStatus") ?: "OFFLINE"
                                 if (status == "ACTIVE") {
-                                    val context = getApplication<android.app.Application>()
-                                    val intent = android.content.Intent(
+                                    val context = getApplication<Application>()
+                                    val intent = Intent(
                                         context,
-                                        pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java
+                                        SafetyMonitorService::class.java
                                     )
-                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                                         context.startForegroundService(intent)
                                     } else {
                                         context.startService(intent)
@@ -156,9 +169,9 @@ class AuthViewModel(application: android.app.Application) :
             } else {
                 val exception = result.exceptionOrNull()
                 errorMsg = when (exception) {
-                    is com.google.firebase.auth.FirebaseAuthInvalidUserException -> "User Not Found"
-                    is com.google.firebase.auth.FirebaseAuthInvalidCredentialsException -> "Invalid Credentials"
-                    is com.google.firebase.FirebaseNetworkException -> "Network Error"
+                    is FirebaseAuthInvalidUserException -> "User Not Found"
+                    is FirebaseAuthInvalidCredentialsException -> "Invalid Credentials"
+                    is FirebaseNetworkException -> "Network Error"
                     else -> "Login Failed"
                 }
             }
@@ -179,7 +192,7 @@ class AuthViewModel(application: android.app.Application) :
 
             if (user != null) {
                 try {
-                    com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                    FirebaseFirestore.getInstance()
                         .collection("users").document(user!!.uid)
                         .update("lastUpdate", System.currentTimeMillis())
                 } catch (e: Exception) {
@@ -223,10 +236,10 @@ class AuthViewModel(application: android.app.Application) :
             } else {
                 val exception = result.exceptionOrNull()
                 errorMsg = when (exception) {
-                    is com.google.firebase.auth.FirebaseAuthUserCollisionException -> "Email Already Registered"
-                    is com.google.firebase.auth.FirebaseAuthWeakPasswordException -> "Password Too Weak"
-                    is com.google.firebase.auth.FirebaseAuthInvalidCredentialsException -> "Invalid Email Format"
-                    is com.google.firebase.FirebaseNetworkException -> "Network Error"
+                    is FirebaseAuthUserCollisionException -> "Email Already Registered"
+                    is FirebaseAuthWeakPasswordException -> "Password Too Weak"
+                    is FirebaseAuthInvalidCredentialsException -> "Invalid Email Format"
+                    is FirebaseNetworkException -> "Network Error"
                     else -> "Registration Failed"
                 }
             }
@@ -244,8 +257,8 @@ class AuthViewModel(application: android.app.Application) :
             } else {
                 val exception = result.exceptionOrNull()
                 val error = when (exception) {
-                    is com.google.firebase.auth.FirebaseAuthInvalidUserException -> "Email Not Found"
-                    is com.google.firebase.FirebaseNetworkException -> "Network Error"
+                    is FirebaseAuthInvalidUserException -> "Email Not Found"
+                    is FirebaseNetworkException -> "Network Error"
                     else -> "Reset Failed"
                 }
                 onError(error)
@@ -275,10 +288,11 @@ class AuthViewModel(application: android.app.Application) :
                 loadUserData(u.uid, email)
                 onSuccess()
             } else {
-                val error = when (val exception = result.exceptionOrNull()) {
-                    is com.google.firebase.auth.FirebaseAuthInvalidCredentialsException -> "Current Password Incorrect"
-                    is com.google.firebase.FirebaseNetworkException -> "Network Error"
-                    else -> exception?.message ?: "Update Failed"
+                val exception = result.exceptionOrNull()
+                val error = when (exception) {
+                    is FirebaseAuthInvalidCredentialsException -> "Current Password Incorrect"
+                    is FirebaseNetworkException -> "Network Error"
+                    else -> "Change Failed"
                 }
                 errorMsg = "Update failed: $error"
                 onError(error)
@@ -289,18 +303,18 @@ class AuthViewModel(application: android.app.Application) :
 
     fun logout() {
         viewModelScope.launch {
-            val context = getApplication<android.app.Application>()
+            val context = getApplication<Application>()
             try {
                 context.stopService(
-                    android.content.Intent(
+                    Intent(
                         context,
-                        pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java
+                        SafetyMonitorService::class.java
                     )
                 )
                 context.stopService(
-                    android.content.Intent(
+                    Intent(
                         context,
-                        pt.isec.amov2526.projetoKotlin.services.MonitorNotificationService::class.java
+                        MonitorNotificationService::class.java
                     )
                 )
             } catch (e: Exception) {
