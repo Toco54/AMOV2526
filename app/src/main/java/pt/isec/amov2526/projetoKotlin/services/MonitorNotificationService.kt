@@ -21,6 +21,17 @@ import kotlinx.coroutines.tasks.await
 import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.ui.MainActivity
 
+/**
+ * Serviço de monitorização em background para utilizadores com perfil "Monitor".
+ *
+ * Este serviço é responsável por manter uma escuta ativa (real-time listener) nas conexões do utilizador
+ * para detetar novos alertas gerados pelos seus protegidos.
+ *
+ * Funcionalidades principais:
+ * 1. Executa em Foreground para garantir persistência pelo sistema Android.
+ * 2. Escuta alterações no campo `alertRefs` dos documentos de conexão.
+ * 3. Dispara notificações de sistema de alta prioridade quando um novo alerta é detetado.
+ */
 class MonitorNotificationService : Service() {
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
@@ -28,7 +39,7 @@ class MonitorNotificationService : Service() {
     private val auth = FirebaseAuth.getInstance()
     private var connectionsListener: ListenerRegistration? = null
     
-
+    // Cache local de alertas conhecidos para diferenciar "novos" de "existentes" durante atualizações de snapshot.
     private val knownAlerts = mutableMapOf<String, MutableSet<String>>()
     private var isFirstLoad = true
 
@@ -73,12 +84,15 @@ class MonitorNotificationService : Service() {
         }
     }
 
+    /**
+     * Inicia a escuta nas conexões onde o utilizador atua como "Monitor".
+     */
     private fun startListening() {
         val uid = auth.currentUser?.uid ?: return
 
         Log.d("MonitorService", "Iniciando escuta de conexões para $uid")
         
-
+        // Listener na coleção de conexões para detetar atualizações nos metadados de alertas.
         connectionsListener = db.collection("users").document(uid)
             .collection("connections")
             .whereEqualTo("role", "Protege") 
@@ -93,15 +107,15 @@ class MonitorNotificationService : Service() {
                         val protegeId = doc.getString("uid") ?: return@forEach
                         val protegeName = doc.getString("name") ?: "Protegido"
                         
-                        
+                        // Detetar alertas novos comparando com a cache local.
                         val rawAlerts = doc.get("alertRefs") as? Map<String, String> ?: emptyMap()
                         val currentAlertIds = rawAlerts.keys
 
-                        
+                        // Inicialização da cache na primeira execução
                         if (!knownAlerts.containsKey(protegeId)) {
                             knownAlerts[protegeId] = currentAlertIds.toMutableSet()
                         } else {
-                            
+                            // Cálculo de diferença (Set Difference)
                             val previousIds = knownAlerts[protegeId]!!
                             val newIds = currentAlertIds - previousIds
                             
@@ -112,7 +126,7 @@ class MonitorNotificationService : Service() {
                                     serviceScope.launch {
                                         var finalName = protegeName
                                         
-                                        
+                                        // Tenta resolver o nome real se o cache tiver apenas placeholders
                                         if (finalName == "Protegido" || finalName == "Protege" || finalName == "Monitor" || finalName == "Unknown") {
                                             try {
                                                 val userDoc = db.collection("users").document(protegeId).get().await()
@@ -126,11 +140,12 @@ class MonitorNotificationService : Service() {
                                         }
 
                                         try {
+                                            // Fetch do documento do alerta para obter o Título/Tipo real.
                                             val alertDoc = db.document(alertPath).get().await()
                                             val type = alertDoc.getString("type") ?: "ALERTA"
                                             val title = alertDoc.getString("title") ?: "Novo Incidente"
                                             
-                                            
+                                            // Mapping para texto amigável
                                             val friendlyType = when(type) {
                                                 "FALL" -> "Queda Detetada"
                                                 "ACCIDENT" -> "Acidente"
@@ -145,7 +160,7 @@ class MonitorNotificationService : Service() {
                                             notifyNewAlert(protegeId, finalName, newAlertId, friendlyType)
                                         } catch (e: Exception) {
                                             Log.e("MonitorService", "Erro ao obter detalhes do alerta: ${e.message}")
-                                            
+                                            // Fallback genérico
                                             notifyNewAlert(protegeId, finalName, newAlertId, "Novo Alerta")
                                         }
                                     }
@@ -174,7 +189,7 @@ class MonitorNotificationService : Service() {
             notificationManager.createNotificationChannel(channel)
         }
 
-        
+        // Intent para abrir diretamente o Dashboard do Protegido
         val intent = Intent(this, MainActivity::class.java).apply {
             action = "ACTION_MONITOR_ALERT"
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP

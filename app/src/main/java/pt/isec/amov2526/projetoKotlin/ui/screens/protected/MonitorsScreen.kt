@@ -57,6 +57,14 @@ import pt.isec.amov2526.projetoKotlin.ui.theme.Slate500
 import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
 
+/**
+ * Ecrã de Gestão de Monitores (Protegido).
+ *
+ * Permite ao utilizador protegido:
+ * 1. Visualizar a lista de monitores autorizados.
+ * 2. Revogar acesso a monitores específicos.
+ * 3. Gerar novos códigos de emparelhamento.
+ */
 @Composable
 fun MonitorsScreen(
     viewModel: ProtectedMainViewModel = viewModel()

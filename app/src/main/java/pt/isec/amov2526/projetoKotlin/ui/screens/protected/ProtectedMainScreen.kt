@@ -57,6 +57,9 @@ import pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModelFactory
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
 import pt.isec.amov2526.projetoKotlin.utils.LocationHelper
 
+/**
+ * Estrutura para armazenar alertas que chegam enquanto outro está a ser exibido.
+ */
 data class PendingAlert(
     val type: ActivityAlertType,
     val details: String?,
@@ -65,6 +68,15 @@ data class PendingAlert(
     val timestamp: Long
 )
 
+/**
+ * Container principal do modo "Protegido" (Utilizador monitorizado).
+ *
+ * Responsável por:
+ * 1. Gestão da navegação inferior (Guard, Monitores, Atividade, Perfil).
+ * 2. Gestão global de alertas: Escuta Intents de emergência e apresenta o `AlertScreen` em overlay.
+ * 3. Fila de alertas: Gere múltiplos alertas consecutivos.
+ * 4. Validação de permissões críticas (Sobreposição).
+ */
 @Composable
 fun ProtectedMainScreen(
     navController: NavHostController = rememberNavController(),
@@ -79,6 +91,7 @@ fun ProtectedMainScreen(
 
     val guardViewModel: GuardViewModel = viewModel(factory = GuardViewModelFactory())
 
+    // Estado Mestre de Alerta: Se true, bloqueia a UI normal e mostra o ecrã de emergência.
     var showAlertScreen by remember { mutableStateOf(false) }
 
 
@@ -103,6 +116,7 @@ fun ProtectedMainScreen(
 
     LaunchedEffect(viewModel.user) {
         if (viewModel.user == null) {
+            // Cleanup ao sair
             if (protectedViewModel.isProtectionActive) protectedViewModel.toggleProtection()
             onLogout()
         }
@@ -116,6 +130,9 @@ fun ProtectedMainScreen(
     var alertInfractions by remember { mutableStateOf<List<InfractionDisplayInfo>>(emptyList()) }
     val invalidPinError = stringResource(R.string.error_invalid_pin)
 
+    /**
+     * Processa o próximo alerta na fila ou encerra o modo de emergência se a fila estiver vazia.
+     */
     fun processNextAlert() {
         if (alertQueue.isNotEmpty()) {
             val next = alertQueue.removeAt(0)
@@ -124,6 +141,7 @@ fun ProtectedMainScreen(
             alertId = next.id
             alertInfractions = next.infractions
 
+            // Ajusta o tempo restante baseando-se no timestamp original do evento.
             val elapsed = (System.currentTimeMillis() - next.timestamp) / 1000
             val remaining = (10 - elapsed).toInt()
             alertInitialSeconds = if (remaining > 0) remaining else 0
@@ -131,9 +149,11 @@ fun ProtectedMainScreen(
             isAlertConfirmed = false
             showAlertScreen = true
         } else {
+            // Fim da sequência de alertas
             showAlertScreen = false
             alertId = null
 
+            // Notifica o serviço que a sequência terminou
             val intent = Intent(
                 context,
                 SafetyMonitorService::class.java
@@ -147,6 +167,7 @@ fun ProtectedMainScreen(
         }
     }
 
+    // Escuta Intents de Alerta enviados pelo SafetyMonitorService.
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
@@ -156,6 +177,7 @@ fun ProtectedMainScreen(
                     val incomingId = activity.intent.getStringExtra("ALERT_ID")
                     val timestamp = activity.intent.getLongExtra("ALERT_TIMESTAMP", -1L)
 
+                    // Deserialização manual da lista de infrações
                     val infractionsStr = activity.intent.getStringExtra("ALERT_INFRACTIONS")
                     val infractionsList = if (infractionsStr != null) {
                         infractionsStr.split(";").mapNotNull {
@@ -183,6 +205,7 @@ fun ProtectedMainScreen(
                     val safeId = incomingId ?: java.util.UUID.randomUUID().toString()
 
                     if (showAlertScreen) {
+                        // Se já estamos num alerta, adiciona à fila.
                         alertQueue.add(
                             PendingAlert(
                                 type,
@@ -197,12 +220,13 @@ fun ProtectedMainScreen(
                             "Alert enqueued. Queue size: ${alertQueue.size}"
                         )
 
-
-
+                        // Se o alerta atual já foi confirmado (vídeo a gravar), não interrompe.
+                        // Se ainda está em contagem, a fila será processada sequencialmente.
                         if (isAlertConfirmed) {
                             processNextAlert()
                         }
                     } else {
+                        // Inicia novo alerta imediato
                         pendingAlertType = type
                         alertDetails = details
                         alertId = safeId
@@ -233,6 +257,7 @@ fun ProtectedMainScreen(
             "ProtectedMainScreen",
             "Showing AlertScreen. Active Geofences Count: ${activeGeofences.size}"
         )
+        // Dialog FullScreen que bloqueia navegação para trás
         Dialog(
             onDismissRequest = { },
             properties = DialogProperties(
@@ -242,8 +267,6 @@ fun ProtectedMainScreen(
             )
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-
-
                 key(alertId) {
                     AlertScreen(
                         alertType = pendingAlertType.name,
@@ -257,10 +280,13 @@ fun ProtectedMainScreen(
                         onCancel = { processNextAlert() },
                         onConfirm = {
                             isAlertConfirmed = true
+                            // Envia sinal ao backend
                             val targetMonitors =
                                 alertInfractions.mapNotNull { it.monitorId }.distinct()
                                     .ifEmpty { null }
                             guardViewModel.sendAlert(pendingAlertType, alertId, targetMonitors) { }
+                            
+                            // Para o temporizador de serviço
                             val intent = Intent(
                                 context,
                                 SafetyMonitorService::class.java
@@ -274,6 +300,7 @@ fun ProtectedMainScreen(
                             scope.launch {
                                 val isValid = guardViewModel.verifyPin(pin)
                                 if (isValid) {
+                                    // PIN válido: Cancela alerta
                                     val intent = Intent(
                                         context,
                                         SafetyMonitorService::class.java
@@ -283,6 +310,7 @@ fun ProtectedMainScreen(
                                             SafetyMonitorService.ACTION_FINISH_ALERT
                                     }
                                     context.startService(intent)
+                                    // Se estava sobre o Lockscreen, fecha para o utilizador poder usar o telemóvel
                                     if (keyguardManager.isDeviceLocked) activity?.finish()
                                     processNextAlert()
                                 } else {
@@ -303,6 +331,7 @@ fun ProtectedMainScreen(
     var showEnableMonitorDialog by remember { mutableStateOf(false) }
     val currentUserData = viewModel.currentUserData
 
+    // Verificação de permissões de sobreposição ao iniciar.
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
             !Settings.canDrawOverlays(context)
@@ -396,6 +425,7 @@ fun ProtectedMainScreen(
                         viewModel = guardViewModel,
                         protectedViewModel = protectedViewModel,
                         onPanic = {
+                            // Inicia Alerta de Pânico Manual
                             pendingAlertType = ActivityAlertType.PANIC
                             alertId = java.util.UUID.randomUUID().toString()
                             alertInitialSeconds = 10
@@ -426,6 +456,7 @@ fun ProtectedMainScreen(
                         name = viewModel.userName, email = viewModel.userEmail,
                         onEditProfile = { isEditingProfile = true },
                         onLogout = {
+                            // Logout Seguro: Garante estado OFFLINE antes de sair.
                             val uid = viewModel.user?.uid
                             viewModel.viewModelScope.launch {
                                 try {

@@ -53,6 +53,11 @@ import pt.isec.amov2526.projetoKotlin.ui.theme.Slate800
 import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
 
+/**
+ * Ecrã de Recuperação de Password.
+ *
+ * Interface simples para solicitar o envio de um email de reset de password via Firebase Auth.
+ */
 @Composable
 fun ForgotPasswordScreen(
     onBack: () -> Unit,

@@ -14,18 +14,31 @@ import com.google.android.gms.location.Priority
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+/**
+ * Abstração reativa para a API Fused Location Provider da Google.
+ *
+ * Transforma o modelo de callbacks da API do Google num `StateFlow` moderno do Kotlin,
+ * facilitando a integração com ViewModels e Serviços sem "Callback Hell".
+ *
+ * @param context Contexto da aplicação (deve ser ApplicationContext para evitar memory leaks).
+ */
 class LocationHelper(private val context: Context) {
 
     private val fusedLocationClient: FusedLocationProviderClient =
         LocationServices.getFusedLocationProviderClient(context)
 
-
+    // Fonte única de verdade para a localização atual.
     private val _currentLocation = MutableStateFlow<Location?>(null)
     val currentLocation = _currentLocation.asStateFlow()
 
     private var locationCallback: LocationCallback? = null
 
-
+    /**
+     * Inicia o pedido de atualizações de localização periódicas.
+     * Requer permissões `ACCESS_FINE_LOCATION` ou `ACCESS_COARSE_LOCATION` garantidas previamente.
+     *
+     * @param intervalMs Intervalo desejado entre atualizações (Default: 5s).
+     */
     @SuppressLint("MissingPermission")
     fun startLocationUpdates(intervalMs: Long = 5000L) {
         if (locationCallback != null) return
@@ -51,6 +64,9 @@ class LocationHelper(private val context: Context) {
         }
     }
 
+    /**
+     * Para as atualizações e remove o callback para poupar bateria.
+     */
     fun stopLocationUpdates() {
         locationCallback?.let {
             fusedLocationClient.removeLocationUpdates(it)
@@ -59,6 +75,10 @@ class LocationHelper(private val context: Context) {
         }
     }
 
+    /**
+     * Tenta obter a última localização conhecida sem iniciar atualizações contínuas.
+     * Útil para inicialização rápida de mapas.
+     */
     @SuppressLint("MissingPermission")
     fun getLastLocation() {
         fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->

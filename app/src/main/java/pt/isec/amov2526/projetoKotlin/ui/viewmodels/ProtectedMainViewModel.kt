@@ -20,7 +20,15 @@ import pt.isec.amov2526.projetoKotlin.data.repository.ConnectionRepository
 import pt.isec.amov2526.projetoKotlin.data.repository.AlertRepository
 import pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService
 
-
+/**
+ * ViewModel principal para o contexto de utilizador "Protegido".
+ *
+ * Responsável por:
+ * 1. Controlar o interruptor mestre de proteção (ON/OFF).
+ * 2. Gerir a lista de Monitores autorizados.
+ * 3. Gerar códigos de emparelhamento para adicionar novos Monitores.
+ * 4. Apresentar o histórico de atividades e alertas locais.
+ */
 class ProtectedMainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = ConnectionRepository()
@@ -33,13 +41,12 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
 
     var activities = mutableStateListOf<ActivityItem>()
 
-
     var isLoading by mutableStateOf(false)
     var generatedCode by mutableStateOf<String?>(null)
     var errorMsg by mutableStateOf<String?>(null)
     var monitors = mutableStateListOf<ConnectedUser>()
 
-
+    // Estado local da UI sincronizado com o serviço em background.
     var isProtectionActive by mutableStateOf(SafetyMonitorService.isServiceRunning)
         private set
 
@@ -48,7 +55,6 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
         startListeningAlerts()
         refreshServiceState()
     }
-
 
     private fun startListeningAlerts() {
         alertsListener = alertRepository.listenToAlerts { newActivities ->
@@ -97,7 +103,14 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-
+    /**
+     * Alterna o estado global de proteção.
+     *
+     * Se estiver ativo: Atualiza o Firestore para OFFLINE (o serviço reage e para).
+     * Se estiver inativo: Atualiza o Firestore para ACTIVE e inicia o serviço Foreground.
+     *
+     * @see SafetyMonitorService
+     */
     fun toggleProtection() {
         val context = getApplication<Application>().applicationContext
         val intent = Intent(context, SafetyMonitorService::class.java)
@@ -105,10 +118,8 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
         val db = FirebaseFirestore.getInstance()
 
         if (isProtectionActive) {
-
-
+            // DESLIGAR
             isProtectionActive = false
-
 
             viewModelScope.launch {
                 try {
@@ -119,29 +130,29 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
 
                     val updates = mutableMapOf<String, Any>("systemStatus" to "OFFLINE")
 
-
+                    // Se estava pausado, guardamos o tempo restante para retomar depois.
                     if (status == "PAUSED" && pausedUntil > now) {
                         val remaining = pausedUntil - now
                         updates["storedRemainingPause"] = remaining
                         updates["globalPausedUntil"] = 0L
                     } else if (status == "PAUSED" && pausedUntil == -1L) {
-
+                        // Pausa infinita
                         updates["storedRemainingPause"] = -1L
                         updates["globalPausedUntil"] = 0L
                     } else {
-
+                        // Reset limpo
                         updates["storedRemainingPause"] = 0L
                         updates["globalPausedUntil"] = 0L
                     }
 
                     db.collection("users").document(uid).update(updates).await()
                 } catch (e: Exception) {
-
+                    // Log error
                 }
             }
 
         } else {
-
+            // LIGAR
             viewModelScope.launch {
                 try {
                     val doc = db.collection("users").document(uid).get().await()
@@ -152,27 +163,24 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
                         "lastUpdate" to now
                     )
 
+                    // Restaura estado de pausa se existia.
                     if (storedRemaining > 0) {
-
                         updates["systemStatus"] = "PAUSED"
                         updates["globalPausedUntil"] = now + storedRemaining
                         updates["storedRemainingPause"] = 0L
                     } else if (storedRemaining == -1L) {
-
                         updates["systemStatus"] = "PAUSED"
                         updates["globalPausedUntil"] = -1L
                         updates["storedRemainingPause"] = 0L
                     } else {
-
                         updates["systemStatus"] = "ACTIVE"
                         updates["globalPausedUntil"] = 0L
                         updates["storedRemainingPause"] = 0L
                     }
 
-
                     db.collection("users").document(uid).update(updates).await()
 
-
+                    // Inicia o serviço explicitamente
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         context.startForegroundService(intent)
                     } else {
@@ -187,11 +195,9 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-
     fun refreshServiceState() {
         isProtectionActive = SafetyMonitorService.isServiceRunning
     }
-
 
     fun stopServiceOnly() {
         val context = getApplication<Application>().applicationContext
@@ -200,9 +206,8 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
         isProtectionActive = false
     }
 
-
     fun fetchMonitors() {
-
+       // Placeholder
     }
 
     fun removeMonitor(targetUid: String) {
@@ -211,7 +216,7 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch {
             val result = repository.removeConnection(currentUser.uid, targetUid)
             if (result.isSuccess) {
-
+                // Sucesso
             } else {
                 errorMsg = result.exceptionOrNull()?.message ?: "Failed to remove monitor"
             }

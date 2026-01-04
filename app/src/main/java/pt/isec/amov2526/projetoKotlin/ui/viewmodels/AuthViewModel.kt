@@ -21,6 +21,16 @@ import pt.isec.amov2526.projetoKotlin.data.repository.AuthRepository
 import pt.isec.amov2526.projetoKotlin.services.MonitorNotificationService
 import pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService
 
+/**
+ * ViewModel global de Autenticação.
+ *
+ * Gere o estado da sessão do utilizador, fluxos de login/registo e lógica de navegação inicial (Role-based).
+ * Mantém o estado da UI para:
+ * 1. Campos de formulário e erros.
+ * 2. Estado de carregamento.
+ * 3. Lógica de MFA (Multi-Factor Authentication).
+ * 4. Determinação do modo de vista inicial (Monitor vs Protegido).
+ */
 class AuthViewModel(application: Application) :
     AndroidViewModel(application) {
     private val repository =
@@ -31,28 +41,28 @@ class AuthViewModel(application: Application) :
     var isLoading by mutableStateOf(false)
     var errorMsg by mutableStateOf<String?>(null)
 
-
+    // Estados para fluxo MFA (código enviado por email).
     var mfaRequired by mutableStateOf(false)
     var generatedMfaCode by mutableStateOf<String?>(null)
     var tempUserEmail by mutableStateOf<String?>(null)
 
-
+    // Role determinado após login/fetch do perfil.
     var userRole by mutableStateOf<String?>(null)
 
-
+    // Modo de visualização ativo. Útil para utilizadores com role "BOTH" que podem alternar.
     var currentViewMode by mutableStateOf<String?>(null)
 
-
+    // Dados completos do perfil do utilizador (Nome, PIN, etc.).
     var currentUserData by mutableStateOf<UserEntity?>(null)
 
-
+    // Flag para controlo de UI durante emergências (evita navegação acidental).
     var isUserInEmergency by mutableStateOf(false)
 
     var userName by mutableStateOf<String>("Carregando...")
     var userEmail by mutableStateOf<String>("")
 
     init {
-
+        // Se já existe sessão, carrega os dados imediatamente.
         if (user != null) {
             viewModelScope.launch {
                 loadUserData(user!!.uid, user!!.email ?: "")
@@ -70,13 +80,14 @@ class AuthViewModel(application: Application) :
                 userRole = fullUser.role
                 userName = fullUser.name
 
-
+                // Define o modo inicial. Se for BOTH, começa como PROTECTED por segurança.
                 if (currentViewMode == null) {
-
+                    // Default to Protected if Both, as it's the safer default
                     currentViewMode = if (fullUser.role == "BOTH") "PROTECTED" else fullUser.role
                 }
 
-
+                // Se o utilizador é protegido, verifica se o sistema estava ATIVO antes.
+                // Se sim, reinicia o serviço de monitorização (recuperação de crash/reboot).
                 if (fullUser.role == "PROTECTED" || fullUser.role == "BOTH") {
                     try {
                         FirebaseFirestore.getInstance()
@@ -97,11 +108,11 @@ class AuthViewModel(application: Application) :
                                 }
                             }
                     } catch (e: Exception) {
-
+                        // Ignorar falha na verificação de auto-start
                     }
                 }
             } else {
-
+                // Fallback: Tenta obter apenas o role se o perfil completo falhar
                 userRole = repository.getUserRole(uid)
                 if (currentViewMode == null) {
                     currentViewMode = if (userRole == "BOTH") "PROTECTED" else userRole
@@ -114,7 +125,7 @@ class AuthViewModel(application: Application) :
         }
     }
 
-
+    // Apenas utilizadores "BOTH" (Monitor + Protegido) podem alternar de interface.
     val canSwitchProfile: Boolean
         get() = userRole == "BOTH"
 
@@ -140,26 +151,26 @@ class AuthViewModel(application: Application) :
             if (result.isSuccess) {
                 val uid = result.getOrNull()
                 if (uid != null) {
-
+                    // Verifica se MFA está ativado no perfil local ou remoto.
                     val userEntity = repository.getUser(uid)
                     if (userEntity != null && userEntity.mfaEnabled) {
 
-
+                        // Inicia fluxo MFA
                         tempUserEmail = email
 
-
+                        // Envia email com código
                         val mfaResult = repository.sendMfaEmail(email)
 
                         if (mfaResult.isSuccess) {
                             generatedMfaCode = mfaResult.getOrNull()
                             mfaRequired = true
                         } else {
-
+                            // Falha no envio do email -> aborta login por segurança
                             repository.logout()
                             errorMsg = "Password correta, mas falha ao enviar email de verificação."
                         }
                     } else {
-
+                        // Login direto sem MFA
                         user = repository.currentUser
                         loadUserData(uid, email)
                     }
@@ -182,21 +193,21 @@ class AuthViewModel(application: Application) :
 
     fun verifyMfaCode(inputCode: String) {
         if (inputCode == generatedMfaCode) {
-
+            // Código correto -> Finaliza login
             mfaRequired = false
             generatedMfaCode = null
 
-
+            // Atualiza o estado da UI para refletir o utilizador logado
             user = repository.currentUser
 
-
+            // Atualiza timestamp de login/atividade
             if (user != null) {
                 try {
                     FirebaseFirestore.getInstance()
                         .collection("users").document(user!!.uid)
                         .update("lastUpdate", System.currentTimeMillis())
                 } catch (e: Exception) {
-
+                    // Ignora erro de timestamp não crítico
                 }
                 loadUserData(user!!.uid, user!!.email ?: "")
             }
@@ -228,10 +239,10 @@ class AuthViewModel(application: Application) :
                 userName = name
                 userEmail = email
 
-
+                // Define modo de vista inicial
                 currentViewMode = userRole
 
-
+                // Carrega dados para garantir consistência
                 loadUserData(user!!.uid, email)
             } else {
                 val exception = result.exceptionOrNull()
@@ -284,7 +295,7 @@ class AuthViewModel(application: Application) :
             val result =
                 repository.updateProfile(u.uid, name, email, pass, pin, mfaEnabled, currentPass)
             if (result.isSuccess) {
-
+                // Recarrega dados locais após update remoto
                 loadUserData(u.uid, email)
                 onSuccess()
             } else {
@@ -318,7 +329,7 @@ class AuthViewModel(application: Application) :
                     )
                 )
             } catch (e: Exception) {
-
+                // Ignora se serviços já estiverem parados
             }
 
             repository.logout()

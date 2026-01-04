@@ -24,6 +24,12 @@ import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.tasks.await
 import java.io.File
 
+/**
+ * Gestor de captura e upload de evidências (Vídeo/Áudio) em situações de emergência.
+ *
+ * Utiliza a biblioteca CameraX para gravação de fundo (quando possível) ou pré-visualização.
+ * Gere o ciclo de vida da câmara e a transferência assíncrona para o Firebase Storage.
+ */
 class EvidenceManager(private val context: Context) {
 
     private var activeRecording: Recording? = null
@@ -31,12 +37,24 @@ class EvidenceManager(private val context: Context) {
     private var recordingStartTime: Long = 0L
     private var cameraProvider: ProcessCameraProvider? = null
 
+    /**
+     * Inicia a gravação de vídeo utilizando a câmara traseira.
+     *
+     * Configura a qualidade para a mais baixa possível para garantir uploads rápidos em redes móveis.
+     * Define um limite de duração (12s) para criar clipes curtos e leves.
+     *
+     * @param lifecycleOwner O proprietário do ciclo de vida (Activity/Fragment) para vincular a câmara.
+     * @param surfaceProvider Provider de superfície para pré-visualização (opcional, mas recomendado pelo CameraX).
+     * @param onVideoFinalized Callback invocado quando o vídeo é guardado com sucesso no disco local.
+     * @return O ficheiro temporário onde o vídeo será guardado, ou null se não houver permissões.
+     */
     @SuppressLint("MissingPermission")
     fun startVideoRecording(
         lifecycleOwner: LifecycleOwner,
         surfaceProvider: Preview.SurfaceProvider,
         onVideoFinalized: (File) -> Unit
     ): File? {
+        // Validação defensiva de permissões antes de tentar aceder ao hardware.
         if (ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.CAMERA
@@ -56,6 +74,7 @@ class EvidenceManager(private val context: Context) {
         val executor = ContextCompat.getMainExecutor(context)
 
         cameraProviderFuture.addListener({
+            // Prevenção de crashes: Não tentar iniciar câmara se a UI já foi destruída.
             if (lifecycleOwner.lifecycle.currentState == Lifecycle.State.DESTROYED) {
                 return@addListener
             }
@@ -63,12 +82,13 @@ class EvidenceManager(private val context: Context) {
             try {
                 cameraProvider = cameraProviderFuture.get()
 
-
+                // Limpeza de casos de uso anteriores para evitar conflitos de recursos.
                 cameraProvider?.unbindAll()
 
                 val preview = Preview.Builder().build()
                 preview.setSurfaceProvider(surfaceProvider)
 
+                // Estratégia de Qualidade: Preferência por SD (Lowest) para upload rápido.
                 val qualitySelector = QualitySelector.from(
                     Quality.LOWEST,
                     FallbackStrategy.higherQualityOrLowerThan(Quality.LOWEST)
@@ -80,7 +100,7 @@ class EvidenceManager(private val context: Context) {
 
                 val videoCapture = VideoCapture.withOutput(recorder)
 
-
+                // Vinculação ao ciclo de vida: Garante que a câmara fecha se a app for para background (salvo em serviços foreground específicos).
                 cameraProvider?.bindToLifecycle(
                     lifecycleOwner,
                     CameraSelector.DEFAULT_BACK_CAMERA,
@@ -89,7 +109,7 @@ class EvidenceManager(private val context: Context) {
                 )
 
                 val outputOptions = FileOutputOptions.Builder(file)
-                    .setDurationLimitMillis(12000)
+                    .setDurationLimitMillis(12000) // Limite rígido de 12 segundos.
                     .build()
 
                 activeRecording = videoCapture.output
@@ -107,8 +127,7 @@ class EvidenceManager(private val context: Context) {
                                     val errorMsg =
                                         "Video capture failed: code=${recordEvent.error}, cause=${recordEvent.cause?.message}"
                                     Log.e("EvidenceManager", errorMsg)
-
-
+                                    // NOTE: Em produção, deveria haver uma política de retry ou fallback para apenas áudio.
                                 } else {
                                     Log.d(
                                         "EvidenceManager",
@@ -128,15 +147,17 @@ class EvidenceManager(private val context: Context) {
         return file
     }
 
+    /**
+     * Para a gravação atual de forma segura.
+     *
+     * @return O ficheiro de vídeo resultante (pode ainda não estar finalizado assincronamente).
+     */
     fun stopVideoRecording(): File? {
         try {
-
             activeRecording?.let {
                 it.stop()
                 activeRecording = null
             }
-
-
         } catch (e: Exception) {
             Log.e("EvidenceManager", "Error during stopVideoRecording", e)
         }
@@ -152,6 +173,13 @@ class EvidenceManager(private val context: Context) {
         return recordingStartTime
     }
 
+    /**
+     * Realiza o upload do ficheiro de vídeo para o Firebase Storage.
+     *
+     * @param file O ficheiro local a enviar.
+     * @param folder O caminho/pasta de destino no Storage.
+     * @return O URL de download público do ficheiro, ou null em caso de erro.
+     */
     suspend fun uploadFile(file: File, folder: String): String? {
         if (!file.exists()) {
             Log.e("EvidenceManager", "Upload failed: File does not exist -> ${file.absolutePath}")

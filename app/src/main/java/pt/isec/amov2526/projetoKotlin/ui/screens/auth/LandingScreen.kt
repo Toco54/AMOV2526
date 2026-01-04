@@ -34,6 +34,12 @@ import pt.isec.amov2526.projetoKotlin.ui.theme.Emerald500
 import pt.isec.amov2526.projetoKotlin.ui.theme.Slate400
 import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 
+/**
+ * Ecrã inicial (Landing Page) da aplicação.
+ *
+ * Apresentado a utilizadores não autenticados.
+ * Oferece opções para Login, Registo e mudança de idioma.
+ */
 @Composable
 fun LandingScreen(
     onLoginClick: () -> Unit,

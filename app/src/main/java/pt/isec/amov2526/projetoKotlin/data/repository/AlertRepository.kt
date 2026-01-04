@@ -16,12 +16,32 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
+/**
+ * Repositório responsável pela persistência e sincronização de Alertas de Segurança.
+ *
+ * Gere o ciclo de vida dos documentos de alerta no Firebase Firestore, incluindo:
+ * 1. Criação atómica de alertas (garantindo que o alerta e as referências nos monitores são criados em conjunto).
+ * 2. Atualização de evidências (URLs de vídeo).
+ * 3. Escuta em tempo real de novos alertas para a UI.
+ */
 class AlertRepository {
 
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
 
-
+    /**
+     * Cria um novo alerta de segurança e propaga referências para os monitores relevantes.
+     *
+     * Utiliza uma `WriteBatch` para garantir consistência: O alerta é criado na coleção do utilizador
+     * E as referências são injetadas nas coleções dos monitores simultaneamente.
+     *
+     * @param type Tipo de alerta (FALL, SOS, etc.).
+     * @param title Título descritivo.
+     * @param visibleToMonitors Lista de UIDs dos monitores que devem receber este alerta.
+     * @param initialActions Estado inicial da notificação para cada monitor (ex: "Enviado").
+     * @param forcedId ID opcional pré-gerado (útil para consistência entre UI local e Backend).
+     * @return O ID do alerta criado, ou null em caso de falha.
+     */
     suspend fun createAlert(
         type: ActivityAlertType,
         title: String,
@@ -54,13 +74,12 @@ class AlertRepository {
             "videoUrl" to null
         )
 
-
-
+        // Adiciona metadados de visibilidade para regras de segurança do Firestore (Security Rules).
         if (visibleToMonitors != null) {
             alertData["visibleTo"] = visibleToMonitors
         }
 
-
+        // Serializa as ações iniciais para mapa (Firestore não suporta data classes diretamente sem conversão).
         if (initialActions != null) {
             val actionsList = initialActions.map { action ->
                 mapOf(
@@ -76,12 +95,13 @@ class AlertRepository {
         try {
             val batch = db.batch()
 
-
+            // 1. Criar o documento do alerta na coleção do utilizador protegido.
             val alertRef = db.collection("users").document(uid)
                 .collection("alerts").document(alertId)
             batch.set(alertRef, alertData)
 
-
+            // 2. Atualizar os documentos de conexão de cada monitor para incluir a referência a este novo alerta.
+            // Isto serve como um "Inbox" ou "Feed" para o monitor.
             visibleToMonitors?.forEach { monitorUid ->
                 val connectionDoc = db.collection("users").document(monitorUid)
                     .collection("connections").document(uid)
@@ -92,7 +112,7 @@ class AlertRepository {
                 batch.update(connectionDoc, updateData)
             }
 
-
+            // Executa tudo atomicamente.
             batch.commit().await()
             return alertId
 
@@ -102,6 +122,9 @@ class AlertRepository {
         }
     }
 
+    /**
+     * Atualiza o URL do vídeo de evidência após o upload bem-sucedido.
+     */
     suspend fun updateAlertEvidence(alertId: String, videoUrl: String?) {
         val currentUser = auth.currentUser ?: return
         try {
@@ -114,6 +137,12 @@ class AlertRepository {
         }
     }
 
+    /**
+     * Subscreve ao feed de alertas do próprio utilizador para atualizar a UI de histórico.
+     *
+     * @param onUpdate Callback invocado com a lista atualizada de atividades.
+     * @return O ListenerRegistration para cancelar a subscrição quando necessário.
+     */
     fun listenToAlerts(onUpdate: (List<ActivityItem>) -> Unit): ListenerRegistration? {
         val currentUser = auth.currentUser ?: return null
 
@@ -129,7 +158,7 @@ class AlertRepository {
                     val typeStr = doc.getString("type") ?: return@mapNotNull null
                     val statusStr = doc.getString("status") ?: "PENDING"
 
-
+                    // Deserialização manual da lista de monitores.
                     val monitorsList = mutableListOf<MonitorAction>()
                     val monitorsRaw = doc.get("notifiedMonitors") as? List<Map<String, Any>>
                     monitorsRaw?.forEach { m ->
@@ -163,4 +192,4 @@ class AlertRepository {
         }
     }
 
-} 
+}

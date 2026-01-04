@@ -58,6 +58,12 @@ import pt.isec.amov2526.projetoKotlin.ui.theme.Slate800
 import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
 
+/**
+ * Ecrã de Registo de Utilizador.
+ *
+ * Permite criar uma nova conta e escolher o Role inicial (Monitor vs Protegido).
+ * Se for selecionado "Protegido", exige a definição de um PIN de 4 dígitos.
+ */
 @Composable
 fun RegisterScreen(
     onBack: () -> Unit,
@@ -76,6 +82,7 @@ fun RegisterScreen(
     val user = viewModel.user
     val userRole = viewModel.userRole
 
+    // Navegação automática após registo bem-sucedido
     LaunchedEffect(user, userRole) {
         if (user != null && userRole != null) {
             onSignUp(userRole)
@@ -87,7 +94,7 @@ fun RegisterScreen(
             .fillMaxSize()
             .background(Slate900)
             .padding(24.dp)
-            .imePadding()
+            .imePadding() // Ajuste automático para o teclado
             .verticalScroll(rememberScrollState())
     ) {
 
@@ -122,6 +129,7 @@ fun RegisterScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
 
+        // Seletor de Role (Toggle Button personalizado)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -217,6 +225,7 @@ fun RegisterScreen(
         )
 
 
+        // Campo de PIN condicional
         if (selectedRole == "Protected") {
             Spacer(modifier = Modifier.height(16.dp))
             Text(

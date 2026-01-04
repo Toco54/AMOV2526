@@ -101,6 +101,16 @@ import pt.isec.amov2526.projetoKotlin.ui.viewmodels.MonitorDashboardViewModel
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.MonitorDashboardViewModelFactory
 import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
 
+/**
+ * Ecrã de Dashboard para o Monitor.
+ *
+ * Visão consolidada do estado de um protegido específico.
+ * Componentes:
+ * 1. Mapa de Localização: Mostra a posição em tempo real e Geofences ativas.
+ * 2. Gráfico de Tendências: Estatísticas rápidas de alertas.
+ * 3. Gestão de Regras: Lista expansível de regras, permitindo adicionar/editar/remover.
+ * 4. Atividade Recente: Feed cronológico de eventos.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MonitorDashboardScreen(
@@ -111,6 +121,7 @@ fun MonitorDashboardScreen(
     val viewModel: MonitorDashboardViewModel = viewModel(
         factory = MonitorDashboardViewModelFactory(protegeUid)
     )
+    // Recolha de estado reativo do ViewModel
     val rules by viewModel.rules.collectAsState()
     val userLocation by viewModel.userLocation.collectAsState()
     val systemStatus by viewModel.systemStatus.collectAsState()
@@ -125,8 +136,10 @@ fun MonitorDashboardScreen(
     val activities by viewModel.activities.collectAsState()
     val alertStats by viewModel.alertStats.collectAsState()
 
+    // Relógio local para atualizações de UI dependentes de tempo (ex: "Pausa termina em 5s")
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
+    // Ejeção de segurança se o protegido revogar o acesso enquanto o monitor está a ver.
     LaunchedEffect(shouldExitDashboard) {
         if (shouldExitDashboard) {
             onBack()
@@ -140,6 +153,7 @@ fun MonitorDashboardScreen(
         }
     }
 
+    // Estados locais de UI (Diálogos, Seleções)
     var showAddRuleSelection by remember { mutableStateOf(false) }
     var editingRule by remember { mutableStateOf<ProtectionRule?>(null) }
     var selectedActivity by remember { mutableStateOf<ActivityItem?>(null) }
@@ -173,7 +187,7 @@ fun MonitorDashboardScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
 
-
+                            // Badge de Status (Pequeno)
                             Surface(
                                 color = displayStatusColor.copy(alpha = 0.1f),
                                 shape = RoundedCornerShape(8.dp),
@@ -204,7 +218,7 @@ fun MonitorDashboardScreen(
 
 
                             if (!isDisconnected) {
-
+                                // Detalhes dinâmicos de status (ex: Contagem decrescente de pausa)
                                 val dynamicDetail =
                                     if (systemStatus == "PAUSED" && pausedUntil > currentTime) {
                                         stringResource(
@@ -274,6 +288,7 @@ fun MonitorDashboardScreen(
                 stats = alertStats
             )
 
+            // Secção de Gestão de Regras
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -324,6 +339,7 @@ fun MonitorDashboardScreen(
                             modifier = Modifier.padding(vertical = 12.dp)
                         )
                     } else {
+                        // Agrupa regras por tipo para exibição organizada
                         val groupedRules =
                             rules.groupBy { it.type }.toList().sortedBy { it.first.ordinal }
                         groupedRules.forEach { (type, typeRules) ->
@@ -354,6 +370,7 @@ fun MonitorDashboardScreen(
                                     }
                                 )
                             } else {
+                                // Regras Single-Instance (ex: Fall Detection) aparecem diretamente.
                                 typeRules.forEach { rule ->
 
                                     val catStatus = categoryStatuses[type.name]
@@ -605,6 +622,7 @@ fun MonitorDashboardScreen(
             onDismiss = { showAddRuleSelection = false },
             onTypeSelected = { type ->
                 showAddRuleSelection = false
+                // Criação local de regra temporária para edição.
                 val newRule = ProtectionRule(
                     id = "NEW_${java.util.UUID.randomUUID()}",
                     type = type,

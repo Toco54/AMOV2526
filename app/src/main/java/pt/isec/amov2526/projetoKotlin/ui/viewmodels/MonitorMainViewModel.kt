@@ -15,6 +15,14 @@ import pt.isec.amov2526.projetoKotlin.data.model.ConnectedUser
 import pt.isec.amov2526.projetoKotlin.data.repository.ConnectionCodeInfo
 import pt.isec.amov2526.projetoKotlin.data.repository.ConnectionRepository
 
+/**
+ * ViewModel para o ecrã principal do Monitor.
+ *
+ * Responsável por:
+ * 1. Listar os Protegidos associados.
+ * 2. Processar a adição de novos protegidos via código de emparelhamento.
+ * 3. Gerir o estado de conexões (pendente, ativo, revogado).
+ */
 class MonitorMainViewModel : ViewModel() {
     private val repository = ConnectionRepository()
     private val auth = FirebaseAuth.getInstance()
@@ -51,6 +59,7 @@ class MonitorMainViewModel : ViewModel() {
                         val uid = doc.getString("uid") ?: ""
                         val revoked = doc.getBoolean("revokedByProtege") ?: false
                         try {
+                            // Enriquecimento dos dados: Busca o nome atual do utilizador para mostrar na lista.
                             val userDoc = db.collection("users").document(uid).get().await()
                             ConnectedUser(
                                 uid = uid,
@@ -71,11 +80,13 @@ class MonitorMainViewModel : ViewModel() {
     }
 
     fun fetchProteges() {
-
-
+       // Placeholder para refresh manual se necessário.
     }
 
-
+    /**
+     * Valida um código de emparelhamento inserido.
+     * Se válido, define o `connectionCandidate` para a UI exibir a confirmação.
+     */
     fun validateCode(code: String) {
         val currentUser = auth.currentUser
         if (currentUser == null) {
@@ -96,7 +107,7 @@ class MonitorMainViewModel : ViewModel() {
             if (result.isSuccess) {
                 val candidate = result.getOrNull()
                 if (candidate != null) {
-
+                    // Impede auto-conexão ou duplicados.
                     val isDuplicate = proteges.any { it.uid == candidate.protegeUid }
                     if (isDuplicate) {
                         errorMsg = "User already in your list"
@@ -110,7 +121,6 @@ class MonitorMainViewModel : ViewModel() {
             isLoading = false
         }
     }
-
 
     fun acceptConnection(onSuccess: () -> Unit) {
         val currentUser = auth.currentUser ?: return
@@ -140,7 +150,7 @@ class MonitorMainViewModel : ViewModel() {
         viewModelScope.launch {
             val result = repository.deleteConnection(currentUser.uid, protegeUid)
             if (result.isSuccess) {
-
+                // Sucesso implícito pela atualização do listener
             } else {
                 errorMsg = result.exceptionOrNull()?.message ?: "Failed to delete connection"
             }

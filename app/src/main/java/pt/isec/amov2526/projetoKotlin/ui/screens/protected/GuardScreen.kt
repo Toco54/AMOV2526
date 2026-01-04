@@ -42,6 +42,16 @@ import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
 import pt.isec.amov2526.projetoKotlin.utils.LocationHelper
 import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
 
+/**
+ * Ecrã principal do modo "Protegido" (Guard).
+ *
+ * Serve como dashboard central para o utilizador que está a ser monitorizado.
+ * Funcionalidades:
+ * 1. Botão SOS Central: Acesso rápido a pedido de ajuda.
+ * 2. Status do Sistema: Mostra se está ATIVO, PAUSADO ou OFFLINE.
+ * 3. Gestão de Regras: Permite ver quem está a monitorizar e pausar regras específicas ou globais (com PIN).
+ * 4. Feedback de Sensores: Nível de bateria, estado do agendamento global.
+ */
 @Composable
 fun GuardScreen(
     viewModel: GuardViewModel,
@@ -50,11 +60,12 @@ fun GuardScreen(
 ) {
     val context = LocalContext.current
 
+    // Sincroniza o estado do serviço (Foreground) com a UI ao entrar no ecrã.
     LaunchedEffect(Unit) {
         protectedViewModel.refreshServiceState()
     }
 
-
+    // Inicializa a recolha de localização para atualizar a "Última Localização Conhecida" no Firestore.
     val locationHelper = remember { LocationHelper(context) }
     LaunchedEffect(Unit) {
         locationHelper.startLocationUpdates(5000L)
@@ -66,6 +77,7 @@ fun GuardScreen(
     val globalPausedUntil by viewModel.globalPausedUntil.collectAsState()
     val batteryLevel by viewModel.batteryLevel.collectAsState()
 
+    // Relógio local para atualizar a UI de "Tempo Restante" em pausas ou agendamentos.
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -75,11 +87,12 @@ fun GuardScreen(
     }
 
 
+    // Controlo de Modais (Dialogs)
     var showPauseModal by remember { mutableStateOf(false) }
     var showGlobalScheduleModal by remember { mutableStateOf(false) }
     var showScheduleModal by remember { mutableStateOf(false) }
 
-
+    // Seleção de contexto para as ações dos modais
     var ruleToRemove by remember { mutableStateOf<MonitorRule?>(null) }
     var selectedTypeToPause by remember { mutableStateOf<RuleType?>(null) }
     var selectedRuleToPause by remember { mutableStateOf<MonitorRule?>(null) }
@@ -91,6 +104,7 @@ fun GuardScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val isServiceRunning = protectedViewModel.isProtectionActive
 
+    // Cálculo do estado atual do agendamento para exibição no cartão de status.
     val globalScheduleStatus = TimeUtils.calculateStatus(
         isEnabled = true,
         pausedUntil = globalPausedUntil,
@@ -101,7 +115,7 @@ fun GuardScreen(
         now = currentTime
     )
 
-
+    // Resolução do status final a apresentar (Prioridade: OFFLINE > PAUSADO > AGENDADO > ATIVO).
     val rawSystemStatus = if (!isServiceRunning) "OFFLINE"
     else if (globalScheduleStatus.label == "PAUSED") "PAUSED"
     else if (globalScheduleStatus.label == "SCHEDULED") "SCHEDULED"
@@ -127,6 +141,10 @@ fun GuardScreen(
                 batteryLevel = batteryLevel,
                 onPlanClick = { showGlobalScheduleModal = true },
                 onStatusClick = {
+                    // Lógica inteligente de clique no status:
+                    // Se pausado -> Tenta reativar.
+                    // Se ativo -> Tenta pausar (abre modal).
+                    // Se offline -> Tenta ligar.
                     if (globalScheduleStatus.label == "PAUSED") {
                         viewModel.setSystemStatus("ACTIVE")
                     } else if (protectedViewModel.isProtectionActive) {
@@ -241,6 +259,7 @@ fun GuardScreen(
 
 
     if (showScheduleModal) {
+        // Prepara o contexto para o modal de agendamento (Regra específica vs Grupo inteiro).
         val scheduleCtx = when {
             selectedRuleToSchedule != null -> Triple(
                 Triple(

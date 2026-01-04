@@ -54,6 +54,17 @@ data class CategoryStatus(
     val end: String
 )
 
+/**
+ * ViewModel que controla o painel de monitorização (Dashboard) de um protegido específico.
+ *
+ * Este ViewModel é instanciado quando o Monitor clica num Protegido.
+ * Responsabilidades:
+ * 1. Escutar em tempo real o estado de conexão e alertas.
+ * 2. Gerir a lista de alertas ativos e histórico.
+ * 3. Calcular estatísticas de segurança.
+ * 4. Permitir a gestão remota de regras (Adicionar/Remover/Editar).
+ * 5. Visualizar a localização em tempo real (se disponível).
+ */
 class MonitorDashboardViewModel(
     private val ruleRepository: RuleRepository,
     private val protegeUid: String
@@ -65,7 +76,7 @@ class MonitorDashboardViewModel(
     private val _activities = MutableStateFlow<List<ActivityItem>>(emptyList())
     val activities: StateFlow<List<ActivityItem>> = _activities.asStateFlow()
 
-
+    // Mapas para gestão eficiente de listeners dinâmicos para cada alerta individual.
     private val alertListeners =
         mutableMapOf<String, ListenerRegistration>()
     private val alertDataMap = mutableMapOf<String, ActivityItem>()
@@ -112,268 +123,161 @@ class MonitorDashboardViewModel(
         }
     }
 
+    /**
+     * Escuta o documento de conexão específico para detetar novos alertas.
+     * O campo `alertRefs` atua como um inbox dinâmico.
+     */
     private fun startListeningConnectionStatus() {
-
-
         val docRef = FirebaseFirestore.getInstance()
-
             .collection("users").document(currentMonitorId)
-
             .collection("connections").document(protegeUid)
-
-
 
         Log.d(
             "MonitorVM",
             "Escutando connection em: users/$currentMonitorId/connections/$protegeUid"
         )
 
-
-
         docRef.addSnapshotListener { snapshot, e ->
-
             if (e != null) {
-
                 Log.e("MonitorVM", "Erro ao escutar connection: ${e.message}")
-
                 return@addSnapshotListener
-
             }
 
-
-
             if (snapshot == null || !snapshot.exists()) {
-
                 Log.w(
                     "MonitorVM",
                     "Documento de conexão não encontrado (possível revogação)."
                 )
-
                 _shouldExitDashboard.value = true
-
                 return@addSnapshotListener
-
             }
 
-
+            // Mapeamento dinâmico de referências a alertas
             val rawMap = snapshot.get("alertRefs") as? Map<String, Any>
-
             val refsMap = rawMap?.mapValues { it.value.toString() } ?: emptyMap()
 
-
-
             Log.d("MonitorVM", "Recebido alertRefs: ${refsMap.size} itens")
-
             updateAlertListeners(refsMap)
-
         }
-
     }
 
-
+    /**
+     * Sincroniza os listeners de alertas com base nas referências recebidas.
+     * Adiciona listeners para novos alertas e remove para alertas desaparecidos.
+     */
     private fun updateAlertListeners(refsMap: Map<String, String>) {
-
         val currentIds = alertListeners.keys.toSet()
-
         val newIds = refsMap.keys
 
-
+        // 1. Remover antigos
         val idsToRemove = currentIds - newIds
-
         idsToRemove.forEach { id ->
-
             Log.d("MonitorVM", "Removendo listener do alerta: $id")
-
             alertListeners[id]?.remove()
-
             alertListeners.remove(id)
-
             alertDataMap.remove(id)
-
         }
 
-
+        // 2. Adicionar novos
         val idsToAdd = newIds - currentIds
-
         val db = FirebaseFirestore.getInstance()
 
-
-
         idsToAdd.forEach { id ->
-
             val path = refsMap[id]
-
             Log.d(
                 "MonitorVM",
                 "Adicionando listener para novo alerta: $id no caminho: $path"
             )
 
             if (!path.isNullOrEmpty()) {
-
                 try {
-
                     val docRef = db.document(path)
-
                     val registration = docRef.addSnapshotListener { snapshot, e ->
-
                         if (e != null) {
-
-                            Log.e(
-                                "MonitorVM",
-                                "Erro no listener do alerta $id: ${e.message}"
-                            )
-
+                            Log.e("MonitorVM", "Erro no listener do alerta $id: ${e.message}")
                             return@addSnapshotListener
-
                         }
-
-
 
                         if (snapshot != null && snapshot.exists()) {
-
                             val item = parseActivityItem(snapshot)
-
                             if (item != null) {
-
-                                Log.d(
-                                    "MonitorVM",
-                                    "Alerta atualizado: ${item.title} ($id)"
-                                )
-
                                 alertDataMap[id] = item
-
                             }
-
                         } else {
-
                             Log.w("MonitorVM", "Documento de alerta não existe: $id")
-
                             alertDataMap.remove(id)
-
                         }
-
                         emitActivities()
-
                     }
-
                     alertListeners[id] = registration
-
                 } catch (e: Exception) {
-
                     Log.e("MonitorVM", "Caminho de alerta inválido: $path")
-
                     e.printStackTrace()
-
                 }
-
             }
-
         }
-
-
-
-
 
         if (idsToRemove.isNotEmpty() || (idsToAdd.isEmpty() && alertDataMap.isNotEmpty())) {
-
             emitActivities()
-
         }
-
     }
 
-
     private fun parseActivityItem(doc: DocumentSnapshot): ActivityItem? {
-
         return try {
-
             val typeStr = doc.getString("type") ?: return null
-
             val statusStr = doc.getString("status") ?: "PENDING"
 
-
             val monitorsList = mutableListOf<MonitorAction>()
-
             val monitorsRaw = doc.get("notifiedMonitors") as? List<Map<String, Any>>
-
             monitorsRaw?.forEach { m ->
-
                 monitorsList.add(
                     MonitorAction(
-
                         name = m["name"] as? String ?: "Unknown",
-
                         state = MonitorActionState.valueOf(m["state"] as? String ?: "SENT"),
-
                         time = m["time"] as? String ?: ""
-
                     )
                 )
-
             }
 
-
-
             ActivityItem(
-
                 id = doc.id,
-
                 type = ActivityAlertType.valueOf(typeStr),
-
                 title = doc.getString("title") ?: "Alert",
-
                 date = doc.getString("date") ?: "",
-
                 time = doc.getString("time") ?: "",
-
                 status = ActivityAlertStatus.valueOf(statusStr),
-
                 notifiedMonitors = monitorsList,
-
-
                 latitude = doc.getDouble("latitude"),
                 longitude = doc.getDouble("longitude"),
                 videoUrl = doc.getString("videoUrl")
-
             )
-
         } catch (ex: Exception) {
-
             Log.e("MonitorVM", "Erro ao processar ActivityItem: ${ex.message}")
-
             null
-
         }
-
     }
 
-
     private fun emitActivities() {
-
         val sortedList = alertDataMap.values.sortedByDescending { "${it.date} ${it.time}" }
-
-        Log.d("MonitorVM", "Emitindo ${sortedList.size} atividades para a UI")
-
         _activities.value = sortedList
-
         calculateStats(sortedList)
-
     }
 
     private fun calculateStats(items: List<ActivityItem>) {
-
-
         val stats = listOf(
             AlertStat("Fall", items.count { it.type == ActivityAlertType.FALL }),
             AlertStat("Crash", items.count { it.type == ActivityAlertType.ACCIDENT }),
             AlertStat("Geo", items.count { it.type == ActivityAlertType.GEOFENCE }),
             AlertStat("Speed", items.count { it.type == ActivityAlertType.SPEED }),
-
             AlertStat("SOS", items.count { it.type == ActivityAlertType.PANIC })
         )
         _alertStats.value = stats
     }
 
+    /**
+     * Escuta o documento do Protegido para obter o estado do sistema (Bateria, Online/Offline, Pausas).
+     * Essencial para o Monitor saber se o sistema de segurança está funcional.
+     */
     private fun startListeningUserStatus() {
         val docRef = FirebaseFirestore.getInstance()
             .collection("users").document(protegeUid)
@@ -382,17 +286,16 @@ class MonitorDashboardViewModel(
             if (e != null) return@addSnapshotListener
 
             if (snapshot != null && snapshot.exists()) {
-
                 _protegeEmail.value = snapshot.getString("email") ?: ""
 
-
+                // Localização em tempo real (atualizada pelo GuardViewModel do protegido)
                 val lat = snapshot.getDouble("lastLat")
                 val lng = snapshot.getDouble("lastLng")
                 if (lat != null && lng != null) {
                     _userLocation.value = GeoPoint(lat, lng)
                 }
 
-
+                // Estado das proteções (para mostrar se o utilizador desligou algo manualmente)
                 val activeProtectionsMap =
                     snapshot.get("activeProtections") as? Map<String, Map<String, Any>>
                         ?: emptyMap()
@@ -408,11 +311,10 @@ class MonitorDashboardViewModel(
                 }
                 _categoryStatuses.value = parsedStatuses
 
-
+                // Estado do Sistema
                 val dbStatus = snapshot.getString("systemStatus") ?: "OFFLINE"
                 val lastUpdate = snapshot.getLong("lastUpdate") ?: 0L
                 val now = System.currentTimeMillis()
-
 
                 val globalPausedUntil = snapshot.getLong("globalPausedUntil") ?: 0L
                 val gDays =
@@ -423,7 +325,6 @@ class MonitorDashboardViewModel(
                 val gEnabled = snapshot.getBoolean("isGlobalScheduleEnabled") ?: false
 
                 _globalSchedule.value = GlobalScheduleInfo(gEnabled, gDays, gStart, gEnd)
-
 
                 var finalStatus = dbStatus
                 var detail: String? = null
@@ -446,7 +347,7 @@ class MonitorDashboardViewModel(
                 _statusDetail.value = detail
                 _pausedUntil.value = globalPausedUntil
 
-
+                // Deteção de desconexão baseada em Heartbeat (2 minutos sem update = Disconnected)
                 val isActuallyDisconnected = dbStatus != "OFFLINE" && (now - lastUpdate > 120000L)
                 _isDisconnected.value = isActuallyDisconnected
             }
@@ -506,20 +407,19 @@ class MonitorDashboardViewModel(
         }
     }
 
+    /**
+     * Marca um alerta como "Visto" pelo monitor atual.
+     * Útil para coordenação entre múltiplos monitores (saber quem já viu o quê).
+     */
     fun markAlertAsViewed(activityId: String) {
+        // Valida se já não foi marcado localmente para evitar escritas redundantes.
         val activity = alertDataMap[activityId] ?: return
         currentMonitorId
-
-
         activity.notifiedMonitors.find {
-
-
             true
         }
 
         viewModelScope.launch {
-
-
             val path = "users/$protegeUid/alerts/$activityId"
             val db = FirebaseFirestore.getInstance()
             val docRef = db.document(path)
@@ -531,10 +431,10 @@ class MonitorDashboardViewModel(
                         val monitorsRaw =
                             snapshot.get("notifiedMonitors") as? List<Map<String, Any>>
                                 ?: emptyList()
+                        
+                        // Atualiza apenas a entrada correspondente a este monitor.
                         val updatedMonitors = monitorsRaw.map { m ->
                             val uid = m["uid"] as? String
-
-
                             if (uid == currentMonitorId && m["state"] != "VIEWED") {
                                 m.toMutableMap().apply {
                                     put("state", "VIEWED")

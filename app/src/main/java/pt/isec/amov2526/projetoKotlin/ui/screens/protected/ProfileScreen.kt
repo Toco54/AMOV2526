@@ -37,6 +37,15 @@ import pt.isec.amov2526.projetoKotlin.ui.theme.Slate50
 import pt.isec.amov2526.projetoKotlin.ui.theme.Slate500
 import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 
+/**
+ * Ecrã de Perfil do Utilizador (Modo Protegido).
+ *
+ * Funcionalidades:
+ * 1. Edição de dados pessoais (Nome, Email, PIN).
+ * 2. Alternância de idioma (PT/EN).
+ * 3. Logout.
+ * 4. Mudança de modo (para Monitor, se aplicável).
+ */
 @Composable
 fun ProfileScreen(
     name: String = "User Name",

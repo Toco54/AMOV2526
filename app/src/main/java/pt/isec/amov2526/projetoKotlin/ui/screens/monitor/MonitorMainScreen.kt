@@ -66,6 +66,14 @@ import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.MonitorMainViewModel
 
+/**
+ * Ecrã principal do modo Monitor.
+ *
+ * Lista os utilizadores protegidos associados a este monitor e permite:
+ * 1. Adicionar novos protegidos (via código).
+ * 2. Gerir o perfil do monitor.
+ * 3. Alternar para o modo Protegido (se a conta suportar ambos os papéis).
+ */
 @Composable
 fun MonitorMainScreen(
     onLogout: () -> Unit = {},
@@ -228,10 +236,10 @@ fun MonitorMainScreen(
                         onSwitchMode = {
                             val currentPin = viewModel.currentUserData?.pin
                             if (!currentPin.isNullOrBlank()) {
-
+                                // Se já tiver PIN configurado, alterna diretamente.
                                 viewModel.switchViewMode()
                             } else {
-
+                                // Se não tiver PIN (ex: Monitor puro), exige configuração antes de ativar o modo Protegido.
                                 showProfileMenu = false
                                 showSetPinDialog = true
                             }
@@ -335,7 +343,7 @@ fun MonitorMainScreen(
                         Button(
                             onClick = {
                                 if (newPin.length == 4) {
-
+                                    // Atualiza perfil com novo PIN e muda de modo.
                                     viewModel.updateProfile(
                                         name = viewModel.userName,
                                         email = viewModel.userEmail,

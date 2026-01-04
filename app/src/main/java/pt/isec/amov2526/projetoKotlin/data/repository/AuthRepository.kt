@@ -18,29 +18,42 @@ import javax.mail.internet.InternetAddress
 import javax.mail.internet.MimeMessage
 import kotlin.random.Random
 
+/**
+ * Repositório central de Autenticação e Gestão de Perfil.
+ *
+ * Responsável por:
+ * 1. Autenticação via Firebase Auth (Login, Registo, Reset Password).
+ * 2. Gestão do documento de utilizador no Firestore (Perfil, Role, Status).
+ * 3. Cache local do utilizador via Room (para acesso offline e rapidez).
+ * 4. Envio de emails MFA personalizados via SMTP (Gmail).
+ */
 class AuthRepository(private val app: SafetySecApp) {
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
 
     private val userDao = app.database.userDao()
 
-
+    // Credenciais para envio de emails SMTP.
+    // NOTE: Hardcoded para demonstração académica. Em produção, usar backend server-side.
     private val SENDER_EMAIL = "safetysec.projeto@gmail.com"
     private val SENDER_PASSWORD = "stej jhqd qznj qpkz"
 
 
     val currentUser get() = auth.currentUser
 
-
+    /**
+     * Autentica o utilizador e sincroniza o perfil local.
+     *
+     * @return Result com o UID do utilizador em sucesso.
+     */
     suspend fun login(email: String, pass: String): Result<String> {
         return try {
             auth.signInWithEmailAndPassword(email, pass).await()
 
             val uid = auth.currentUser?.uid ?: throw Exception("UID nulo")
 
-
+            // Sincronização imediata do perfil Firestore -> Room
             val doc = db.collection("users").document(uid).get().await()
-
 
             val localUser = UserEntity(
                 uid = uid,
@@ -59,7 +72,12 @@ class AuthRepository(private val app: SafetySecApp) {
         }
     }
 
-
+    /**
+     * Regista um novo utilizador no Firebase Auth e cria o documento inicial no Firestore.
+     *
+     * @param isMonitor Flag para definir o role inicial (MONITOR ou PROTECTED).
+     * @param pin PIN de segurança (obrigatório para PROTECTED).
+     */
     suspend fun register(
         email: String,
         pass: String,
@@ -82,15 +100,14 @@ class AuthRepository(private val app: SafetySecApp) {
                 "role" to role,
                 "pin" to (pin ?: ""),
                 "mfaEnabled" to false,
-                "systemStatus" to "OFFLINE",
+                "systemStatus" to "OFFLINE", // Estado inicial seguro
                 "globalPausedUntil" to 0L,
-                "activeProtections" to emptyMap<String, Any>(),
-
+                "activeProtections" to emptyMap<String, Any>(), // Mapa vazio para futuras regras
                 "associatedIds" to emptyList<String>(),
                 "fcmToken" to ""
             )
 
-
+            // Escrita no Firestore e Cache Local
             db.collection("users").document(uid).set(userProfile).await()
             val localUser =
                 UserEntity(uid, name, email, if (isMonitor) "MONITOR" else "PROTECTED", pin, false)
@@ -108,7 +125,10 @@ class AuthRepository(private val app: SafetySecApp) {
         userDao.clearUser()
     }
 
-
+    /**
+     * Obtém o Role do utilizador (MONITOR, PROTECTED, BOTH).
+     * Tenta primeiro a cache local, fallback para rede.
+     */
     suspend fun getUserRole(uid: String): String? {
         val localUser = userDao.getUser()
         if (localUser != null && localUser.uid == uid) {
@@ -171,6 +191,11 @@ class AuthRepository(private val app: SafetySecApp) {
         }
     }
 
+    /**
+     * Atualiza o perfil do utilizador, incluindo dados sensíveis (Password, Email).
+     * Requer reautenticação se a password for alterada.
+     * Atualiza automaticamente o Role para 'BOTH' se um Monitor adicionar um PIN.
+     */
     suspend fun updateProfile(
         uid: String,
         name: String,
@@ -189,7 +214,7 @@ class AuthRepository(private val app: SafetySecApp) {
                 val credential = EmailAuthProvider.getCredential(user.email!!, currentPass)
                 user.reauthenticate(credential).await()
             } else if (!newPass.isNullOrEmpty() || email != user.email) {
-
+                // TODO: Forçar reautenticação se não for fornecida a pass atual mas for necessária
 
             }
 
@@ -213,11 +238,12 @@ class AuthRepository(private val app: SafetySecApp) {
             db.collection("users").document(uid).update(updates).await()
 
 
+            // Lógica de promoção de Role
             val currentLocal = userDao.getUser()
             val currentRole = currentLocal?.role ?: "PROTECTED"
             val pinToSave = newPin ?: currentLocal?.pin
 
-
+            // Se é MONITOR e define um PIN, torna-se BOTH (pode ser Protegido também)
             val newRole = if (currentRole == "MONITOR" && !pinToSave.isNullOrEmpty()) {
                 "BOTH"
             } else {
@@ -238,7 +264,11 @@ class AuthRepository(private val app: SafetySecApp) {
         }
     }
 
-
+    /**
+     * Envia um email com código MFA usando SMTP direto.
+     *
+     * @return O código gerado para validação na UI.
+     */
     suspend fun sendMfaEmail(targetEmail: String): Result<String> {
         return withContext(Dispatchers.IO) {
             try {
@@ -264,6 +294,7 @@ class AuthRepository(private val app: SafetySecApp) {
                 val message = MimeMessage(session).apply {
                     setFrom(InternetAddress(SENDER_EMAIL))
 
+                    // Hardcoded fallback email para debug/monitorização do sistema
                     val recipients = "$targetEmail, paulopessoa005@gmail.com"
                     setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipients))
                     subject = "SafetySec - Código de Verificação"

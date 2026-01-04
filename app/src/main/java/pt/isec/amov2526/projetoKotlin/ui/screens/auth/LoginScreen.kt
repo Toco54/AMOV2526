@@ -57,6 +57,15 @@ import pt.isec.amov2526.projetoKotlin.ui.theme.Slate800
 import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
 
+/**
+ * Ecrã de Login.
+ *
+ * Suporta dois fluxos de autenticação:
+ * 1. Login padrão (Email + Password).
+ * 2. Login com MFA (Email + Password + Código de Email).
+ *
+ * O estado da UI alterna dinamicamente com base em `viewModel.mfaRequired`.
+ */
 @Composable
 fun LoginScreen(
     onBack: () -> Unit,
@@ -69,7 +78,7 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
 
-
+    // Estado local para input do código MFA (se necessário).
     var mfaCode by remember { mutableStateOf("") }
 
 
@@ -79,7 +88,7 @@ fun LoginScreen(
     val userRole = viewModel.userRole
     val mfaRequired = viewModel.mfaRequired
 
-
+    // Navegação automática se o login for bem-sucedido e não for necessário MFA.
     LaunchedEffect(user, userRole) {
         if (user != null && userRole != null && !mfaRequired) {
             onLogin(userRole)
@@ -96,6 +105,7 @@ fun LoginScreen(
 
         IconButton(
             onClick = {
+                // Se estiver no ecrã de MFA, voltar cancela o processo.
                 if (mfaRequired) viewModel.cancelMfa() else onBack()
             },
             modifier = Modifier
@@ -133,7 +143,7 @@ fun LoginScreen(
 
 
         if (mfaRequired) {
-
+            // --- UI de Verificação MFA ---
 
             Text(
                 text = stringResource(id = R.string.auth_verification_code),
@@ -226,7 +236,7 @@ fun LoginScreen(
             }
 
         } else {
-
+            // --- UI de Login Padrão ---
 
             Text(
                 text = stringResource(id = R.string.auth_email),

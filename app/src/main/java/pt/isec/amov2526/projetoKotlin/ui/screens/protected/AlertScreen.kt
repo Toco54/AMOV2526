@@ -30,6 +30,15 @@ import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 import pt.isec.amov2526.projetoKotlin.utils.EvidenceManager
 import java.io.File
 
+/**
+ * Ecrã de Gestão de Alerta Ativo.
+ *
+ * Apresenta o fluxo crítico de emergência:
+ * 1. Contagem decrescente com opção de cancelamento via PIN.
+ * 2. Estado "Confirmado": Gravação automática de vídeo, upload de evidências e feedback de envio.
+ *
+ * Utiliza o `EvidenceManager` para capturar vídeo em background (ou preview) e fazer upload para o Firebase.
+ */
 @Composable
 fun AlertScreen(
     alertType: String = "SOS",
@@ -55,7 +64,7 @@ fun AlertScreen(
 
     var pinInput by remember { mutableStateOf("") }
 
-
+    // Estados de gravação e upload
     var isRecordingFinished by remember { mutableStateOf(false) }
     var recordingStartTime by remember { mutableLongStateOf(0L) }
 
@@ -69,6 +78,10 @@ fun AlertScreen(
 
     val SKIP_UPLOAD_FOR_TESTING = false
 
+    /**
+     * Inicia o upload do ficheiro de vídeo para o alerta específico.
+     * Atualiza o documento do alerta no Firestore com o URL do vídeo após sucesso.
+     */
     fun performUpload(file: File, id: String) {
         if (isUploading) return
         isUploading = true
@@ -99,6 +112,7 @@ fun AlertScreen(
         }
     }
 
+    // Trigger de upload assim que o ficheiro de vídeo é finalizado e o alerta está confirmado (ID válido).
     LaunchedEffect(finalizedFile, alertIdFromIntent) {
         if (finalizedFile != null && alertIdFromIntent != null && isConfirmedState) {
             performUpload(finalizedFile!!, alertIdFromIntent)
@@ -106,7 +120,7 @@ fun AlertScreen(
     }
 
 
-
+    // Ciclo de vida da gravação: Inicia ao montar o ecrã, para ao desmontar.
     DisposableEffect(lifecycleOwner, alertIdFromIntent) {
         evidenceManager.startVideoRecording(
             lifecycleOwner = lifecycleOwner,
@@ -120,7 +134,7 @@ fun AlertScreen(
         }
     }
 
-
+    // Sincronização do temporizador de UI com o início real da gravação do hardware.
     LaunchedEffect(isConfirmedState) {
         if (isConfirmedState) {
             while (recordingStartTime == 0L) {
@@ -131,7 +145,7 @@ fun AlertScreen(
         }
     }
 
-
+    // Watchdog de segurança: Se a gravação/upload falhar ou demorar demasiado (>25s), liberta a UI para não prender o utilizador.
     LaunchedEffect(isConfirmedState) {
         if (isConfirmedState) {
             delay(25000L)
@@ -154,11 +168,13 @@ fun AlertScreen(
         val vFile = evidenceManager.stopVideoRecording()
         scope.launch {
             delay(500)
+            // Limpeza de ficheiros temporários em caso de cancelamento.
             evidenceManager.deleteFile(vFile)
         }
         onCancel()
     }
 
+    // Validação automática do PIN quando atinge 4 dígitos.
     LaunchedEffect(pinInput) {
         if (!isConfirmedState && pinInput.length == 4) {
             if (onValidatePin(pinInput)) handleCancel()

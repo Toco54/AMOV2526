@@ -10,15 +10,26 @@ import kotlinx.coroutines.tasks.await
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType
 import pt.isec.amov2526.projetoKotlin.data.model.ProtectionRule
 
+/**
+ * Repositório para gestão de regras de monitorização.
+ *
+ * As regras são definidas pelos monitores para os protegidos.
+ * Este repositório abstrai a complexidade da estrutura de sub-coleções do Firestore:
+ * `users/{protegeUid}/connections/{monitorUid}/rules/{ruleId}`
+ */
 class RuleRepository {
     private val db = FirebaseFirestore.getInstance()
 
-
+    // Helper para obter a referência correta da coleção de regras.
     private fun getRulesCollection(protegeUid: String, monitorUid: String) =
         db.collection("users").document(protegeUid)
             .collection("connections").document(monitorUid)
             .collection("rules")
 
+    /**
+     * Adiciona uma nova regra de proteção.
+     * Se o ID começar por "NEW_", gera um novo documento no Firestore. Caso contrário, substitui (upsert).
+     */
     suspend fun addRule(rule: ProtectionRule, monitorId: String, protegeUid: String) {
         val docData = hashMapOf(
             "type" to rule.type.name,
@@ -61,7 +72,12 @@ class RuleRepository {
         getRulesCollection(protegeUid, monitorId).document(ruleId).delete().await()
     }
 
-
+    /**
+     * Retorna um fluxo (Flow) em tempo real das regras definidas por um monitor específico.
+     *
+     * Utiliza `callbackFlow` para converter o listener baseado em callbacks do Firestore num Flow de Kotlin.
+     * Garante que o listener é removido quando o fluxo é cancelado (awaitClose).
+     */
     fun getRulesFlow(monitorId: String, protegeUid: String): Flow<List<ProtectionRule>> =
         callbackFlow {
             val query = getRulesCollection(protegeUid, monitorId)
@@ -81,7 +97,7 @@ class RuleRepository {
                             ProtectionRule(
                                 id = doc.id,
                                 type = type,
-
+                                // UI Defaults (Icon/Color) são preenchidos no ViewModel/UI layer, aqui usamos placeholders.
                                 icon = androidx.compose.material.icons.Icons.Default.Shield,
                                 iconColor = androidx.compose.ui.graphics.Color.Gray,
                                 isEnabled = doc.getBoolean("isEnabled") ?: true,

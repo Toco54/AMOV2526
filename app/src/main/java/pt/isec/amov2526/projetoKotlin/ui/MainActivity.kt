@@ -28,25 +28,26 @@ import pt.isec.amov2526.projetoKotlin.ui.screens.MainScreen
 import pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService
 import com.google.firebase.auth.FirebaseAuth
 
+/**
+ * Activity única da aplicação (Single Activity Architecture).
+ *
+ * Serve como contentor para toda a navegação Jetpack Compose.
+ * Gere funcionalidades de nível de sistema:
+ * 1. Permissões de runtime (Câmara, Localização, Notificações, Sobreposição).
+ * 2. Intents de entrada (Deep Links, Alertas de Notificação).
+ * 3. Configuração de janela para ecrã de bloqueio (ShowOnLockScreen) durante emergências.
+ */
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-
-
-
-
-
-
-
-
-
-
+        // Verifica se a Activity foi lançada por um Intent de Alerta (SOS, Queda, etc.).
+        // Se sim, configura a janela para aparecer sobre o ecrã de bloqueio.
         checkIntentForAlert(intent)
 
 
-
-
+        // Se não for um alerta de emergência e o utilizador estiver logado,
+        // envia um sinal ao serviço para resetar qualquer estado de alerta pendente na UI anterior.
         if (intent.action != "ACTION_SHOW_ALERT" && FirebaseAuth.getInstance().currentUser != null) {
             val resetIntent = Intent(
                 this,
@@ -60,6 +61,7 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         setContent {
 
+            // Definição da lista de permissões críticas requeridas no arranque.
             val permissionsToRequest = remember {
                 val perms = mutableListOf(
                     Manifest.permission.CAMERA,
@@ -84,8 +86,10 @@ class MainActivity : AppCompatActivity() {
             val context = LocalContext.current
             var showOverlayPermissionDialog by remember { mutableStateOf(false) }
 
+            // Trigger inicial de pedido de permissões.
             LaunchedEffect(Unit) {
                 permissionLauncher.launch(permissionsToRequest.toTypedArray())
+                // Verifica permissão especial de sobreposição (SYSTEM_ALERT_WINDOW)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(
                         context
                     )
@@ -94,6 +98,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
+            // Diálogo explicativo para a permissão de sobreposição (obrigatória para Full Screen Intents em background no Android 10+).
             if (showOverlayPermissionDialog) {
                 AlertDialog(
                     onDismissRequest = { showOverlayPermissionDialog = false },
@@ -120,7 +125,7 @@ class MainActivity : AppCompatActivity() {
                 )
             }
 
-
+            // Ponto de entrada da UI Compose.
             MainScreen()
         }
     }
@@ -137,6 +142,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Configura as flags da janela para permitir que a aplicação acorde o dispositivo
+     * e apareça sobre o Keyguard (ecrã de bloqueio) em caso de emergência.
+     */
     fun setShowOnLockScreen(show: Boolean) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(show)

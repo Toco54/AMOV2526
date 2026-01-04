@@ -33,6 +33,12 @@ import pt.isec.amov2526.projetoKotlin.ui.theme.Slate50
 import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
 
+/**
+ * Ecrã de Histórico de Atividade (Protegido).
+ *
+ * Apresenta uma lista cronológica de todos os alertas gerados pelo utilizador.
+ * Permite visualizar detalhes de cada ocorrência, incluindo quem foi notificado e evidências.
+ */
 @Composable
 fun ActivityScreen(
     viewModel: ProtectedMainViewModel = viewModel(),
