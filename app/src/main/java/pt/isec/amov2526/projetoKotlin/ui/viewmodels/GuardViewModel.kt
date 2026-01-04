@@ -38,7 +38,7 @@ class GuardViewModel(
     private var locationHelper: LocationHelper? = null
     private var lastLocation: Location? = null
 
-    // System Status
+
     private val _isActive = MutableStateFlow(false)
     val isActive: StateFlow<Boolean> = _isActive.asStateFlow()
 
@@ -54,7 +54,7 @@ class GuardViewModel(
     private val _batteryLevel = MutableStateFlow(100)
     val batteryLevel: StateFlow<Int> = _batteryLevel.asStateFlow()
 
-    // Global Schedule State
+
     data class GlobalSchedule(
         val days: List<Int> = emptyList(),
         val start: String = "09:00",
@@ -64,16 +64,16 @@ class GuardViewModel(
     private val _globalSchedule = MutableStateFlow(GlobalSchedule())
     val globalSchedule: StateFlow<GlobalSchedule> = _globalSchedule.asStateFlow()
 
-    // Rules Grouped
+
     private val _protectionGroups = MutableStateFlow<List<ProtectionGroup>>(emptyList())
     val protectionGroups: StateFlow<List<ProtectionGroup>> = _protectionGroups.asStateFlow()
 
-    // Internal list to recombine
+
     private var allRules = mutableListOf<MonitorRule>()
     private val monitorNameMap = mutableMapOf<String, String>()
     private val listeners = mutableListOf<ListenerRegistration>()
     
-    // [NOVO] Expor apenas geofences ativas para o mapa
+
     val activeGeofences: StateFlow<List<MonitorRule>> = _protectionGroups
         .map { groups ->
             groups.find { it.type == RuleType.GEOFENCING }?.rules?.filter { 
@@ -91,7 +91,7 @@ class GuardViewModel(
         val isScheduleEnabled: Boolean = false
     )
 
-    // Type Status (Global switches for Protege)
+    
     private val _typeStatus = MutableStateFlow<Map<RuleType, ProtectionStatus>>(emptyMap())
 
     fun setLocationHelper(helper: LocationHelper) {
@@ -100,7 +100,7 @@ class GuardViewModel(
     }
 
     private fun startLocationTracking() {
-        locationHelper?.startLocationUpdates(5000L) // 5 seconds
+        locationHelper?.startLocationUpdates(5000L) 
 
         viewModelScope.launch {
             locationHelper?.currentLocation?.collect { loc ->
@@ -128,11 +128,11 @@ class GuardViewModel(
             val lat = lastLocation?.latitude
             val lng = lastLocation?.longitude
 
-            // [NOVO] Obter lista inicial de monitores
+            
             var initialActions: List<pt.isec.amov2526.projetoKotlin.data.model.MonitorAction>? = null
             var monitorIds: List<String>? = targetMonitorIds 
 
-            // Se não foram passados alvos específicos (ex: SOS manual), buscar TODOS os monitores
+            
             if (monitorIds == null || monitorIds.isEmpty()) {
                 try {
                     val snapshot = db.collection("users").document(currentUserUid)
@@ -153,7 +153,7 @@ class GuardViewModel(
                     android.util.Log.e("GuardViewModel", "Error fetching monitors for manual SOS", e)
                 }
             } else {
-                // Se temos alvos específicos, tentar obter os nomes para o initialActions
+                
                 try {
                     val snapshot = db.collection("users").document(currentUserUid)
                         .collection("connections")
@@ -168,7 +168,7 @@ class GuardViewModel(
                         )
                     }
                 } catch (e: Exception) {
-                    // Fallback se query falhar
+                    
                     initialActions = monitorIds.map { 
                         pt.isec.amov2526.projetoKotlin.data.model.MonitorAction("Monitor", pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState.SENT, "")
                     }
@@ -192,7 +192,7 @@ class GuardViewModel(
                 longitude = lng,
                 visibleToMonitors = monitorIds,
                 initialActions = initialActions,
-                forcedId = forcedId // [NOVO] Usa o ID do Serviço se disponível
+                forcedId = forcedId 
             )
             
             if (newId != null) {
@@ -213,7 +213,7 @@ class GuardViewModel(
         viewModelScope.launch {
             while (true) {
                 updateEffectiveStatus()
-                kotlinx.coroutines.delay(60000L) // Check every minute
+                kotlinx.coroutines.delay(60000L) 
             }
         }
     }
@@ -387,25 +387,25 @@ class GuardViewModel(
         listeners.add(query.addSnapshotListener { snapshot, e ->
             if (e != null) return@addSnapshotListener
             if (snapshot != null) {
-                // Get current UIDs in snapshot
+                
                 val currentMonitorUids = snapshot.documents.mapNotNull { it.getString("uid") }.toSet()
 
-                // 1. Identify and remove listeners for monitors that are no longer connected
+                
                 val monitorsToRemove = monitorNameMap.keys.filter { it !in currentMonitorUids }
                 monitorsToRemove.forEach { uid ->
-                    // Remove from name map and rules
+                    
                     monitorNameMap.remove(uid)
                     allRules.removeAll { it.monitorId == uid }
-                    // Note: Rule listeners are managed via registrations in 'listeners'
-                    // and 'monitorRuleListeners' map below
+                    
+                    
                 }
 
-                // 2. Add listeners for NEW monitors
+                
                 viewModelScope.launch {
                     snapshot.documents.forEach { doc ->
                         val uid = doc.getString("uid") ?: return@forEach
                         if (!monitorNameMap.containsKey(uid)) {
-                            // Fetch name once
+                            
                             val userDoc = db.collection("users").document(uid).get().await()
                             val name = userDoc.getString("name") ?: "Unknown"
                             monitorNameMap[uid] = name
@@ -421,7 +421,7 @@ class GuardViewModel(
     private val monitorRuleListeners = mutableMapOf<String, ListenerRegistration>()
 
     private fun listenToRulesForMonitor(monitorUid: String, monitorName: String) {
-        // Remove existing listener for this monitor if any
+        
         monitorRuleListeners[monitorUid]?.remove()
 
         val query = db.collection("users").document(currentUserUid)
@@ -435,7 +435,7 @@ class GuardViewModel(
 
                 val newRules = snapshot.documents.mapNotNull { doc ->
                     try {
-                        // Ignore rules deleted by Protege (Soft Delete)
+                        
                         if (doc.getBoolean("deletedByProtege") == true) return@mapNotNull null
 
                         val typeStr = doc.getString("type") ?: return@mapNotNull null
@@ -450,12 +450,12 @@ class GuardViewModel(
                         }
 
                         val param1 = doc.getString("param1") ?: ""
-                        val param2 = doc.getString("param2") ?: "" // [NOVO] Ler param2
+                        val param2 = doc.getString("param2") ?: "" 
                         var geoData: Triple<Double, Double, Float>? = null 
 
                         val parameterDisplay = when(uiType) {
                             RuleType.GEOFENCING -> {
-                                // Parse: param1=Radius, param2=Lat,Lng
+                                
                                 val radius = param1.toFloatOrNull()
                                 val coordParts = param2.split(Regex("[,;]"))
                                 
@@ -487,7 +487,7 @@ class GuardViewModel(
                             isScheduleEnabled = doc.getBoolean("isScheduleEnabled") ?: false,
                             pausedUntil = doc.getLong("pausedUntil") ?: 0L,
                             isDisabledByProtege = doc.getBoolean("isDisabledByProtege") ?: false,
-                            geofenceData = geoData // [NOVO]
+                            geofenceData = geoData 
                         )
                     } catch (e: Exception) {
                         null
@@ -600,7 +600,7 @@ class GuardViewModel(
     fun pauseGlobalProtection(durationMillis: Long) {
         viewModelScope.launch {
             if (durationMillis == -1L) {
-                // Indefinite Pause -> Switch to OFFLINE but save state as Indefinite (-1)
+                
                 db.collection("users").document(currentUserUid)
                     .update(mapOf(
                         "systemStatus" to "OFFLINE",

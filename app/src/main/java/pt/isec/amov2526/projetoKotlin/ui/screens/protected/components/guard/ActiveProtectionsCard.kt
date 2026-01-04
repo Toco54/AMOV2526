@@ -25,18 +25,7 @@ import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
 import pt.isec.amov2526.projetoKotlin.data.model.ProtectionGroup
 import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
 
-// --- CORES ---
-private val Slate50 = Color(0xFFF8FAFC)
-private val Slate100 = Color(0xFFF1F5F9)
-private val Slate200 = Color(0xFFE2E8F0)
-private val Slate400 = Color(0xFF94A3B8)
-private val Slate500 = Color(0xFF64748B)
-private val Slate900 = Color(0xFF0F172A)
-private val Emerald500 = Color(0xFF10B981)
-private val Red50 = Color(0xFFFEF2F2)
-private val Red100 = Color(0xFFFEE2E2)
-private val Red600 = Color(0xFFDC2626)
-private val Indigo600 = Color(0xFF4F46E5)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun ActiveProtectionsCard(
@@ -44,7 +33,7 @@ fun ActiveProtectionsCard(
     currentTime: Long,
     onToggleGroupExpansion: (ProtectionGroup, Boolean) -> Unit,
     onToggleGroupGlobal: (ProtectionGroup, Boolean) -> Unit,
-    onUpdateRule: (String, Boolean) -> Unit, // Using Rule ID
+    onUpdateRule: (String, Boolean) -> Unit,
     onRemoveRule: (MonitorRule) -> Unit,
     onGlobalSchedule: (ProtectionGroup) -> Unit,
     onRuleSchedule: (MonitorRule) -> Unit
@@ -111,13 +100,13 @@ fun IndividualRuleTypeSubCard(
     onGlobalSchedule: () -> Unit,
     onRuleSchedule: (MonitorRule) -> Unit
 ) {
-    // Check Status for the whole group
-    // 1. Manually Paused (via toggle)
+
+
     val isPaused = group.pausedUntil > currentTime || group.pausedUntil == -1L
 
-    // 2. Scheduled Off
+
     val status = TimeUtils.calculateStatus(
-        isEnabled = !isPaused, // If paused, it overrides schedule check for "active" but we want to show specific status
+        isEnabled = !isPaused,
         pausedUntil = group.pausedUntil,
         isScheduleEnabled = group.isScheduleEnabled,
         days = group.scheduleDays,
@@ -126,11 +115,11 @@ fun IndividualRuleTypeSubCard(
         now = currentTime
     )
 
-    // Determine the summary text with strict hierarchy:
-    // 1. Live Countdown (Pause)
-    // 2. Schedule Expiration (Schedule)
-    // 3. Active Monitor Count (Active)
-    // 4. Status Label (Inactive)
+
+
+
+
+
     val summaryText = when {
         group.pausedUntil > currentTime -> {
             val remaining = group.pausedUntil - currentTime
@@ -141,7 +130,7 @@ fun IndividualRuleTypeSubCard(
         else -> status.label
     }
 
-    // Visuals for inactive state
+
     val containerColor = if (status.isActive) Slate50 else Red50
     val textColor = if (status.isActive) Slate400 else Red600
 
@@ -159,7 +148,7 @@ fun IndividualRuleTypeSubCard(
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Clickable area for expansion (Icon + Text)
+
                 Row(
                     modifier = Modifier
                         .clickable { onToggleGroup(!group.isExpanded) }
@@ -207,12 +196,12 @@ fun IndividualRuleTypeSubCard(
                     }
                 }
 
-                // Actions (Schedule + Toggle) - Not part of expansion click
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // Small Circle Schedule Button
+
                     val isScheduleEnabled = group.isScheduleEnabled
                     val isScheduleActiveNow = status.label == "SCHEDULED"
                     
@@ -227,7 +216,7 @@ fun IndividualRuleTypeSubCard(
                                 shape = CircleShape
                             ),
                         colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = Color.Transparent, // Managed by background modifier
+                            containerColor = Color.Transparent,
                             contentColor = if (isScheduleActiveNow) Color.White 
                                            else if (isScheduleEnabled) Indigo600 
                                            else Slate400
@@ -292,9 +281,9 @@ fun MonitorDetailRow(
     onRemove: () -> Unit,
     onSchedule: () -> Unit
 ) {
-    // Calculate Rule Status
+    
     val status = TimeUtils.calculateStatus(
-        isEnabled = true, // Check schedule/pause regardless of Monitor/User disabled state for display
+        isEnabled = true, 
         pausedUntil = rule.pausedUntil,
         isScheduleEnabled = rule.isScheduleEnabled,
         days = rule.scheduleDays,
@@ -313,7 +302,7 @@ fun MonitorDetailRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Effective Status Indicator (Dot)
+                
                 Box(
                     modifier = Modifier
                         .size(8.dp)
@@ -331,14 +320,14 @@ fun MonitorDetailRow(
                 )
             }
             
-            // LINE 1: Parameter (Always visible)
+            
             Text(
                 text = rule.parameter,
                 style = MaterialTheme.typography.labelSmall,
                 color = Slate500
             )
 
-            // LINE 2: Monitor State (if disabled by monitor)
+            
             if (!rule.isEnabled) {
                 Text(
                     text = "Disabled by Monitor",
@@ -348,7 +337,7 @@ fun MonitorDetailRow(
                 )
             }
 
-            // LINE 3: Protege State (Hierarchy)
+            
             val protegeStateText = when {
                 rule.isDisabledByProtege -> "Disabled by User"
                 rule.pausedUntil > currentTime -> "Paused (${TimeUtils.formatDuration(rule.pausedUntil - currentTime)})"
@@ -366,7 +355,7 @@ fun MonitorDetailRow(
                 )
             }
             
-            // Show Schedule Info (Extra Info - maybe kept as line 4 effectively or just auxiliary)
+            
             val schedText = TimeUtils.formatSchedule(rule.scheduleDays, rule.scheduleStart, rule.scheduleEnd)
             if (schedText.isNotEmpty()) {
                 Text(
@@ -381,7 +370,7 @@ fun MonitorDetailRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Smaller Circular Buttons
+            
             val isRuleScheduleActive = status.label == "SCHEDULED"
             Box(
                 modifier = Modifier
@@ -420,12 +409,12 @@ fun MonitorDetailRow(
                 )
             }
 
-            // Switch logic for Protege side:
-            // Controls 'isDisabledByProtege'. If checked (ON) -> isDisabledByProtege = false.
-            // Also reflects PAUSE state: If paused (temporarily or indefinitely), switch appears OFF.
+            
+            
+            
             val switchChecked = !rule.isDisabledByProtege && rule.pausedUntil <= currentTime
 
-            // Status warning if Monitor disabled it
+            
             if (!rule.isEnabled) {
                  Icon(
                      imageVector = Icons.Default.AdminPanelSettings, 
@@ -438,7 +427,7 @@ fun MonitorDetailRow(
 
             Switch(
                 checked = switchChecked,
-                enabled = true, // Always enabled so Protege can set their preference
+                enabled = true, 
                 onCheckedChange = { onToggle(it) },
                 modifier = Modifier.scale(0.55f),
                 colors = SwitchDefaults.colors(

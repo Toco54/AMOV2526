@@ -13,7 +13,7 @@ import pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType
 class RuleRepository {
     private val db = FirebaseFirestore.getInstance()
 
-    // Base path:
+
 
     
     private fun getRulesCollection(protegeUid: String, monitorUid: String) =
@@ -63,9 +63,7 @@ class RuleRepository {
         getRulesCollection(protegeUid, monitorId).document(ruleId).delete().await()
     }
 
-    /**
-     * Real-time stream of rules for a specific connection.
-     */
+
     fun getRulesFlow(monitorId: String, protegeUid: String): Flow<List<ProtectionRule>> = callbackFlow {
         val query = getRulesCollection(protegeUid, monitorId)
 
@@ -84,7 +82,7 @@ class RuleRepository {
                         ProtectionRule(
                             id = doc.id,
                             type = type,
-                            // Icon/Color set by UI
+
                             icon = androidx.compose.material.icons.Icons.Default.Shield, 
                             iconColor = androidx.compose.ui.graphics.Color.Gray,
                             isEnabled = doc.getBoolean("isEnabled") ?: true,

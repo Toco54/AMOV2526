@@ -22,11 +22,7 @@ import androidx.compose.ui.res.stringResource
 import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.data.model.AlertStat
 
-private val Slate100 = Color(0xFFF1F5F9)
-private val Slate400 = Color(0xFF94A3B8)
-private val Slate500 = Color(0xFF64748B)
-private val Slate900 = Color(0xFF0F172A)
-private val Emerald500 = Color(0xFF10B981)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun AlertTrendsCard(stats: List<AlertStat>) {

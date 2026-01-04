@@ -34,20 +34,20 @@ fun MainScreen() {
     ProjetoKotlinTheme {
         val navController = rememberNavController()
 
-        // [CORREÇÃO CRÍTICA] Instanciamos o ViewModel AQUI (no topo).
-        // Esta instância será passada para todos os ecrãs filhos para garantir consistência.
+
+
         val authViewModel: AuthViewModel = viewModel()
 
-        // Observar estado para navegação automática
+
         val currentViewMode = authViewModel.currentViewMode
         val user = authViewModel.user
         
-        // Observador Global de Alertas para Utilizadores "BOTH"
-        // Se o utilizador estiver no modo MONITOR e receber um alerta, forçamos a ida para PROTECTED
+
+
         val context = LocalContext.current
         val lifecycleOwner = LocalLifecycleOwner.current
         
-        // [NOVO] Iniciar Serviço de Notificações do Monitor
+
         LaunchedEffect(user) {
             val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.MonitorNotificationService::class.java)
             if (user != null) {
@@ -68,23 +68,23 @@ fun MainScreen() {
                     val intent = activity?.intent
                     
                     if (intent?.action == "ACTION_SHOW_ALERT") {
-                        // Se temos um alerta e não estamos no modo protegido, muda para lá
+
                         if (authViewModel.currentViewMode != "PROTECTED") {
                             authViewModel.currentViewMode = "PROTECTED"
                         }
                     } else if (intent?.action == "ACTION_MONITOR_ALERT") {
-                        // [NOVO] Navegação direta para o Dashboard do Monitor
+
                         val targetUid = intent.getStringExtra("TARGET_PROTEGE_ID")
                         val targetName = intent.getStringExtra("TARGET_PROTEGE_NAME")
                         
-                        // [CORREÇÃO] Se o utilizador estiver em emergência (AlertScreen aberto), IGNORA a navegação
+
                         if (targetUid != null && targetName != null && !authViewModel.isUserInEmergency) {
                             if (authViewModel.currentViewMode != "MONITOR") {
                                 authViewModel.currentViewMode = "MONITOR"
                             }
                             
-                            // [CORREÇÃO] Garante que o ecrã principal do monitor está na pilha antes de ir para o dashboard
-                            // Isto evita que o botão "back" leve para a Landing Page
+
+
                             navController.navigate("monitor") {
                                 popUpTo("landing") { inclusive = true }
                             }
@@ -93,7 +93,7 @@ fun MainScreen() {
                                 launchSingleTop = true 
                             }
                             
-                            // Limpa a action para não re-navegar ao rodar o ecrã
+
                             intent.action = null 
                         }
                     }
@@ -105,25 +105,25 @@ fun MainScreen() {
             }
         }
 
-        // Observador Global de Mudança de Modo e Login
+
         LaunchedEffect(user, currentViewMode) {
             if (user != null && currentViewMode != null) {
                 val currentRoute = navController.currentBackStackEntry?.destination?.route
                 val activity = context as? android.app.Activity
                 
-                // [CORREÇÃO] Se houver um Intent de alerta de monitorização pendente, 
-                // deixamos o DisposableEffect tratar a navegação para o dashboard específico.
+
+
                 if (activity?.intent?.action == "ACTION_MONITOR_ALERT") return@LaunchedEffect
 
                 if (currentViewMode == "MONITOR") {
-                    // Permite qualquer rota que comece por "monitor" (ex: dashboard)
+
                     if (currentRoute?.startsWith("monitor") != true) {
                         navController.navigate("monitor") {
                             popUpTo("landing") { inclusive = true }
                         }
                     }
                 } else {
-                    // Modo PROTECTED
+
                     if (currentRoute != "protected") {
                         navController.navigate("protected") {
                             popUpTo("landing") { inclusive = true }
@@ -131,7 +131,7 @@ fun MainScreen() {
                     }
                 }
             } else if (user == null) {
-                // Se o user for null (logout), volta forçosamente ao landing
+
                 if (navController.currentBackStackEntry?.destination?.route != "landing") {
                     navController.navigate("landing") {
                         popUpTo(0)
@@ -148,23 +148,23 @@ fun MainScreen() {
                 navController = navController,
                 startDestination = "landing"
             ) {
-                // --- AUTHENTICATION ---
+
                 composable("landing") {
                     LandingScreen(
-                        // Passamos o VM se necessário, ou deixamos o Landing criar o seu,
-                        // pois a navegação é gerida pelo LaunchedEffect acima.
+
+
                         onLoginClick = { navController.navigate("login") },
                         onRegisterClick = { navController.navigate("register") }
                     )
                 }
 
                 composable("login") {
-                    // [CORREÇÃO] Passamos a MESMA instância do ViewModel
+
                     LoginScreen(
                         viewModel = authViewModel,
                         onBack = { navController.popBackStack() },
                         onLogin = { _ ->
-                            // A navegação é automática pelo LaunchedEffect no MainScreen
+
                         },
                         onForgotPassword = { navController.navigate("forgot_password") },
                         onSignUpClick = {
@@ -176,12 +176,12 @@ fun MainScreen() {
                 }
 
                 composable("register") {
-                    // [CORREÇÃO] Passamos a MESMA instância do ViewModel
+
                     RegisterScreen(
                         viewModel = authViewModel,
                         onBack = { navController.popBackStack() },
                         onSignUp = { _ ->
-                            // Navegação automática
+                            
                         },
                         onLoginClick = {
                             navController.navigate("login") {
@@ -199,23 +199,23 @@ fun MainScreen() {
                     )
                 }
 
-                // --- PERFIL PROTEGIDO ---
+                
                 composable("protected") {
-                    // [CORREÇÃO] Passamos a instância para permitir o Switch Mode e Logout
+                    
                     ProtectedMainScreen(
-                        viewModel = authViewModel, // Usa o parametro viewModel do ProtectedMainScreen
+                        viewModel = authViewModel, 
                         onLogout = {
                             authViewModel.logout()
-                            // Navegação tratada pelo LaunchedEffect
+                            
                         }
                     )
                 }
 
-                // --- PERFIL MONITOR ---
+                
                 composable("monitor") {
-                    // [CORREÇÃO] Passamos a instância para permitir o Switch Mode e Logout
+                    
                     MonitorMainScreen(
-                        viewModel = authViewModel, // Passamos como viewModel (AuthViewModel)
+                        viewModel = authViewModel, 
                         onLogout = {
                             authViewModel.logout()
                         },
@@ -225,7 +225,7 @@ fun MainScreen() {
                     )
                 }
 
-                // --- DETALHE DO MONITOR (DASHBOARD) ---
+                
                 composable(
                     route = "monitor/dashboard/{uid}/{name}",
                     arguments = listOf(

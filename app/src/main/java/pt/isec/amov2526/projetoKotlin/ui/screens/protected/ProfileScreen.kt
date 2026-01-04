@@ -18,11 +18,7 @@ import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.ui.components.LanguageSwitch
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.profile.ProfileActionButton
 
-// Cores do Mockup
-private val Slate50 = Color(0xFFF8FAFC)
-private val Slate500 = Color(0xFF64748B)
-private val Slate900 = Color(0xFF0F172A)
-private val Indigo600 = Color(0xFF4F46E5)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun ProfileScreen(
@@ -35,7 +31,7 @@ fun ProfileScreen(
     onSwitchMode: () -> Unit = {},
     canSwitchProfile: Boolean = false
 ) {
-    // Vista Principal do Perfil
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -46,7 +42,7 @@ fun ProfileScreen(
     ) {
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Cartão de Informação do Utilizador
+
         Card(
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -85,7 +81,7 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Botões de Ação
+
         Column(
             modifier = Modifier.fillMaxWidth(0.95f),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -96,14 +92,14 @@ fun ProfileScreen(
                 onClick = onEditProfile
             )
 
-            // Botão único para troca de modo (agora sempre visível)
+
             ProfileActionButton(
                 text = stringResource(id = R.string.profile_switch_monitor),
                 icon = Icons.Default.SwapHoriz,
                 onClick = onSwitchMode
             )
 
-            // [NOVO] Language Switch Card
+
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 modifier = Modifier.fillMaxWidth(),

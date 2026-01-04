@@ -25,11 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
 
-// Using the project's palette
-private val Slate900 = Color(0xFF0F172A)
-private val Slate800 = Color(0xFF1E293B)
-private val Slate400 = Color(0xFF94A3B8)
-private val Emerald500 = Color(0xFF10B981)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun ForgotPasswordScreen(
@@ -39,6 +35,7 @@ fun ForgotPasswordScreen(
     var email by remember { mutableStateOf("") }
     val context = LocalContext.current
     val isLoading = viewModel.isLoading
+    val emailError = stringResource(R.string.error_invalid_email)
 
     Column(
         modifier = Modifier
@@ -46,7 +43,7 @@ fun ForgotPasswordScreen(
             .background(Slate900)
             .padding(24.dp)
     ) {
-        // Back Button
+
         IconButton(
             onClick = onBack,
             modifier = Modifier
@@ -62,7 +59,7 @@ fun ForgotPasswordScreen(
 
         Spacer(modifier = Modifier.weight(0.2f))
 
-        // Card Container
+
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = Slate800.copy(alpha = 0.5f)),
@@ -75,7 +72,7 @@ fun ForgotPasswordScreen(
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Lock Icon
+
                 Box(
                     modifier = Modifier
                         .size(80.dp)
@@ -143,7 +140,7 @@ fun ForgotPasswordScreen(
                     onClick = {
                         val trimmedEmail = email.trim()
                         if (trimmedEmail.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches()) {
-                            Toast.makeText(context, context.getString(R.string.error_invalid_email), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, emailError, Toast.LENGTH_SHORT).show()
                             return@Button
                         }
                         

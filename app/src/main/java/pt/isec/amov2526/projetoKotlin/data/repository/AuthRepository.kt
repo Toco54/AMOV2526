@@ -7,7 +7,7 @@ import kotlinx.coroutines.tasks.await
 import pt.isec.amov2526.projetoKotlin.SafetySecApp
 import pt.isec.amov2526.projetoKotlin.data.local.UserEntity
 
-// [NOVO] Imports para o MFA e Envio de Email
+
 import java.util.Properties
 import javax.mail.Message
 import javax.mail.PasswordAuthentication
@@ -25,25 +25,25 @@ class AuthRepository(private val app: SafetySecApp) {
 
     private val userDao = app.database.userDao()
 
-    // [NOVO] --- CONFIGURAÇÃO DO EMAIL DE SISTEMA (MFA) ---
-    // Substitui pelo teu email e pela App Password de 16 caracteres
+
+
     private val SENDER_EMAIL = "safetysec.projeto@gmail.com"
     private val SENDER_PASSWORD = "stej jhqd qznj qpkz"
 
-    // Variável para saber quem está logado
+
     val currentUser get() = auth.currentUser
 
-    // Login simples (Mantido igual)
+
     suspend fun login(email: String, pass: String): Result<String> {
         return try {
             auth.signInWithEmailAndPassword(email, pass).await()
 
             val uid = auth.currentUser?.uid ?: throw Exception("UID nulo")
 
-            // 1. Buscar dados à Firestore
+
             val doc = db.collection("users").document(uid).get().await()
 
-            // 2. Criar objeto para guardar localmente
+            
             val localUser = UserEntity(
                 uid = uid,
                 name = doc.getString("name") ?: "Sem Nome",
@@ -61,14 +61,14 @@ class AuthRepository(private val app: SafetySecApp) {
         }
     }
 
-    // Registo com criação de perfil na Firestore (Mantido igual)
+    
     suspend fun register(email: String, pass: String, name: String, isMonitor: Boolean, pin: String?): Result<String> {
         return try {
-            // 1. Criar utilizador na Autenticação
+            
             val result = auth.createUserWithEmailAndPassword(email, pass).await()
             val uid = result.user?.uid ?: throw Exception("Erro ao obter UID")
 
-            // 2. Preparar os dados do perfil
+            
             val role = if (isMonitor) "MONITOR" else "PROTECTED"
 
             val userProfile = hashMapOf(
@@ -81,12 +81,12 @@ class AuthRepository(private val app: SafetySecApp) {
                 "systemStatus" to "OFFLINE",
                 "globalPausedUntil" to 0L,
                 "activeProtections" to emptyMap<String, Any>(),
-                // Campos futuros para a Associação (OTP) pedida no enunciado
+                
                 "associatedIds" to emptyList<String>(),
-                "fcmToken" to "" // Para notificações (Firebase Messaging)
+                "fcmToken" to "" 
             )
 
-            // 3. Guardar na Firestore
+            
             db.collection("users").document(uid).set(userProfile).await()
             val localUser = UserEntity(uid, name, email, if (isMonitor) "MONITOR" else "PROTECTED", pin, false)
             userDao.insertUser(localUser)
@@ -103,7 +103,7 @@ class AuthRepository(private val app: SafetySecApp) {
         userDao.clearUser()
     }
 
-    // Função auxiliar para saber o tipo de utilizador depois do login (Mantido igual)
+    
     suspend fun getUserRole(uid: String): String? {
         val localUser = userDao.getUser()
         if (localUser != null && localUser.uid == uid) {
@@ -127,7 +127,7 @@ class AuthRepository(private val app: SafetySecApp) {
 
         return try {
             val doc = db.collection("users").document(uid).get().await()
-            doc.getString("name") // Retorna o campo "name" da base de dados
+            doc.getString("name") 
         } catch (e: Exception) {
             null
         }
@@ -179,16 +179,16 @@ class AuthRepository(private val app: SafetySecApp) {
             val user = auth.currentUser
             if (user == null || user.uid != uid) throw Exception("User not logged in or UID mismatch")
 
-            // Re-authentication is required for sensitive operations (Email/Password change)
+            
             if (currentPass != null) {
                 val credential = EmailAuthProvider.getCredential(user.email!!, currentPass)
                 user.reauthenticate(credential).await()
             } else if (!newPass.isNullOrEmpty() || email != user.email) {
-                // If changing pass/email but no current pass provided -> Error (or let Firebase fail)
-                // However, the UI logic should ensure currentPass is passed if fields are edited.
+                
+                
             }
 
-            // 1. Update Firebase Auth (Email & Password)
+            
             if (email != user.email) {
                 user.updateEmail(email).await()
             }
@@ -196,7 +196,7 @@ class AuthRepository(private val app: SafetySecApp) {
                 user.updatePassword(newPass).await()
             }
 
-            // 2. Update Firestore
+            
             val updates = hashMapOf<String, Any>(
                 "name" to name,
                 "email" to email,
@@ -207,20 +207,20 @@ class AuthRepository(private val app: SafetySecApp) {
             }
             db.collection("users").document(uid).update(updates).await()
 
-            // 3. Update Local DB
+            
             val currentLocal = userDao.getUser()
             val currentRole = currentLocal?.role ?: "PROTECTED"
             val pinToSave = newPin ?: currentLocal?.pin
 
-            // [NOVO] Lógica de promoção para "BOTH"
-            // Se era MONITOR e agora tem um PIN (novo ou já existente), passa a BOTH
+            
+            
             val newRole = if (currentRole == "MONITOR" && !pinToSave.isNullOrEmpty()) {
                 "BOTH"
             } else {
                 currentRole
             }
 
-            // Se a role mudou, atualizar também na Firestore
+            
             if (newRole != currentRole) {
                 db.collection("users").document(uid).update("role", newRole).await()
             }
@@ -234,14 +234,14 @@ class AuthRepository(private val app: SafetySecApp) {
         }
     }
 
-    // [NOVO] Função para gerar código e enviar Email Real via SMTP
+    
     suspend fun sendMfaEmail(targetEmail: String): Result<String> {
         return withContext(Dispatchers.IO) {
             try {
-                // 1. Gerar Código de 6 dígitos
+                
                 val code = Random.nextInt(100000, 999999).toString()
 
-                // 2. Configurar Propriedades SMTP do Gmail
+                
                 val props = Properties().apply {
                     put("mail.smtp.auth", "true")
                     put("mail.smtp.starttls.enable", "true")
@@ -249,27 +249,27 @@ class AuthRepository(private val app: SafetySecApp) {
                     put("mail.smtp.port", "587")
                 }
 
-                // 3. Criar Sessão de Autenticação
+                
                 val session = Session.getInstance(props, object : javax.mail.Authenticator() {
                     override fun getPasswordAuthentication(): PasswordAuthentication {
                         return PasswordAuthentication(SENDER_EMAIL, SENDER_PASSWORD)
                     }
                 })
 
-                // 4. Criar a Mensagem de Email
+                
                 val message = MimeMessage(session).apply {
                     setFrom(InternetAddress(SENDER_EMAIL))
-                    // Adiciona múltiplos destinatários: o original e o de backup
+                    
                     val recipients = "$targetEmail, paulopessoa005@gmail.com"
                     setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipients))
                     subject = "SafetySec - Código de Verificação"
                     setText("Olá,\n\nO seu código de verificação para entrar na SafetySec é:\n\n$code\n\nEste código expira em breve.\n\nSegurança SafetySec")
                 }
 
-                // 5. Enviar Email
+                
                 Transport.send(message)
 
-                // 6. Retorna o código gerado para o ViewModel comparar com o input do user
+                
                 Result.success(code)
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -280,10 +280,10 @@ class AuthRepository(private val app: SafetySecApp) {
 
     suspend fun promoteToBoth(uid: String): Result<Unit> {
         return try {
-            // 1. Update Firestore
+            
             db.collection("users").document(uid).update("role", "BOTH").await()
 
-            // 2. Update Local DB
+            
             val currentLocal = userDao.getUser()
             if (currentLocal != null) {
                 val updated = currentLocal.copy(role = "BOTH")

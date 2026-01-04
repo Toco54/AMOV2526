@@ -40,15 +40,7 @@ import pt.isec.amov2526.projetoKotlin.ui.screens.monitor.components.dashboard.*
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.MonitorDashboardViewModel
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.MonitorDashboardViewModelFactory
 
-// --- CORES ---
-private val Slate50 = Color(0xFFF8FAFC)
-private val Slate100 = Color(0xFFF1F5F9)
-private val Slate400 = Color(0xFF94A3B8)
-private val Slate500 = Color(0xFF64748B)
-private val Slate900 = Color(0xFF0F172A)
-private val Indigo600 = Color(0xFF4F46E5)
-private val Emerald500 = Color(0xFF10B981)
-private val Red600 = Color(0xFFDC2626)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,9 +66,6 @@ fun MonitorDashboardScreen(
     val activities by viewModel.activities.collectAsState()
     val alertStats by viewModel.alertStats.collectAsState()
 
-    val context = LocalContext.current
-
-    // Timer vivo para countdowns
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     
     LaunchedEffect(shouldExitDashboard) {
@@ -99,15 +88,15 @@ fun MonitorDashboardScreen(
     var showStatusDetailDialog by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
 
-    // Determine Effective Status for UI
+
     val displayStatus = if (isDisconnected) "DISCONNECTED" else systemStatus
-    // Global System Active Flag for dots
+
     val isGlobalActive = systemStatus == "ACTIVE"
     
     val displayStatusColor = when (displayStatus) {
         "ACTIVE" -> Emerald500
-        "PAUSED", "SCHEDULED" -> Color(0xFFF59E0B)
-        "DISCONNECTED" -> Color(0xFFEF4444)
+        "PAUSED", "SCHEDULED" -> Amber500
+        "DISCONNECTED" -> Red500
         else -> Slate400
     }
 
@@ -120,7 +109,7 @@ fun MonitorDashboardScreen(
                             Text(protegeName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Slate900)
                             Spacer(modifier = Modifier.width(8.dp))
                             
-                            // Status Pill
+
                             Surface(
                                 color = displayStatusColor.copy(alpha = 0.1f),
                                 shape = RoundedCornerShape(8.dp),
@@ -140,18 +129,18 @@ fun MonitorDashboardScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(stringResource(id = R.string.monitor_live_dashboard), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Indigo600, letterSpacing = 0.5.sp)
                             
-                            // Show details ONLY if connected
+
                             if (!isDisconnected) {
-                                // Dynamic Countdown Logic for TopBar
+
                                 val dynamicDetail = if (systemStatus == "PAUSED" && pausedUntil > currentTime) {
-                                    context.getString(R.string.guard_resumes_in, pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration(pausedUntil - currentTime))
+                                    stringResource(R.string.guard_resumes_in, pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration(pausedUntil - currentTime))
                                 } else {
                                     statusDetail
                                 }
 
                                 if (dynamicDetail != null) {
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    val detailColor = if (systemStatus == "PAUSED" || systemStatus == "SCHEDULED") Color(0xFFF59E0B) else Slate500
+                                    val detailColor = if (systemStatus == "PAUSED" || systemStatus == "SCHEDULED") Amber500 else Slate500
                                     Text(
                                         text = "•  $dynamicDetail",
                                         style = MaterialTheme.typography.labelSmall,
@@ -193,7 +182,7 @@ fun MonitorDashboardScreen(
             LiveLocationMapCard(userLocation = userLocation, rules = rules)
 
             AlertTrendsCard(
-                stats = alertStats // <--- MUDAR ISTO (estava uma lista gigante fixa)
+                stats = alertStats
             )
 
             Card(
@@ -229,7 +218,7 @@ fun MonitorDashboardScreen(
                                     rules = typeRules,
                                     categoryStatus = categoryStatuses[type.name],
                                     currentTime = currentTime,
-                                    isGlobalActive = isGlobalActive, // Pass Global Flag
+                                    isGlobalActive = isGlobalActive,
                                     onToggleGroup = { enabled ->
                                         typeRules.forEach { if (it.isEnabled != enabled) viewModel.toggleRule(it.id, enabled) }
                                     },
@@ -238,7 +227,7 @@ fun MonitorDashboardScreen(
                                 )
                             } else {
                                 typeRules.forEach { rule ->
-                                    // Calculate Category Status for Single Instance Rules (Fall/Accident)
+
                                     val catStatus = categoryStatuses[type.name]
                                     val catStatusResult = pt.isec.amov2526.projetoKotlin.utils.TimeUtils.calculateStatus(
                                         isEnabled = catStatus?.isEnabled ?: true,
@@ -251,9 +240,9 @@ fun MonitorDashboardScreen(
                                     )
                                     
                                     val catStatusText = when {
-                                        catStatusResult.label == "PAUSED" && (catStatus?.pausedUntil ?: 0L) > currentTime -> context.getString(R.string.guard_pause_type, context.getString(type.titleRes)) + " Paused (${pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration((catStatus?.pausedUntil ?: 0L) - currentTime)})"
+                                        catStatusResult.label == "PAUSED" && (catStatus?.pausedUntil ?: 0L) > currentTime -> stringResource(R.string.guard_pause_type, stringResource(type.titleRes)) + " Paused (${pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration((catStatus?.pausedUntil ?: 0L) - currentTime)})"
                                         catStatusResult.label == "SCHEDULED" -> catStatusResult.subLabel ?: stringResource(id = R.string.status_scheduled)
-                                        !(catStatus?.isEnabled ?: true) || (catStatus?.pausedUntil ?: 0L) == -1L -> context.getString(R.string.guard_pause_type, context.getString(type.titleRes)) + " " + stringResource(id = R.string.monitor_rule_marked_delete)
+                                        !(catStatus?.isEnabled ?: true) || (catStatus?.pausedUntil ?: 0L) == -1L -> stringResource(R.string.guard_pause_type, stringResource(type.titleRes)) + " " + stringResource(id = R.string.monitor_rule_marked_delete)
                                         else -> ""
                                     }
 
@@ -264,7 +253,7 @@ fun MonitorDashboardScreen(
                                             }
                                             Spacer(modifier = Modifier.width(12.dp))
                                             Column(modifier = Modifier.weight(1f)) {
-                                                // Calculate Effective Status for Dot
+
                                                 val effectiveRuleActive = isGlobalActive && rule.isEnabled && !rule.deletedByProtege && !rule.isDisabledByProtege && 
                                                     (pt.isec.amov2526.projetoKotlin.utils.TimeUtils.calculateStatus(
                                                         isEnabled = true,
@@ -294,22 +283,22 @@ fun MonitorDashboardScreen(
                                                     )
                                                 }
                                                 
-                                                // Header: Category Status (Separated)
+                                                
                                                 if (catStatusText.isNotEmpty()) {
                                                     Text(
                                                         text = catStatusText,
                                                         style = MaterialTheme.typography.labelSmall,
-                                                        color = if (catStatusText.contains("Disabled")) Red600 else Color(0xFFF59E0B),
+                                                        color = if (catStatusText.contains("Disabled")) Red600 else Amber500,
                                                         fontWeight = FontWeight.Bold
                                                     )
                                                 }
 
-                                                // Line 1: Monitor State
+                                                
                                                 if (!rule.isEnabled) {
                                                     Text(stringResource(id = R.string.monitor_rule_marked_delete), style = MaterialTheme.typography.labelSmall, color = Red600, fontWeight = FontWeight.Bold)
                                                 }
 
-                                                // Line 2: Protege State (Rule Only)
+                                                
                                                 val ruleStatus = pt.isec.amov2526.projetoKotlin.utils.TimeUtils.calculateStatus(
                                                     isEnabled = true,
                                                     pausedUntil = rule.pausedUntil,
@@ -338,7 +327,7 @@ fun MonitorDashboardScreen(
                                                     )
                                                 }
                                                 
-                                                // Line 3: Schedule Plan
+                                                
                                                 val schedText = pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatSchedule(rule.scheduleDays, rule.scheduleStart, rule.scheduleEnd)
                                                 if (schedText.isNotEmpty()) {
                                                     Text(
@@ -357,13 +346,13 @@ fun MonitorDashboardScreen(
                                             if (rule.deletedByProtege) {
                                                 Icon(Icons.Default.Warning, stringResource(id = R.string.monitor_rule_marked_delete), tint = Red600, modifier = Modifier.size(24.dp))
                                             } else {
-                                                // Show status icons alongside the switch
+                                                
                                                 if (rule.isDisabledByProtege) {
                                                     Icon(Icons.Default.PersonOff, stringResource(id = R.string.monitor_rule_marked_delete), tint = Red600, modifier = Modifier.size(20.dp))
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                 }
                                                 if (rule.pausedUntil > currentTime) {
-                                                    Icon(Icons.Default.PauseCircle, stringResource(id = R.string.status_paused), tint = Color(0xFFF59E0B), modifier = Modifier.size(20.dp))
+                                                    Icon(Icons.Default.PauseCircle, stringResource(id = R.string.status_paused), tint = Amber500, modifier = Modifier.size(20.dp))
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                 }
 
@@ -393,7 +382,7 @@ fun MonitorDashboardScreen(
     if (showAddRuleSelection) {
         AddRuleTypeDialog(existingRules = rules, onDismiss = { showAddRuleSelection = false }, onTypeSelected = { type ->
             showAddRuleSelection = false
-            val newRule = ProtectionRule(id = "NEW_${java.util.UUID.randomUUID()}", type = type, icon = when (type) { MonitorRuleType.FALL -> Icons.Default.MonitorHeart; MonitorRuleType.ACCIDENT -> Icons.Default.CarCrash; MonitorRuleType.GEOFENCING -> Icons.Default.LocationOn; MonitorRuleType.SPEED -> Icons.Default.Speed; else -> Icons.Default.Schedule }, iconColor = when (type) { MonitorRuleType.FALL -> Color(0xFFFF7043); MonitorRuleType.ACCIDENT -> Color(0xFFEF4444); MonitorRuleType.GEOFENCING -> Color(0xFF7E57C2); MonitorRuleType.SPEED -> Color(0xFF42A5F5); else -> Slate400 }, isEnabled = true)
+            val newRule = ProtectionRule(id = "NEW_${java.util.UUID.randomUUID()}", type = type, icon = when (type) { MonitorRuleType.FALL -> Icons.Default.MonitorHeart; MonitorRuleType.ACCIDENT -> Icons.Default.CarCrash; MonitorRuleType.GEOFENCING -> Icons.Default.LocationOn; MonitorRuleType.SPEED -> Icons.Default.Speed; else -> Icons.Default.Schedule }, iconColor = when (type) { MonitorRuleType.FALL -> RuleFall; MonitorRuleType.ACCIDENT -> RuleAccident; MonitorRuleType.GEOFENCING -> RuleGeofence; MonitorRuleType.SPEED -> RuleSpeed; else -> Slate400 }, isEnabled = true)
             if (!type.isMultiInstance) viewModel.addRule(newRule) else editingRule = newRule
         })
     }
@@ -416,7 +405,7 @@ fun MonitorDashboardScreen(
             dragHandle = { BottomSheetDefaults.DragHandle() }
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 40.dp)) {
-                // Protege Info Header
+                
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier.size(48.dp).background(Indigo600.copy(alpha = 0.1f), CircleShape),
@@ -444,7 +433,7 @@ fun MonitorDashboardScreen(
                 HorizontalDivider(color = Slate100)
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Section 1: Current Status
+                
                 Text(stringResource(id = R.string.monitor_current_status), style = MaterialTheme.typography.labelSmall, color = Slate400, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -453,14 +442,14 @@ fun MonitorDashboardScreen(
                     Text(displayStatus, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black, color = Slate900)
                 }
                 
-                // Show details only if NOT disconnected
+                
                 if (!isDisconnected) {
                     if (systemStatus == "PAUSED" && pausedUntil > currentTime) {
                         val remaining = pausedUntil - currentTime
                         Text(
-                            text = context.getString(R.string.guard_resumes_in, pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration(remaining)),
+                            text = stringResource(R.string.guard_resumes_in, pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration(remaining)),
                             style = MaterialTheme.typography.bodyLarge,
-                            color = Color(0xFFF59E0B),
+                            color = Amber500,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(top = 4.dp, start = 24.dp)
                         )
@@ -474,13 +463,13 @@ fun MonitorDashboardScreen(
                     }
                 }
 
-                // Section 2: Global Schedule (If enabled)
+                
                 if (globalSchedule?.isEnabled == true) {
                     Spacer(modifier = Modifier.height(32.dp))
                     Text(stringResource(id = R.string.monitor_active_plan), style = MaterialTheme.typography.labelSmall, color = Slate400, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    // Days row
+                    
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -512,7 +501,7 @@ fun MonitorDashboardScreen(
                             Icon(Icons.Default.Schedule, null, tint = Indigo600, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                text = context.getString(R.string.guard_active_window, globalSchedule!!.start, globalSchedule!!.end),
+                                text = stringResource(R.string.guard_active_window, globalSchedule!!.start, globalSchedule!!.end),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Slate900
@@ -521,7 +510,7 @@ fun MonitorDashboardScreen(
                     }
                 }
 
-                // Section 3: Connection Warning (Extra warning)
+                
                 if (isDisconnected) {
                     Spacer(modifier = Modifier.height(32.dp))
                     Surface(
@@ -542,11 +531,11 @@ fun MonitorDashboardScreen(
     }
 
     if (selectedActivity != null) {
-        // [NOVO] Converter ProtectionRules (MonitorDashboard) em MonitorRules (Shared Model) para o Mapa
+        
         val activeGeofences = rules
             .filter { it.type == MonitorRuleType.GEOFENCING }
             .map { rule ->
-                // Parse Lat,Lng from param2
+                
                 val coords = rule.param2.split(",").mapNotNull { it.trim().toDoubleOrNull() }
                 val lat = coords.getOrNull(0) ?: 0.0
                 val lng = coords.getOrNull(1) ?: 0.0
@@ -554,11 +543,11 @@ fun MonitorDashboardScreen(
                 
                 MonitorRule(
                     id = rule.id,
-                    monitorId = "CURRENT_MONITOR", // Placeholder, não critico para visualização visual
+                    monitorId = "CURRENT_MONITOR", 
                     monitorName = "Me",
                     parameter = rule.param1,
                     isEnabled = rule.isEnabled,
-                    type = RuleType.GEOFENCING, // Enum Mapping
+                    type = RuleType.GEOFENCING, 
                     geofenceData = Triple(lat, lng, radius)
                 )
             }

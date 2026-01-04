@@ -12,34 +12,34 @@ import pt.isec.amov2526.projetoKotlin.data.repository.AuthRepository
 class AuthViewModel(application: android.app.Application) : androidx.lifecycle.AndroidViewModel(application) {
     private val repository = AuthRepository(application as pt.isec.amov2526.projetoKotlin.SafetySecApp)
 
-    // Estados observáveis pela UI (Jetpack Compose)
+
     var user by mutableStateOf(repository.currentUser)
     var isLoading by mutableStateOf(false)
     var errorMsg by mutableStateOf<String?>(null)
 
-    // [NOVO] Estados para o MFA
+
     var mfaRequired by mutableStateOf(false)
     var generatedMfaCode by mutableStateOf<String?>(null)
     var tempUserEmail by mutableStateOf<String?>(null)
 
-    // Para navegação: guardar se é Monitor ou Protegido
+
     var userRole by mutableStateOf<String?>(null)
 
-    // Modo de Visualização Atual (Dinâmico para permitir switch)
+
     var currentViewMode by mutableStateOf<String?>(null)
 
-    // Dados completos do perfil (para edição)
+
     var currentUserData by mutableStateOf<UserEntity?>(null)
 
-    // [NOVO] Flag global para indicar que o utilizador está em situação de emergência (AlertScreen ativo)
-    // Isto impede a navegação forçada para o Dashboard de Monitor se receber uma notificação
+
+
     var isUserInEmergency by mutableStateOf(false)
 
     var userName by mutableStateOf<String>("Carregando...")
     var userEmail by mutableStateOf<String>("")
 
     init {
-        // Se o user já estava logado (sessão persistente), carregamos os dados
+
         if (user != null) {
             viewModelScope.launch {
                 loadUserData(user!!.uid, user!!.email ?: "")
@@ -57,13 +57,13 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
                 userRole = fullUser.role
                 userName = fullUser.name
 
-                // Inicializa o modo de visualização com o role da BD se ainda não estiver definido
+
                 if (currentViewMode == null) {
-                    // [MODIFICADO] Prioridade ao modo PROTECTED se for BOTH
+
                     currentViewMode = if (fullUser.role == "BOTH") "PROTECTED" else fullUser.role
                 }
                 
-                // [NOVO] Verificar e restaurar o serviço de segurança se estiver ACTIVE na Cloud
+
                 if (fullUser.role == "PROTECTED" || fullUser.role == "BOTH") {
                     try {
                         com.google.firebase.firestore.FirebaseFirestore.getInstance()
@@ -81,11 +81,11 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
                                 }
                             }
                     } catch (e: Exception) {
-                        // Fail silent, user can manually activate later
+
                     }
                 }
             } else {
-                // Fallback (ex: erro de rede ou não encontrado)
+
                 userRole = repository.getUserRole(uid)
                 if (currentViewMode == null) {
                     currentViewMode = if (userRole == "BOTH") "PROTECTED" else userRole
@@ -98,13 +98,13 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
         }
     }
 
-    // Helper para a UI saber se mostra o botão de troca
+
     val canSwitchProfile: Boolean
         get() = userRole == "BOTH"
 
-    // Função para alternar entre modos
+
     fun switchViewMode() {
-        if (!canSwitchProfile) return // Segurança extra
+        if (!canSwitchProfile) return
 
         currentViewMode = if (currentViewMode == "MONITOR") {
             "PROTECTED"
@@ -113,37 +113,37 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
         }
     }
 
-    // [ALTERADO] Login agora inicia o processo MFA APENAS SE mfaEnabled for true
+
     fun login(email: String, pass: String) {
         isLoading = true
         errorMsg = null
         viewModelScope.launch {
-            // 1. Autenticação Base (Firebase)
+
             val result = repository.login(email, pass)
 
             if (result.isSuccess) {
                 val uid = result.getOrNull()
                 if (uid != null) {
-                    // Check if MFA is enabled for this user
+
                     val userEntity = repository.getUser(uid)
                     if (userEntity != null && userEntity.mfaEnabled) {
-                        // SUCESSO na password e MFA ativado.
-                        // Mas NÃO definimos o 'user' ainda. Vamos iniciar o MFA.
+
+
                         tempUserEmail = email
 
-                        // 2. Enviar Email MFA
+                        
                         val mfaResult = repository.sendMfaEmail(email)
 
                         if (mfaResult.isSuccess) {
                             generatedMfaCode = mfaResult.getOrNull()
-                            mfaRequired = true // Isto faz a UI mudar para o ecrã de código
+                            mfaRequired = true 
                         } else {
-                            // Se falhar o envio do email, fazemos logout forçado
+                            
                             repository.logout()
                             errorMsg = "Password correta, mas falha ao enviar email de verificação."
                         }
                     } else {
-                        // MFA not enabled, proceed to login
+                        
                         user = repository.currentUser
                         loadUserData(uid, email)
                     }
@@ -163,24 +163,24 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
         }
     }
 
-    // [NOVO] Verifica o código inserido
+    
     fun verifyMfaCode(inputCode: String) {
         if (inputCode == generatedMfaCode) {
-            // CÓDIGO CORRETO -> Finalizar Login
+            
             mfaRequired = false
             generatedMfaCode = null
 
-            // Atualizar o estado principal 'user' que vai desencadear a navegação
+            
             user = repository.currentUser
 
-            // Initial Ping e Carregamento de dados
+            
             if (user != null) {
                 try {
                     com.google.firebase.firestore.FirebaseFirestore.getInstance()
                         .collection("users").document(user!!.uid)
                         .update("lastUpdate", System.currentTimeMillis())
                 } catch (e: Exception) {
-                    // Ignore network error on initial ping
+                    
                 }
                 loadUserData(user!!.uid, user!!.email ?: "")
             }
@@ -189,7 +189,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
         }
     }
 
-    // [NOVO] Cancelar o processo MFA
+    
     fun cancelMfa() {
         viewModelScope.launch {
             repository.logout()
@@ -212,10 +212,10 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
                 userName = name
                 userEmail = email
 
-                // Define o modo inicial após registo
+                
                 currentViewMode = userRole
 
-                // Force load to set currentUserData
+                
                 loadUserData(user!!.uid, email)
             } else {
                 val exception = result.exceptionOrNull()
@@ -256,7 +256,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
         email: String,
         pass: String?,
         pin: String?,
-        mfaEnabled: Boolean = false, // Default to false if not provided, though callers should provide it
+        mfaEnabled: Boolean = false, 
         currentPass: String? = null,
         onSuccess: () -> Unit = {},
         onError: (String) -> Unit = {}
@@ -267,7 +267,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
         viewModelScope.launch {
             val result = repository.updateProfile(u.uid, name, email, pass, pin, mfaEnabled, currentPass)
             if (result.isSuccess) {
-                // Refresh data
+                
                 loadUserData(u.uid, email)
                 onSuccess()
             } else {
@@ -291,7 +291,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
                 context.stopService(android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java))
                 context.stopService(android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.MonitorNotificationService::class.java))
             } catch (e: Exception) {
-                // Ignore errors during service stop
+                
             }
 
             repository.logout()
@@ -300,7 +300,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
             currentViewMode = null
             userName = ""
             currentUserData = null
-            // Reset MFA
+            
             mfaRequired = false
             generatedMfaCode = null
         }

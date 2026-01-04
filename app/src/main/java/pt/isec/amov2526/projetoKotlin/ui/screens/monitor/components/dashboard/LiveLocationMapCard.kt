@@ -22,9 +22,7 @@ import org.osmdroid.views.MapView
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType
 import pt.isec.amov2526.projetoKotlin.data.model.ProtectionRule
 
-private val Emerald500 = Color(0xFF10B981)
-private val Red600 = Color(0xFFDC2626)
-private val Slate900 = Color(0xFF0F172A)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun LiveLocationMapCard(userLocation: GeoPoint?, rules: List<ProtectionRule>) {
@@ -42,7 +40,7 @@ fun LiveLocationMapCard(userLocation: GeoPoint?, rules: List<ProtectionRule>) {
                         setMultiTouchControls(true)
                         controller.setZoom(15.0)
                         
-                        // Fix for parent scroll
+
                         setOnTouchListener { v, _ ->
                             v.parent.requestDisallowInterceptTouchEvent(true)
                             false
@@ -53,7 +51,7 @@ fun LiveLocationMapCard(userLocation: GeoPoint?, rules: List<ProtectionRule>) {
                 update = { map ->
                     map.overlays.clear()
 
-                    // Draw Geofences
+
                     rules.filter { it.type == MonitorRuleType.GEOFENCING }.forEach { rule ->
                         val parts = rule.param2.split(",").map { it.trim().toDoubleOrNull() }
                         if (parts.size == 2 && parts[0] != null && parts[1] != null) {
@@ -63,7 +61,7 @@ fun LiveLocationMapCard(userLocation: GeoPoint?, rules: List<ProtectionRule>) {
                                 rule.param1.toDoubleOrNull() ?: 100.0
                             )
                             
-                            val c = if (rule.isEnabled) Color(0xFF059669) else Color(0xFFDC2626)
+                            val c = if (rule.isEnabled) Emerald600 else Red600
                             poly.fillColor = android.graphics.Color.argb(50, (c.red*255).toInt(), (c.green*255).toInt(), (c.blue*255).toInt())
                             poly.strokeColor = android.graphics.Color.argb(180, (c.red*255).toInt(), (c.green*255).toInt(), (c.blue*255).toInt())
                             poly.strokeWidth = 3f
@@ -71,7 +69,7 @@ fun LiveLocationMapCard(userLocation: GeoPoint?, rules: List<ProtectionRule>) {
                         }
                     }
 
-                    // Draw User Location
+
                     if (userLocation != null) {
                         val marker = org.osmdroid.views.overlay.Marker(map)
                         marker.position = userLocation
@@ -80,7 +78,7 @@ fun LiveLocationMapCard(userLocation: GeoPoint?, rules: List<ProtectionRule>) {
                         map.overlays.add(marker)
                         map.controller.setCenter(userLocation)
                     } else {
-                        // Default center if no location
+
                         if (map.mapCenter.latitude == 0.0 && map.mapCenter.longitude == 0.0) {
                             map.controller.setCenter(GeoPoint(40.2033, -8.4103))
                         }
@@ -89,7 +87,7 @@ fun LiveLocationMapCard(userLocation: GeoPoint?, rules: List<ProtectionRule>) {
                 }
             )
             
-            // Overlay Label
+
             Box(
                 modifier = Modifier
                     .align(Alignment.TopStart)

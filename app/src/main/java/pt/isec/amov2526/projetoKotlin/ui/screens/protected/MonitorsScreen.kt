@@ -30,14 +30,7 @@ import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.monitors.G
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.monitors.MonitorCard
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
 
-// Cores
-private val Slate50 = Color(0xFFF8FAFC)
-private val Slate400 = Color(0xFF94A3B8)
-private val Slate500 = Color(0xFF64748B)
-private val Slate900 = Color(0xFF0F172A)
-private val Indigo600 = Color(0xFF4F46E5)
-private val Red50 = Color(0xFFFEF2F2)
-private val Red600 = Color(0xFFDC2626)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun MonitorsScreen(
@@ -68,7 +61,7 @@ fun MonitorsScreen(
                 )
             }
 
-            // ACTIVE MONITORS
+
             if (monitors.isNotEmpty()) {
                 item {
                     Text(
@@ -123,7 +116,7 @@ fun MonitorsScreen(
         }
     }
 
-    // --- DIALOGS ---
+
     if (showRemoveDialog != null) {
         Dialog(onDismissRequest = { showRemoveDialog = null }) {
             Card(

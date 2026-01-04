@@ -50,7 +50,7 @@ class EvidenceManager(private val context: Context) {
             try {
                 cameraProvider = cameraProviderFuture.get()
 
-                // CRÍTICO: Limpar qualquer binding anterior para evitar Conflitos
+
                 cameraProvider?.unbindAll()
 
                 val preview = Preview.Builder().build()
@@ -67,7 +67,7 @@ class EvidenceManager(private val context: Context) {
 
                 val videoCapture = VideoCapture.withOutput(recorder)
 
-                // Tentar bind. Se houver conflito, o try-catch apanha.
+
                 cameraProvider?.bindToLifecycle(
                     lifecycleOwner,
                     CameraSelector.DEFAULT_BACK_CAMERA,
@@ -76,7 +76,7 @@ class EvidenceManager(private val context: Context) {
                 )
 
                 val outputOptions = FileOutputOptions.Builder(file)
-                    .setDurationLimitMillis(12000) // 12 Segundos
+                    .setDurationLimitMillis(12000)
                     .build()
 
                 activeRecording = videoCapture.output
@@ -92,8 +92,8 @@ class EvidenceManager(private val context: Context) {
                                 if (recordEvent.hasError()) {
                                     val errorMsg = "Video capture failed: code=${recordEvent.error}, cause=${recordEvent.cause?.message}"
                                     Log.e("EvidenceManager", errorMsg)
-                                    // Mesmo com erro, tentamos devolver o ficheiro (pode ter dados parciais)
-                                    // ou garantir que o fluxo continua.
+                                    
+                                    
                                 } else {
                                     Log.d("EvidenceManager", "Recording finalize event received successfully")
                                 }
@@ -112,15 +112,15 @@ class EvidenceManager(private val context: Context) {
 
     fun stopVideoRecording(): File? {
         try {
-            // Só paramos se houver uma gravação ativa para evitar o erro MPEG4Writer
+            
             activeRecording?.let {
                 it.stop()
                 activeRecording = null
             }
 
-            // Nota: Não chamamos unbindAll() aqui para permitir que o evento Finalize
-            // seja processado corretamente e para manter o preview ativo.
-            // O LifecycleOwner encarrega-se de libertar a câmara.
+            
+            
+            
 
         } catch (e: Exception) {
             Log.e("EvidenceManager", "Error during stopVideoRecording", e)

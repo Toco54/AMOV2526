@@ -16,7 +16,7 @@ import pt.isec.amov2526.projetoKotlin.data.model.RuleType
 class InactivityHandler(
     private val sensorHelper: SensorHelper,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default),
-    private val isActiveChecker: (MonitorRule) -> Boolean // [NOVO]
+    private val isActiveChecker: (MonitorRule) -> Boolean
 ) {
     private val rules = mutableListOf<MonitorRule>()
     private val triggeredRulesThisSession = mutableSetOf<String>()
@@ -24,7 +24,7 @@ class InactivityHandler(
     private val _infractions = MutableSharedFlow<ProtectionCheckResult>()
     val infractions = _infractions.asSharedFlow()
 
-    // [MODIFICADO] Inicializa com o último timestamp conhecido do sensor, permitindo detetar inatividade acumulada
+
     private var lastMotionTimestamp: Long = sensorHelper.lastMotionTimestamp.value
     private var monitoringJob: Job? = null
     private var sensorJob: Job? = null
@@ -43,10 +43,10 @@ class InactivityHandler(
         if (monitoringJob?.isActive == true) return
         sensorHelper.startMotionDetection()
         
-        // Monitorização do fluxo de movimentos (Timestamp)
+
         sensorJob = scope.launch {
             sensorHelper.lastMotionTimestamp.collect { timestamp -> 
-                // Ignora timestamps antigos na inicialização se necessário, ou processa tudo
+
                 if (timestamp > lastMotionTimestamp) {
                     Log.d("InactivityHandler", "Movimento detetado em: $timestamp")
                     resetTimer(timestamp)
@@ -54,7 +54,7 @@ class InactivityHandler(
             }
         }
         
-        // Ciclo de verificação periódica das regras de inatividade
+
         monitoringJob = scope.launch {
             while (true) { checkRules(); delay(5000L) }
         }
@@ -66,7 +66,7 @@ class InactivityHandler(
         sensorHelper.stopMotionDetection()
     }
 
-    // [MODIFICADO] Tornou-se interno para permitir reinicialização via Serviço (ex: ao ativar proteção)
+
     fun resetTimer(timestamp: Long = System.currentTimeMillis()) {
         Log.d("InactivityHandler", "Temporizador reiniciado. Referência: $timestamp")
         lastMotionTimestamp = timestamp
@@ -91,7 +91,7 @@ class InactivityHandler(
         val monitorsToNotify = mutableSetOf<String>()
 
         for (rule in currentRules) {
-            // [ATUALIZADO] Verificação Dinâmica (AND: Global && Group && Rule)
+
             if (!isActiveChecker(rule)) continue
             
             if (triggeredRulesThisSession.contains(rule.id)) continue

@@ -21,7 +21,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "safetysec_db"
                 )
-                    .fallbackToDestructiveMigration() // Útil em testes se mudares a estrutura
+                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance

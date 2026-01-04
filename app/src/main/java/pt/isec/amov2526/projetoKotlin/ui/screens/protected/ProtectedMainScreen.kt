@@ -53,7 +53,7 @@ fun ProtectedMainScreen(
 
     var showAlertScreen by remember { mutableStateOf(false) }
     
-    // [NOVO] Sincronizar estado de emergência com o ViewModel Global para prevenir navegação externa
+
     LaunchedEffect(showAlertScreen) {
         viewModel.isUserInEmergency = showAlertScreen
     }
@@ -86,6 +86,7 @@ fun ProtectedMainScreen(
     var alertDetails by remember { mutableStateOf<String?>(null) }
     var alertId by remember { mutableStateOf<String?>(null) }
     var alertInfractions by remember { mutableStateOf<List<InfractionDisplayInfo>>(emptyList()) }
+    val invalidPinError = stringResource(R.string.error_invalid_pin)
 
     fun processNextAlert() {
         if (alertQueue.isNotEmpty()) {
@@ -148,8 +149,8 @@ fun ProtectedMainScreen(
                         alertQueue.add(PendingAlert(type, details, safeId, infractionsList, timestamp))
                         android.util.Log.d("ProtectedMainScreen", "Alert enqueued. Queue size: ${alertQueue.size}")
                         
-                        // [NOVO] Auto-advance se o alerta atual já estiver confirmado/terminado
-                        // Assume-se (pela regra de negócio) que o novo alerta só chega quando o anterior termina.
+
+
                         if (isAlertConfirmed) {
                             processNextAlert()
                         }
@@ -190,8 +191,8 @@ fun ProtectedMainScreen(
             )
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                // [CORREÇÃO] key(alertId) força a recriação do AlertScreen quando o ID muda,
-                // garantindo que estados como isRecordingFinished/finalizedFile sejam resetados.
+
+
                 key(alertId) {
                     AlertScreen(
                         alertType = pendingAlertType.name,
@@ -223,7 +224,7 @@ fun ProtectedMainScreen(
                                     if (keyguardManager.isDeviceLocked) activity?.finish()
                                     processNextAlert()
                                 } else {
-                                    Toast.makeText(context, context.getString(R.string.error_invalid_pin), Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, invalidPinError, Toast.LENGTH_SHORT).show()
                                 }
                             }
                             false
@@ -236,7 +237,7 @@ fun ProtectedMainScreen(
 
     var isEditingProfile by remember { mutableStateOf(false) }
     var showOverlayPermissionDialog by remember { mutableStateOf(false) }
-    var showEnableMonitorDialog by remember { mutableStateOf(false) } // NOVO: Dialog state
+    var showEnableMonitorDialog by remember { mutableStateOf(false) }
     val currentUserData = viewModel.currentUserData
 
     LaunchedEffect(Unit) {

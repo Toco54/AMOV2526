@@ -22,10 +22,7 @@ import androidx.compose.ui.unit.sp
 import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.ui.components.LanguageSwitch
 
-// Using the project's palette
-private val Slate900 = Color(0xFF0F172A)
-private val Emerald500 = Color(0xFF10B981)
-private val Slate400 = Color(0xFF94A3B8)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun LandingScreen(
@@ -33,7 +30,7 @@ fun LandingScreen(
     onRegisterClick: () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize().background(Slate900)) {
-        // Language Switch at Top Right
+
         LanguageSwitch(
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -49,7 +46,7 @@ fun LandingScreen(
         ) {
             Spacer(modifier = Modifier.weight(1f))
 
-            // Logo Area
+
             Box(
                 modifier = Modifier
                     .size(100.dp)
@@ -84,7 +81,7 @@ fun LandingScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Actions
+
             Button(
                 onClick = onRegisterClick,
                 modifier = Modifier

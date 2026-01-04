@@ -30,41 +30,37 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
 
-// Using the project's palette (Mantido igual)
-private val Slate900 = Color(0xFF0F172A)
-private val Slate800 = Color(0xFF1E293B)
-private val Slate400 = Color(0xFF94A3B8)
-private val Emerald500 = Color(0xFF10B981)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun LoginScreen(
     onBack: () -> Unit,
-    onLogin: (String) -> Unit, // Agora recebe a Role (Monitor/Protected)
+    onLogin: (String) -> Unit,
     onForgotPassword: () -> Unit,
     onSignUpClick: () -> Unit,
-    viewModel: AuthViewModel = viewModel() // <--- INJEÇÃO DO VIEWMODEL
+    viewModel: AuthViewModel = viewModel()
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
 
-    // [NOVO] Estado para o input do código MFA
+
     var mfaCode by remember { mutableStateOf("") }
 
-    // --- LÓGICA DO VIEWMODEL ---
+
     val isLoading = viewModel.isLoading
     val errorMsg = viewModel.errorMsg
     val user = viewModel.user
     val userRole = viewModel.userRole
-    val mfaRequired = viewModel.mfaRequired // Observamos se precisamos de mostrar o MFA
+    val mfaRequired = viewModel.mfaRequired
 
-    // Quando o login é feito (MFA passou) e a role é descoberta, avançamos
+
     LaunchedEffect(user, userRole) {
         if (user != null && userRole != null && !mfaRequired) {
             onLogin(userRole)
         }
     }
-    // -------------------------
+
 
     Column(
         modifier = Modifier
@@ -72,7 +68,7 @@ fun LoginScreen(
             .background(Slate900)
             .padding(24.dp)
     ) {
-        // Back Button
+
         IconButton(
             onClick = {
                 if (mfaRequired) viewModel.cancelMfa() else onBack()
@@ -83,14 +79,14 @@ fun LoginScreen(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = stringResource(id = R.string.profile_logout), // Just for desc
+                contentDescription = stringResource(id = R.string.profile_logout),
                 tint = Color.White
             )
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // HEADER: Muda consoante o estado
+
         Text(
             text = if (mfaRequired) stringResource(id = R.string.auth_security_check) else stringResource(id = R.string.auth_welcome),
             style = MaterialTheme.typography.displaySmall,
@@ -106,11 +102,11 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // --- CONTEÚDO CONDICIONAL ---
+
         if (mfaRequired) {
-            // ===========================
-            // PARTE DO CÓDIGO MFA (OTP)
-            // ===========================
+
+
+
             Text(
                 text = stringResource(id = R.string.auth_verification_code),
                 style = MaterialTheme.typography.labelSmall,
@@ -146,12 +142,12 @@ fun LoginScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
 
-            // MOSTRAR ERRO (SE HOUVER)
+
             if (errorMsg != null) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = errorMsg ?: "",
-                    color = Color(0xFFEF4444),
+                    color = AlertRed,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(horizontal = 4.dp)
@@ -160,7 +156,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // BOTÃO VERIFICAR
+
             Button(
                 onClick = { viewModel.verifyMfaCode(mfaCode) },
                 enabled = mfaCode.length == 6 && !isLoading,
@@ -184,7 +180,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // BOTÃO CANCELAR
+
             Button(
                 onClick = { viewModel.cancelMfa() },
                 modifier = Modifier
@@ -194,7 +190,7 @@ fun LoginScreen(
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Text(
-                    text = "Cancel", // Standard enough or add to strings
+                    text = "Cancel",
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
@@ -202,11 +198,11 @@ fun LoginScreen(
             }
 
         } else {
-            // ===========================
-            // PARTE DO LOGIN NORMAL
-            // ===========================
 
-            // Email
+
+
+
+
             Text(
                 text = stringResource(id = R.string.auth_email),
                 style = MaterialTheme.typography.labelSmall,
@@ -247,7 +243,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Password
+
             Text(
                 text = stringResource(id = R.string.auth_password),
                 style = MaterialTheme.typography.labelSmall,
@@ -295,7 +291,7 @@ fun LoginScreen(
                 visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation()
             )
 
-            // MOSTRAR ERRO (SE HOUVER)
+
             if (errorMsg != null) {
                 Spacer(modifier = Modifier.height(16.dp))
                 val localizedError = when(errorMsg) {
@@ -305,7 +301,7 @@ fun LoginScreen(
                 }
                 Text(
                     text = localizedError ?: "",
-                    color = Color(0xFFEF4444), // Emerald Red
+                    color = AlertRed,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(horizontal = 4.dp)
@@ -325,7 +321,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // O BOTÃO DE LOGIN AGORA CHAMA O VIEWMODEL
+
             Button(
                 onClick = {
                     val trimmedEmail = email.trim()

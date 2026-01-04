@@ -23,13 +23,7 @@ import androidx.compose.ui.window.Dialog
 import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
 
-private val Slate50 = Color(0xFFF8FAFC)
-private val Slate100 = Color(0xFFF1F5F9)
-private val Slate200 = Color(0xFFE2E8F0)
-private val Slate500 = Color(0xFF64748B)
-private val Slate900 = Color(0xFF0F172A)
-private val Indigo600 = Color(0xFF4F46E5)
-private val Red600 = Color(0xFFDC2626)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun GenerateCodeModal(
@@ -91,7 +85,7 @@ fun GenerateCodeModal(
 
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Button(
-                            onClick = { viewModel.generateCode("Full Monitoring") }, // Default if regen
+                            onClick = { viewModel.generateCode("Full Monitoring") },
                             colors = ButtonDefaults.buttonColors(containerColor = Slate100, contentColor = Slate900),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f).height(50.dp)

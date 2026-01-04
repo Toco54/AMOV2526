@@ -27,16 +27,7 @@ import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.launch
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel
 
-// --- CORES ---
-private val Slate50 = Color(0xFFF8FAFC)
-private val Slate200 = Color(0xFFE2E8F0)
-private val Slate400 = Color(0xFF94A3B8)
-private val Slate500 = Color(0xFF64748B)
-private val Slate700 = Color(0xFF334155)
-private val Slate900 = Color(0xFF0F172A)
-private val Indigo600 = Color(0xFF4F46E5)
-private val Red600 = Color(0xFFDC2626)
-private val Amber500 = Color(0xFFF59E0B)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun PauseSystemModal(

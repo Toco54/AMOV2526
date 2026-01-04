@@ -7,4 +7,59 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Project Palette: Slate -->
+    <color name="slate_50">#FFF8FAFC</color>
+    <color name="slate_100">#FFF1F5F9</color>
+    <color name="slate_200">#FFE2E8F0</color>
+    <color name="slate_300">#FFCBD5E1</color>
+    <color name="slate_400">#FF94A3B8</color>
+    <color name="slate_500">#FF64748B</color>
+    <color name="slate_600">#FF475569</color>
+    <color name="slate_700">#FF334155</color>
+    <color name="slate_800">#FF1E293B</color>
+    <color name="slate_900">#FF0F172A</color>
+
+    <!-- Project Palette: Emerald -->
+    <color name="emerald_50">#FFECFDF5</color>
+    <color name="emerald_100">#FFD1FAE5</color>
+    <color name="emerald_200">#FFA7F3D0</color>
+    <color name="emerald_500">#FF10B981</color>
+    <color name="emerald_600">#FF059669</color>
+    <color name="emerald_700">#FF047857</color>
+
+    <!-- Project Palette: Indigo -->
+    <color name="indigo_50">#FFEEF2FF</color>
+    <color name="indigo_100">#FFE0E7FF</color>
+    <color name="indigo_500">#FF6366F1</color>
+    <color name="indigo_600">#FF4F46E5</color>
+
+    <!-- Project Palette: Red -->
+    <color name="red_50">#FFFEF2F2</color>
+    <color name="red_100">#FFFEE2E2</color>
+    <color name="red_500">#FFEF4444</color>
+    <color name="red_600">#FFDC2626</color>
+    <color name="red_700">#FFB91C1C</color>
+
+    <!-- Project Palette: Amber -->
+    <color name="amber_50">#FFFFFBEB</color>
+    <color name="amber_100">#FFFEF3C7</color>
+    <color name="amber_200">#FFFDE68A</color>
+    <color name="amber_500">#FFF59E0B</color>
+    <color name="amber_700">#FFB45309</color>
+
+    <!-- Functional Colors -->
+    <color name="alert_red">#FFDC2626</color>
+    <color name="alert_green">#FF16A34A</color>
+    <color name="alert_yellow">#FFFFC107</color>
+    <color name="safe_green">#FF4CAF50</color>
+    <color name="pin_box_bg">#FF1E293B</color>
+    <color name="header_slate">#FF334155</color>
+
+    <!-- Rule Specific Colors -->
+    <color name="rule_fall">#FFFF7043</color>
+    <color name="rule_accident">#FFEF4444</color>
+    <color name="rule_geofence">#FF7E57C2</color>
+    <color name="rule_speed">#FF42A5F5</color>
+    <color name="rule_inactivity">#FFFFA726</color>
 </resources>

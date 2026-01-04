@@ -27,7 +27,7 @@ object LocaleHelper {
         if (savedLang != null) {
             setLocale(savedLang)
         } else {
-            // Auto detect
+
             val deviceLang = Locale.getDefault().language
             if (deviceLang == "pt") {
                 setLocale("pt")

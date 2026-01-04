@@ -28,12 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import pt.isec.amov2526.projetoKotlin.R
 
-// Cores (Partilhadas)
-private val Slate50 = Color(0xFFF8FAFC)
-private val Slate200 = Color(0xFFE2E8F0)
-private val Slate500 = Color(0xFF64748B)
-private val Slate900 = Color(0xFF0F172A)
-private val Indigo600 = Color(0xFF4F46E5)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun EditProfileView(
@@ -43,7 +38,7 @@ fun EditProfileView(
     currentMfaEnabled: Boolean = false,
     showPinOptions: Boolean = true,
     onDismiss: () -> Unit,
-    onSave: (String, String, String?, String?, Boolean, String?) -> Unit // Name, Email, NewPass, NewPin, MfaEnabled, CurrentPass
+    onSave: (String, String, String?, String?, Boolean, String?) -> Unit
 ) {
     val context = LocalContext.current
     var name by remember { mutableStateOf(currentName) }
@@ -61,6 +56,7 @@ fun EditProfileView(
     var showPassword by remember { mutableStateOf(false) }
 
     val canSave = currentPassword.isNotEmpty()
+    val confirmPasswordError = stringResource(R.string.error_mismatch_pass)
 
     Column(
         modifier = Modifier
@@ -68,7 +64,7 @@ fun EditProfileView(
             .background(Color.White)
     ) {
         Spacer(modifier = Modifier.height(16.dp))
-        // Header
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -101,7 +97,7 @@ fun EditProfileView(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
         ) {
-            // Name
+
             Text(
                 text = stringResource(id = R.string.auth_full_name),
                 style = MaterialTheme.typography.labelSmall,
@@ -124,7 +120,7 @@ fun EditProfileView(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Email
+
             Text(
                 text = stringResource(id = R.string.auth_email),
                 style = MaterialTheme.typography.labelSmall,
@@ -147,7 +143,7 @@ fun EditProfileView(
             )
             Spacer(modifier = Modifier.height(24.dp))
 
-            // MFA Switch
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -206,8 +202,8 @@ fun EditProfileView(
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Slate50,
                             unfocusedContainerColor = Slate50,
-                            focusedIndicatorColor = if (isPinVerified) Color(0xFF4CAF50) else Color.Transparent,
-                            unfocusedIndicatorColor = if (isPinVerified) Color(0xFF4CAF50) else Color.Transparent
+                            focusedIndicatorColor = if (isPinVerified) SafeGreen else Color.Transparent,
+                            unfocusedIndicatorColor = if (isPinVerified) SafeGreen else Color.Transparent
                         ),
                         textStyle = androidx.compose.ui.text.TextStyle(
                             fontSize = 20.sp,
@@ -218,7 +214,7 @@ fun EditProfileView(
                             Icon(
                                 imageVector = Icons.Default.Lock,
                                 contentDescription = null,
-                                tint = if (isPinVerified) Color(0xFF4CAF50) else Slate500
+                                tint = if (isPinVerified) SafeGreen else Slate500
                             )
                         },
                         trailingIcon = {
@@ -286,7 +282,7 @@ fun EditProfileView(
             )
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- CHANGE PASSWORD SECTION (Optional) ---
+            
             Text(
                 text = stringResource(id = R.string.profile_new_password).uppercase(),
                 style = MaterialTheme.typography.labelSmall,
@@ -347,12 +343,12 @@ fun EditProfileView(
             )
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- CONFIRM IDENTITY (Mandatory) ---
+            
             Text(
                 text = stringResource(id = R.string.profile_current_password_req),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFFDC2626) // Red to emphasize requirement
+                color = Red600 
             )
             TextField(
                 value = currentPassword,
@@ -373,7 +369,7 @@ fun EditProfileView(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Save Button
+            
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -386,14 +382,14 @@ fun EditProfileView(
                     .clickable(enabled = canSave) {
                         val finalPin = if (isPinVerified && newPinInput.length == 4) newPinInput else null
                         
-                        // Validate Password Change logic
+                        
                         val finalPass = if (newPassword.isNotEmpty()) {
                             if (newPassword == confirmPassword) newPassword else null
                         } else null
                         
-                        // If user tried to change password but mismatch, don't save (or handle error UI)
+                        
                         if (newPassword.isNotEmpty() && newPassword != confirmPassword) {
-                            Toast.makeText(context, context.getString(R.string.error_mismatch_pass), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, confirmPasswordError, Toast.LENGTH_SHORT).show()
                             return@clickable
                         }
 

@@ -48,30 +48,21 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
 
-// --- CORES ---
-private val Slate50 = Color(0xFFF8FAFC)
-private val Slate200 = Color(0xFFE2E8F0)
-private val Slate400 = Color(0xFF94A3B8)
-private val Slate500 = Color(0xFF64748B)
-private val Slate900 = Color(0xFF0F172A)
-private val Red700 = Color(0xFFB91C1C)
-private val Amber100 = Color(0xFFFEF3C7)
-private val Amber700 = Color(0xFFB45309)
-private val SafeGreen = Color(0xFF4CAF50)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun AlertDetailModal(
     activity: ActivityItem,
     onDismiss: () -> Unit,
-    activeGeofences: List<MonitorRule> = emptyList() // [NOVO]
+    activeGeofences: List<MonitorRule> = emptyList()
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // [NOVO] Estado para controlar visibilidade das zonas por monitor
+
     val visibleMonitors = remember { mutableStateListOf<String>() }
     
-    // [NOVO] Estado do Video
+
     var localVideoFile by remember { mutableStateOf<File?>(null) }
     var isDownloading by remember { mutableStateOf(false) }
     var downloadError by remember { mutableStateOf<String?>(null) }
@@ -88,7 +79,7 @@ fun AlertDetailModal(
              }
         }
         
-        // Verificar se o ficheiro já existe localmente
+
         val file = File(context.filesDir, "alert_video_${activity.id}.mp4")
         if (file.exists() && file.length() > 0) {
             localVideoFile = file
@@ -144,7 +135,7 @@ fun AlertDetailModal(
                 .padding(vertical = 24.dp)
         ) {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                // Header
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -190,7 +181,7 @@ fun AlertDetailModal(
                     }
                 }
 
-                // Video Feed Area (Substitui as Tabs)
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -198,11 +189,11 @@ fun AlertDetailModal(
                         .height(250.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color.Black)
-                        .clickable(enabled = localVideoFile != null) { isPlaying = !isPlaying }, // [CORREÇÃO] Click no Box pai
+                        .clickable(enabled = localVideoFile != null) { isPlaying = !isPlaying },
                     contentAlignment = Alignment.Center
                 ) {
                     if (localVideoFile != null) {
-                        // Managed MediaPlayer State
+
                         val mediaPlayer = remember { MediaPlayer() }
                         
                         DisposableEffect(Unit) {
@@ -216,7 +207,7 @@ fun AlertDetailModal(
                             }
                         }
 
-                        // React to isPlaying state changes
+
                         LaunchedEffect(isPlaying) {
                             try {
                                 if (isPlaying && !mediaPlayer.isPlaying) {
@@ -229,7 +220,7 @@ fun AlertDetailModal(
                             }
                         }
 
-                        // Show Video Player (TextureView)
+
                         AndroidView(
                             factory = { ctx ->
                                 TextureView(ctx).apply {
@@ -252,10 +243,10 @@ fun AlertDetailModal(
                                     }
                                 }
                             },
-                            modifier = Modifier.fillMaxSize() // Click handled by parent Box
+                            modifier = Modifier.fillMaxSize()
                         )
                         
-                        // Overlay de Pause quando não está a reproduzir
+
                         if (!isPlaying) {
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
@@ -268,7 +259,7 @@ fun AlertDetailModal(
                             )
                         }
                     } else {
-                        // Show Download / Placeholder
+
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             if (isDownloading) {
                                 CircularProgressIndicator(color = Color.White)
@@ -309,7 +300,7 @@ fun AlertDetailModal(
                         }
                     }
                     
-                    // Recording Label (Always visible)
+                    
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopStart)
@@ -326,7 +317,7 @@ fun AlertDetailModal(
                     }
                 }
 
-                // Content
+                
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
@@ -346,7 +337,7 @@ fun AlertDetailModal(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     
-                    // [MODIFICADO] MapView Interativo com Geofences
+                    
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -363,7 +354,7 @@ fun AlertDetailModal(
                                     setMultiTouchControls(true)
                                     controller.setZoom(18.0)
                                     
-                                    // [CORREÇÃO] Prevenir conflito de scroll
+                                    
                                     setOnTouchListener { v, event ->
                                         v.parent.requestDisallowInterceptTouchEvent(true)
                                         false
@@ -374,24 +365,24 @@ fun AlertDetailModal(
                             update = { map ->
                                 map.overlays.clear()
                                 
-                                // 1. Determine Map Center
-                                // Priority: Incident Location -> First Active Geofence -> Default Coimbra
+                                
+                                
                                 val centerPoint = if (activity.latitude != null && activity.longitude != null) {
                                     GeoPoint(activity.latitude, activity.longitude)
                                 } else {
-                                    // Fallback to first visible geofence center if available
+                                    
                                     val firstVisible = activeGeofences.firstOrNull { visibleMonitors.contains(it.monitorName) && it.geofenceData != null }
                                     if (firstVisible != null) {
                                         val (lat, lng, _) = firstVisible.geofenceData!!
                                         GeoPoint(lat, lng)
                                     } else {
-                                        GeoPoint(40.2033, -8.4103) // Default (Coimbra)
+                                        GeoPoint(40.2033, -8.4103) 
                                     }
                                 }
                                 
                                 map.controller.setCenter(centerPoint)
 
-                                // 2. Draw Geofences (Apenas as INFRINGIDAS)
+                                
                                 activeGeofences.forEach { rule ->
                                     val isAlertContext = activity.type == pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType.GEOFENCE
                                     val wasNotified = activity.notifiedMonitors.any { it.name == rule.monitorName }
@@ -413,13 +404,13 @@ fun AlertDetailModal(
                                     }
                                 }
                                 
-                                // 3. Draw Incident Marker (if location available)
+                                
                                 if (activity.latitude != null && activity.longitude != null) {
                                     val marker = org.osmdroid.views.overlay.Marker(map)
                                     marker.position = GeoPoint(activity.latitude, activity.longitude)
                                     marker.setAnchor(org.osmdroid.views.overlay.Marker.ANCHOR_CENTER, org.osmdroid.views.overlay.Marker.ANCHOR_BOTTOM)
                                     marker.title = activity.title
-                                    // marker.icon = ... (Optional custom icon)
+                                    
                                     map.overlays.add(marker)
                                 }
                                 
@@ -430,7 +421,7 @@ fun AlertDetailModal(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // --- NEW SECTION: NOTIFIED MONITORS ---
+                    
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.Notifications,
@@ -469,7 +460,7 @@ fun AlertDetailModal(
                                     )
                                     MonitorActionState.VIEWED -> Triple(
                                         Icons.Default.Visibility,
-                                        Color(0xFF6366F1),
+                                        Indigo500,
                                         "Viewed"
                                     )
                                 }
@@ -492,7 +483,7 @@ fun AlertDetailModal(
                                         ),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    // [MODIFICADO] Checkbox apenas para Geofencing
+                                    
                                     if (isGeofenceAlert) {
                                         Checkbox(
                                             checked = isSelected,
@@ -508,7 +499,7 @@ fun AlertDetailModal(
                                             modifier = Modifier.scale(0.8f)
                                         )
                                     } else {
-                                        // Espaçamento pequeno se não houver checkbox para manter alinhamento
+                                        
                                         Spacer(modifier = Modifier.width(8.dp))
                                     }
     

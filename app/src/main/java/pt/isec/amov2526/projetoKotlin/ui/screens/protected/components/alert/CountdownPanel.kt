@@ -21,14 +21,12 @@ import androidx.compose.ui.res.stringResource
 import pt.isec.amov2526.projetoKotlin.R
 import kotlinx.coroutines.delay
 
-// --- Theme Colors ---
-private val AlertRed = Color(0xFFDC2626)
-private val PinBoxColor = Color(0xFF1E293B)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun CountdownPanel(
     alertType: String,
-    alertDetails: String? = null, // [NOVO]
+    alertDetails: String? = null,
     pinInput: String,
     initialSeconds: Int = 10, 
     onPinDigit: (String) -> Unit,
@@ -38,7 +36,7 @@ fun CountdownPanel(
 ) {
     var timeLeft by remember { mutableIntStateOf(initialSeconds) }
 
-    // [NOVO] Formatação do Título
+
     val displayTitle = when (alertType) {
         "FALL" -> stringResource(id = R.string.alert_fall)
         "ACCIDENT" -> stringResource(id = R.string.alert_accident)
@@ -50,15 +48,15 @@ fun CountdownPanel(
         else -> "$alertType ALERT"
     }
     
-    // [CORREÇÃO] Remove redundância se os detalhes começarem com o nome do alerta (vários idiomas)
+
     val cleanDetails = remember(alertDetails, alertType) {
         if (alertDetails == null) return@remember null
         
-        // Lista de prefixos possíveis vindos do Service (SafetyMonitorService.kt)
+
         val prefixes = listOf(
             "Queda Detetada", "Acidente de Viação", "Bateria Fraca", 
             "Saiu da Zona Segura", "Velocidade Excessiva", "Inatividade Detetada", "Alerta Automático",
-            // Inglês
+
             "Fall Detected", "Car Accident", "Low Battery", "Safe Zone Exit", "High Speed", "Inactivity Detected"
         )
         
@@ -88,13 +86,13 @@ fun CountdownPanel(
     ) {
         Spacer(modifier = Modifier.height(20.dp))
         Text(
-            text = displayTitle, // Usa o título formatado
+            text = displayTitle,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Black,
             color = AlertRed
         )
 
-        // [NOVO] Mostrar detalhes se existirem
+
         if (cleanDetails != null) {
             Text(
                 text = cleanDetails,

@@ -30,11 +30,7 @@ import pt.isec.amov2526.projetoKotlin.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
 
-// Using the project's palette
-private val Slate900 = Color(0xFF0F172A)
-private val Slate800 = Color(0xFF1E293B)
-private val Slate400 = Color(0xFF94A3B8)
-private val Emerald500 = Color(0xFF10B981)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun RegisterScreen(
@@ -43,7 +39,7 @@ fun RegisterScreen(
     onLoginClick: () -> Unit,
     viewModel: AuthViewModel = viewModel()
 ) {
-    var selectedRole by remember { mutableStateOf("Protected") } // "Monitor" or "Protected"
+    var selectedRole by remember { mutableStateOf("Protected") }
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -68,7 +64,7 @@ fun RegisterScreen(
             .imePadding()
             .verticalScroll(rememberScrollState())
     ) {
-        // Back Button
+
         IconButton(
             onClick = onBack,
             modifier = Modifier
@@ -99,7 +95,7 @@ fun RegisterScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Role Toggle
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -145,7 +141,7 @@ fun RegisterScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Full Name
+
         Text(
             text = stringResource(id = R.string.auth_full_name),
             style = MaterialTheme.typography.labelSmall,
@@ -161,7 +157,7 @@ fun RegisterScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Email
+
         Text(
 
             text = stringResource(id = R.string.auth_email),
@@ -179,7 +175,7 @@ fun RegisterScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Password
+
         Text(
             text = stringResource(id = R.string.auth_password),
             style = MaterialTheme.typography.labelSmall,
@@ -194,7 +190,7 @@ fun RegisterScreen(
             isPassword = true
         )
 
-        // Conditional PIN
+
         if (selectedRole == "Protected") {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
@@ -219,7 +215,7 @@ fun RegisterScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // --- Actions (Now inside the scroll) ---
+
         Button(
             onClick = {
                 val isMonitor = selectedRole == "Monitor"
@@ -227,7 +223,7 @@ fun RegisterScreen(
                 val trimmedEmail = email.trim()
                 val trimmedPassword = password.trim()
                 
-                // Local Validation
+
                 if (trimmedName.isBlank() || trimmedEmail.isBlank() || trimmedPassword.isBlank() || (!isMonitor && pin.length != 4)) {
                     viewModel.errorMsg = "Please fill in all fields correctly"
                     return@Button
@@ -275,7 +271,7 @@ fun RegisterScreen(
             }
             Text(
                 text = localizedError ?: "",
-                color = Color(0xFFEF4444),
+                color = AlertRed,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(horizontal = 4.dp)

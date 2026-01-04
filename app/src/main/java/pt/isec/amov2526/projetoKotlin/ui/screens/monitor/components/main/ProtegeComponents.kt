@@ -25,14 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import pt.isec.amov2526.projetoKotlin.data.model.ConnectedUser
 
-private val Slate100 = Color(0xFFF1F5F9)
-private val Slate200 = Color(0xFFE2E8F0)
-private val Slate400 = Color(0xFF94A3B8)
-private val Slate500 = Color(0xFF64748B)
-private val Slate900 = Color(0xFF0F172A)
-private val Emerald500 = Color(0xFF10B981)
-private val Red50 = Color(0xFFFEF2F2)
-private val Red600 = Color(0xFFDC2626)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun ProtegeCard(

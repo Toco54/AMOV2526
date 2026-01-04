@@ -16,14 +16,12 @@ import pt.isec.amov2526.projetoKotlin.data.model.*
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.activity.ActivityCard
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.activity.AlertDetailModal
 
-// --- CORES ---
-private val Slate50 = Color(0xFFF8FAFC)
-private val Slate900 = Color(0xFF0F172A)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun ActivityScreen(
     viewModel: pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
-    activeGeofences: List<MonitorRule> = emptyList() // [NOVO] Recebe as regras ativas do ViewModel partilhado
+    activeGeofences: List<MonitorRule> = emptyList()
 ) {
     var selectedActivity by remember { mutableStateOf<ActivityItem?>(null) }
 
@@ -53,7 +51,7 @@ fun ActivityScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                // [ALTERADO] Usamos 'activities' em vez de 'mockActivities'
+
                 items(activities) { activity ->
                     ActivityCard(
                         activity = activity,
@@ -71,7 +69,7 @@ fun ActivityScreen(
         AlertDetailModal(
             activity = selectedActivity!!,
             onDismiss = { selectedActivity = null },
-            activeGeofences = activeGeofences // [NOVO] Passa as regras para o Modal
+            activeGeofences = activeGeofences
         )
     }
 }

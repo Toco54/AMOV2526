@@ -45,18 +45,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
 
-private val Slate50 = Color(0xFFF8FAFC)
-private val Slate100 = Color(0xFFF1F5F9)
-private val Slate200 = Color(0xFFE2E8F0)
-private val Slate400 = Color(0xFF94A3B8)
-private val Slate500 = Color(0xFF64748B)
-private val Slate700 = Color(0xFF334155)
-private val Slate900 = Color(0xFF0F172A)
-private val Red50 = Color(0xFFFEF2F2)
-private val Red600 = Color(0xFFDC2626)
-private val Red700 = Color(0xFFB91C1C)
-private val Amber100 = Color(0xFFFEF3C7)
-private val Amber700 = Color(0xFFB45309)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun RecentActivityCard(activities: List<ActivityItem>, onActivityClick: (ActivityItem) -> Unit) {
@@ -103,12 +92,12 @@ fun MonitorAlertDetailModal(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Marcar como visto assim que abrir
+
     LaunchedEffect(activity.id) {
         onMarkAsViewed(activity.id)
     }
 
-    // Estado do Video
+
     var localVideoFile by remember { mutableStateOf<File?>(null) }
     var isDownloading by remember { mutableStateOf(false) }
     var downloadError by remember { mutableStateOf<String?>(null) }
@@ -117,7 +106,7 @@ fun MonitorAlertDetailModal(
     val videoUrl = activity.videoUrl
 
     LaunchedEffect(activity) {
-        // Verificar se o ficheiro já existe localmente
+
         val file = File(context.filesDir, "alert_video_${activity.id}.mp4")
         if (file.exists() && file.length() > 0) {
             localVideoFile = file
@@ -173,7 +162,7 @@ fun MonitorAlertDetailModal(
                 .padding(vertical = 24.dp)
         ) {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                // Header
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -219,7 +208,7 @@ fun MonitorAlertDetailModal(
                     }
                 }
 
-                // Video Feed Area
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -231,7 +220,7 @@ fun MonitorAlertDetailModal(
                     contentAlignment = Alignment.Center
                 ) {
                     if (localVideoFile != null) {
-                        // Managed MediaPlayer State
+
                         val mediaPlayer = remember { MediaPlayer() }
 
                         DisposableEffect(Unit) {
@@ -245,7 +234,7 @@ fun MonitorAlertDetailModal(
                             }
                         }
 
-                        // React to isPlaying state changes
+
                         LaunchedEffect(isPlaying) {
                             try {
                                 if (isPlaying && !mediaPlayer.isPlaying) {
@@ -258,7 +247,7 @@ fun MonitorAlertDetailModal(
                             }
                         }
 
-                        // Show Video Player (TextureView)
+
                         AndroidView(
                             factory = { ctx ->
                                 TextureView(ctx).apply {
@@ -284,7 +273,7 @@ fun MonitorAlertDetailModal(
                             modifier = Modifier.fillMaxSize()
                         )
 
-                        // Overlay de Pause quando não está a reproduzir
+
                         if (!isPlaying) {
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
@@ -297,7 +286,7 @@ fun MonitorAlertDetailModal(
                             )
                         }
                     } else {
-                        // Show Download / Placeholder
+
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             if (isDownloading) {
                                 CircularProgressIndicator(color = Color.White)
@@ -338,7 +327,7 @@ fun MonitorAlertDetailModal(
                         }
                     }
 
-                    // Recording Label (Always visible)
+
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopStart)
@@ -355,7 +344,7 @@ fun MonitorAlertDetailModal(
                     }
                 }
 
-                // Content
+
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
@@ -375,7 +364,7 @@ fun MonitorAlertDetailModal(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // MapView Interativo com Geofences (Apenas do Monitor)
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -402,23 +391,23 @@ fun MonitorAlertDetailModal(
                             update = { map ->
                                 map.overlays.clear()
 
-                                // 1. Determine Map Center
+
                                 val centerPoint = if (activity.latitude != null && activity.longitude != null) {
                                     GeoPoint(activity.latitude, activity.longitude)
                                 } else {
-                                    // Fallback to first active geofence center if available
+
                                     val firstActive = activeGeofences.firstOrNull { it.geofenceData != null }
                                     if (firstActive != null) {
                                         val (lat, lng, _) = firstActive.geofenceData!!
                                         GeoPoint(lat, lng)
                                     } else {
-                                        GeoPoint(40.2033, -8.4103) // Default (Coimbra)
+                                        GeoPoint(40.2033, -8.4103)
                                     }
                                 }
 
                                 map.controller.setCenter(centerPoint)
 
-                                // 2. Draw Geofences (Apenas as definidas neste Monitor - assumindo activeGeofences filtrado)
+
                                 activeGeofences.forEach { rule ->
                                     val isAlertContext = activity.type == ActivityAlertType.GEOFENCE
 
@@ -438,7 +427,7 @@ fun MonitorAlertDetailModal(
                                     }
                                 }
 
-                                // 3. Draw Incident Marker (if location available)
+
                                 if (activity.latitude != null && activity.longitude != null) {
                                     val marker = org.osmdroid.views.overlay.Marker(map)
                                     marker.position = GeoPoint(activity.latitude, activity.longitude)
@@ -454,7 +443,7 @@ fun MonitorAlertDetailModal(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // --- NOTIFIED MONITORS (Sem Checkboxes) ---
+
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.Notifications,
@@ -489,12 +478,12 @@ fun MonitorAlertDetailModal(
                                     MonitorActionState.SENT -> Triple(
                                         Icons.Default.Notifications,
                                         Slate400,
-                                        R.string.status_active // Notified placeholder
+                                        R.string.status_active
                                     )
                                     MonitorActionState.VIEWED -> Triple(
                                         Icons.Default.Visibility,
-                                        Color(0xFF6366F1),
-                                        R.string.rule_fall // Viewed placeholder
+                                        Indigo500,
+                                        R.string.rule_fall
                                     )
                                 }
 
@@ -505,7 +494,7 @@ fun MonitorAlertDetailModal(
                                         .padding(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    // Sem Checkbox para Monitor App
+
 
                                     Box(
                                         modifier = Modifier
@@ -530,7 +519,7 @@ fun MonitorAlertDetailModal(
                                             color = Slate900
                                         )
                                         Text(
-                                            text = "${context.getString(labelRes)} • ${action.time}",
+                                            text = "${stringResource(labelRes)} • ${action.time}",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = color,
                                             fontSize = 10.sp

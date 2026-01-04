@@ -74,11 +74,11 @@ class MonitorMainViewModel : ViewModel() {
     }
 
     fun fetchProteges() {
-        // No longer needed for one-time fetch, but keeping signature if used elsewhere
-        // Or simply trigger a refresh if needed, but the listener handles it.
+
+
     }
 
-    // Step 1: Validate Code
+
     fun validateCode(code: String) {
         val currentUser = auth.currentUser
         if (currentUser == null) {
@@ -99,7 +99,7 @@ class MonitorMainViewModel : ViewModel() {
             if (result.isSuccess) {
                 val candidate = result.getOrNull()
                 if (candidate != null) {
-                    // Check for duplicate BEFORE showing confirmation
+
                     val isDuplicate = proteges.any { it.uid == candidate.protegeUid }
                     if (isDuplicate) {
                         errorMsg = "User already in your list"
@@ -114,7 +114,7 @@ class MonitorMainViewModel : ViewModel() {
         }
     }
 
-    // Step 2: Accept Connection
+
     fun acceptConnection(onSuccess: () -> Unit) {
         val currentUser = auth.currentUser ?: return
         val candidate = connectionCandidate ?: return
@@ -124,7 +124,7 @@ class MonitorMainViewModel : ViewModel() {
         viewModelScope.launch {
             val result = repository.connectWithCode(currentUser.uid, candidate.code)
             if (result.isSuccess) {
-                connectionCandidate = null // Clear dialog
+                connectionCandidate = null 
                 onSuccess()
             } else {
                 errorMsg = result.exceptionOrNull()?.message ?: "Failed to connect"
@@ -143,7 +143,7 @@ class MonitorMainViewModel : ViewModel() {
         viewModelScope.launch {
             val result = repository.deleteConnection(currentUser.uid, protegeUid)
             if (result.isSuccess) {
-                // Fetch handled by listener
+                
             } else {
                 errorMsg = result.exceptionOrNull()?.message ?: "Failed to delete connection"
             }

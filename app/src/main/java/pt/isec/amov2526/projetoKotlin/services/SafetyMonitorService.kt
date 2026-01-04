@@ -32,25 +32,25 @@ class SafetyMonitorService : Service() {
         const val ACTION_START_ALERT = "pt.isec.amov2526.projetoKotlin.services.ACTION_START_ALERT"
         const val ACTION_STOP_TIMER = "pt.isec.amov2526.projetoKotlin.services.ACTION_STOP_TIMER"
         const val ACTION_FINISH_ALERT = "pt.isec.amov2526.projetoKotlin.services.ACTION_FINISH_ALERT"
-        const val ACTION_CANCEL_ALERT = "pt.isec.amov2526.projetoKotlin.services.ACTION_CANCEL_ALERT" // Alias for compatibility
+        const val ACTION_CANCEL_ALERT = "pt.isec.amov2526.projetoKotlin.services.ACTION_CANCEL_ALERT"
         const val ACTION_UI_RESET = "pt.isec.amov2526.projetoKotlin.services.ACTION_UI_RESET"
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
-    // [CORREÇÃO] Inicia como false/OFFLINE para forçar a deteção da transição quando o Firestore carregar "ACTIVE"
+
     private var isProtectionActive = false
     private var systemStatus = "OFFLINE" 
 
-    // System State Variables
+
     private var globalScheduleDays: List<Int> = listOf(1, 2, 3, 4, 5)
     private var globalScheduleStart: String = "09:00"
     private var globalScheduleEnd: String = "18:00"
     private var isGlobalScheduleEnabled: Boolean = false
     private var pausedUntil: Long = 0L
 
-    // Group States
+
     private var groupStatuses = mutableMapOf<RuleType, pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel.ProtectionStatus>()
     private val ruleStatusCache = mutableMapOf<String, Boolean>()
 
@@ -63,7 +63,7 @@ class SafetyMonitorService : Service() {
     private val alertRepository = AlertRepository()
     private val ruleListeners = mutableListOf<ListenerRegistration>()
 
-    // Queue Logic
+
     private data class PendingServiceAlert(
         val type: ActivityAlertType,
         val details: String?,
@@ -75,7 +75,7 @@ class SafetyMonitorService : Service() {
     private var isAlertInProgress = false
 
     private var alertJob: Job? = null
-    private var uiTimeoutJob: Job? = null // [NOVO] Timeout para evitar bloqueio visual
+    private var uiTimeoutJob: Job? = null 
     private var lastBatteryAlertTime = 0L
 
     private val batteryReceiver = object : android.content.BroadcastReceiver() {
@@ -92,11 +92,11 @@ class SafetyMonitorService : Service() {
     override fun onCreate() {
         super.onCreate()
         
-        // [CORREÇÃO] Se não houver utilizador, não faz sentido ter o serviço a correr
+        
         if (auth.currentUser == null) {
             Log.w("SafetyMonitorService", "Service started without an authenticated user. Stopping.")
-            // Para evitar "Service did not call startForeground", criamos uma notificação muda temporária se necessário
-            // Mas no Android 12+ o ideal é nem tentar iniciar se não houver user (já corrigido no MainActivity e MainScreen)
+            
+            
             stopSelf()
             return
         }
@@ -127,16 +127,16 @@ class SafetyMonitorService : Service() {
     private fun isRuleEffectivelyActive(rule: MonitorRule): Boolean {
         val now = System.currentTimeMillis()
         
-        // 1. Global Level
+        
         val globalActive = isProtectionActive
 
-        // 2. Group Level
+        
         val groupStatus = groupStatuses[rule.type]
         val groupActive = if (groupStatus != null) {
             TimeUtils.calculateStatus(groupStatus.isEnabled, groupStatus.pausedUntil, groupStatus.isScheduleEnabled, groupStatus.scheduleDays, groupStatus.scheduleStart, groupStatus.scheduleEnd, now).isActive
         } else true
 
-        // 3. Individual Level
+        
         val localActive = TimeUtils.calculateStatus(rule.isEnabled && !rule.isDisabledByProtege, rule.pausedUntil, rule.isScheduleEnabled, rule.scheduleDays, rule.scheduleStart, rule.scheduleEnd, now).isActive
         
         val effectivelyActive = globalActive && groupActive && localActive
@@ -150,7 +150,7 @@ class SafetyMonitorService : Service() {
     }
 
     private fun processNextInQueue() {
-        // Garante limpeza de jobs anteriores
+        
         uiTimeoutJob?.cancel()
         uiTimeoutJob = null
         alertJob?.cancel()
@@ -159,7 +159,7 @@ class SafetyMonitorService : Service() {
         if (serviceQueue.isNotEmpty()) {
             val next = serviceQueue.removeAt(0)
             Log.d("SafetyMonitorService", "Processing next queued alert: ${next.type}")
-            // launchAlertUI iniciará o novo timer de UI
+            
             launchAlertUI(next.type, next.details, next.infractions, next.alertId)
             scheduleAlertCreation(next.type, next.details, next.monitors, next.infractions, next.alertId)
         } else {
@@ -184,15 +184,15 @@ class SafetyMonitorService : Service() {
                 processNextInQueue()
             }
             ACTION_UI_RESET -> {
-                // [CORREÇÃO] Se a UI reiniciou (crash/swipe), assumimos que o ecrã de alerta fechou
+                
                 if (isAlertInProgress) {
                     Log.d("SafetyMonitorService", "UI Reset detected. Clearing stale alert state.")
-                    // Se houver fila, processa o próximo, senão limpa
+                    
                     if (serviceQueue.isNotEmpty()) {
-                        processNextInQueue() // Reutiliza a lógica centralizada
+                        processNextInQueue() 
                     } else {
                         isAlertInProgress = false
-                        uiTimeoutJob?.cancel() // Garante que o timer não dispara depois
+                        uiTimeoutJob?.cancel() 
                     }
                 }
             }
@@ -254,7 +254,7 @@ class SafetyMonitorService : Service() {
                     else -> "Alerta Automático"
                 }
                 
-                // [CORREÇÃO] Evita prefixos duplicados se o details já contiver o título (ex: vindo do triggerAlertSequence)
+                
                 val finalMessage = if (details != null) {
                     if (details.startsWith(title)) details else "$title: $details"
                 } else title
@@ -267,10 +267,10 @@ class SafetyMonitorService : Service() {
     }
 
     private fun launchAlertUI(type: ActivityAlertType, details: String?, infractions: List<pt.isec.amov2526.projetoKotlin.data.model.RuleInfraction>?, alertId: String) {
-        // [NOVO] Inicia timer de 60s para rodar a fila caso o user não interaja
+        
         uiTimeoutJob?.cancel()
         uiTimeoutJob = serviceScope.launch {
-            delay(60000L) // 60 segundos
+            delay(60000L) 
             if (isAlertInProgress) {
                 Log.d("SafetyMonitorService", "Alert UI timed out (60s). Moving to next.")
                 processNextInQueue()
@@ -284,7 +284,7 @@ class SafetyMonitorService : Service() {
             putExtra("ALERT_ID", alertId)
             if (details != null) putExtra("ALERT_DETAILS", details)
             if (infractions != null) {
-                // Serialização atualizada com monitorId no final
+                
                 val serialized = infractions.joinToString(";") { "${it.monitorName}|${it.ruleType.name}|${it.description}|${it.ruleParameter ?: ""}|${it.monitorId}" }
                 putExtra("ALERT_INFRACTIONS", serialized)
             }
@@ -321,14 +321,14 @@ class SafetyMonitorService : Service() {
         if (!isProtectionActive) return
         val loc = locationHelper.currentLocation.value
         var initialActions: List<MonitorAction>? = null
-        // [CORREÇÃO] Garante que a lista de UIDs a notificar é preenchida com base nas infrações
+        
         var targetMonitors: List<String>? = monitors
         
         if (infractions != null && infractions.isNotEmpty()) {
             initialActions = infractions.map { inf ->
                 MonitorAction(inf.monitorName, MonitorActionState.SENT, java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date()), inf.monitorId)
             }
-            // Preenche targetMonitors com os IDs únicos das infrações
+            
             targetMonitors = infractions.map { it.monitorId }.distinct()
         } else if (monitors != null && monitors.isNotEmpty()) {
              try {
@@ -348,7 +348,7 @@ class SafetyMonitorService : Service() {
             }
         }
         
-        // Fallback: Se não temos initialActions (ou monitors UIDs), buscamos TODOS os monitores
+        
         if (initialActions == null) {
              try {
                 val uid = auth.currentUser?.uid
@@ -508,7 +508,7 @@ class SafetyMonitorService : Service() {
         
         isProtectionActive = systemStatus == "ACTIVE"
         
-        // Se ativou agora, reinicia o temporizador para não disparar falsos positivos de inatividade acumulada
+        
         if (!previouslyActive && isProtectionActive) {
             inactivityHandler.resetTimer()
         }

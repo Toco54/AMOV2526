@@ -24,25 +24,24 @@ import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
 import pt.isec.amov2526.projetoKotlin.utils.LocationHelper
 import pt.isec.amov2526.projetoKotlin.R
 
-private val Slate50 = Color(0xFFF8FAFC)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun GuardScreen(
-    viewModel: GuardViewModel, // Recebe do Pai (ProtectedMainScreen)
+    viewModel: GuardViewModel,
     protectedViewModel: ProtectedMainViewModel,
-    onPanic: () -> Unit = {}   // Callback para o Pai ativar o alerta
+    onPanic: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val keyguardManager = context.getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
 
     LaunchedEffect(Unit) {
         protectedViewModel.refreshServiceState()
     }
 
-    // Como o ViewModel é partilhado, o LocationHelper já deve ter sido setado no ProtectedMainScreen
-    // mas por segurança garantimos aqui também se necessário, ou usamos o do ViewModel se exposto.
-    // Aqui assumimos que o LocationHelper está a funcionar via ViewModel ou Contexto Global.
-    // Para simplificar e não partir a lógica antiga, instanciamos um Helper local para o AlertScreen
+
+
+
+
     val locationHelper = remember { LocationHelper(context) }
     LaunchedEffect(Unit) {
         locationHelper.startLocationUpdates(5000L)
@@ -55,7 +54,7 @@ fun GuardScreen(
     val globalSchedule by viewModel.globalSchedule.collectAsState()
     val globalPausedUntil by viewModel.globalPausedUntil.collectAsState()
     val batteryLevel by viewModel.batteryLevel.collectAsState()
-    val activeGeofences by viewModel.activeGeofences.collectAsState() // [NOVO]
+    val activeGeofences by viewModel.activeGeofences.collectAsState()
 
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
@@ -65,11 +64,11 @@ fun GuardScreen(
         }
     }
 
-    // --- ESTADOS LOCAIS DOS MODAIS ---
+
     var showPauseModal by remember { mutableStateOf(false) }
     var showGlobalScheduleModal by remember { mutableStateOf(false) }
     var showScheduleModal by remember { mutableStateOf(false) }
-    // showAlertScreen removed (handled by parent)
+
     
     var ruleToRemove by remember { mutableStateOf<MonitorRule?>(null) }
     var selectedTypeToPause by remember { mutableStateOf<RuleType?>(null) }
@@ -77,7 +76,7 @@ fun GuardScreen(
     var selectedGroupToSchedule by remember { mutableStateOf<ProtectionGroup?>(null) }
     var selectedRuleToSchedule by remember { mutableStateOf<MonitorRule?>(null) }
     
-    // pendingAlertType removed (handled by parent)
+
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -88,15 +87,15 @@ fun GuardScreen(
         days = globalSchedule.days, start = globalSchedule.start, end = globalSchedule.end, now = currentTime
     )
 
-    // [INTENT HANDLING REMOVED] - Centralized in ProtectedMainScreen
 
-    // Fix: Prioritize PAUSED over SCHEDULED
+
+
     val rawSystemStatus = if (!isServiceRunning) "OFFLINE"
     else if (globalScheduleStatus.label == "PAUSED") "PAUSED"
     else if (globalScheduleStatus.label == "SCHEDULED") "SCHEDULED"
     else "ACTIVE"
 
-    // [AlertScreen Dialog REMOVED] - Centralized in ProtectedMainScreen
+
 
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { paddingValues ->
         Column(
@@ -114,7 +113,7 @@ fun GuardScreen(
                 globalScheduleStatus = globalScheduleStatus,
                 rawSystemStatus = rawSystemStatus,
                 batteryLevel = batteryLevel,
-                onPlanClick = { showGlobalScheduleModal = true }, // Agora abre o modal global
+                onPlanClick = { showGlobalScheduleModal = true },
                 onStatusClick = {
                     if (globalScheduleStatus.label == "PAUSED") {
                         viewModel.setSystemStatus("ACTIVE")
@@ -130,7 +129,7 @@ fun GuardScreen(
             Spacer(modifier = Modifier.height(40.dp))
 
             SosButton(onClick = {
-                onPanic() // Delegar apenas ao Pai
+                onPanic()
             })
 
             Spacer(modifier = Modifier.height(40.dp))
@@ -176,13 +175,13 @@ fun GuardScreen(
         }
     }
 
-    // --- MODAIS (RESTAURADOS) ---
 
-    // 1. Modal de Pausa
+
+
     if (showPauseModal) {
         val title = when {
-            selectedRuleToPause != null -> context.getString(R.string.guard_pause_rule, selectedRuleToPause!!.monitorName)
-            selectedTypeToPause != null -> context.getString(R.string.guard_pause_type, context.getString(selectedTypeToPause!!.titleRes))
+            selectedRuleToPause != null -> stringResource(R.string.guard_pause_rule, selectedRuleToPause!!.monitorName)
+            selectedTypeToPause != null -> stringResource(R.string.guard_pause_type, stringResource(selectedTypeToPause!!.titleRes))
             else -> stringResource(id = R.string.guard_pause_protection)
         }
         PauseSystemModal(
@@ -209,7 +208,7 @@ fun GuardScreen(
         )
     }
 
-    // 2. Modal de Agendamento (Regras e Grupos) - ESTAVA EM FALTA
+
     if (showScheduleModal) {
         val scheduleCtx = when {
             selectedRuleToSchedule != null -> Triple(
@@ -218,7 +217,7 @@ fun GuardScreen(
                 selectedRuleToSchedule!!.scheduleEnd.ifEmpty { "18:00" }
             )
             selectedGroupToSchedule != null -> Triple(
-                Triple(context.getString(R.string.guard_schedule_type, context.getString(selectedGroupToSchedule!!.type.titleRes)), selectedGroupToSchedule!!.isScheduleEnabled, selectedGroupToSchedule!!.scheduleDays.ifEmpty { listOf(1, 2, 3, 4, 5) }),
+                Triple(stringResource(R.string.guard_schedule_type, stringResource(selectedGroupToSchedule!!.type.titleRes)), selectedGroupToSchedule!!.isScheduleEnabled, selectedGroupToSchedule!!.scheduleDays.ifEmpty { listOf(1, 2, 3, 4, 5) }),
                 selectedGroupToSchedule!!.scheduleStart.ifEmpty { "09:00" },
                 selectedGroupToSchedule!!.scheduleEnd.ifEmpty { "18:00" }
             )
@@ -254,7 +253,7 @@ fun GuardScreen(
         }
     }
 
-    // 3. Modal de Agendamento Global (Botão PLAN) - ESTAVA EM FALTA
+    
     if (showGlobalScheduleModal) {
         ScheduleSystemModal(
             title = stringResource(id = R.string.guard_global_schedule),
@@ -271,7 +270,7 @@ fun GuardScreen(
         )
     }
 
-    // 4. Modal de Remover Regra
+    
     if (ruleToRemove != null) {
         RemoveRuleChallengeModal(
             ruleName = ruleToRemove!!.monitorName,

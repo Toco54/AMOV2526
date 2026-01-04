@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun ProfileActionButton(
@@ -69,7 +70,7 @@ fun ProfileActionButton(
                     modifier = Modifier
                         .size(16.dp)
                         .padding(end = 4.dp),
-                    tint = Color(0xFFE2E8F0) // Slate200
+                    tint = Slate200
                 )
             }
         }

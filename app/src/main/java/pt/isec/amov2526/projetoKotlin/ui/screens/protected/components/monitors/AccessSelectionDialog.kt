@@ -17,17 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 
-private val Slate50 = Color(0xFFF8FAFC)
-private val Slate100 = Color(0xFFF1F5F9)
-private val Slate400 = Color(0xFF94A3B8)
-private val Slate500 = Color(0xFF64748B)
-private val Slate900 = Color(0xFF0F172A)
-private val Emerald50 = Color(0xFFECFDF5)
-private val Emerald100 = Color(0xFFD1FAE5)
-private val Emerald500 = Color(0xFF10B981)
-private val Indigo50 = Color(0xFFEEF2FF)
-private val Indigo100 = Color(0xFFE0E7FF)
-private val Indigo500 = Color(0xFF6366F1)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun AccessSelectionDialog(

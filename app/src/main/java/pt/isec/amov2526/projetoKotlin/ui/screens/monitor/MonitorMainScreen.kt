@@ -31,16 +31,12 @@ import pt.isec.amov2526.projetoKotlin.ui.screens.monitor.components.main.*
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.MonitorMainViewModel
 
-// --- CORES ---
-private val Slate50 = Color(0xFFF8FAFC)
-private val Slate400 = Color(0xFF94A3B8)
-private val Slate900 = Color(0xFF0F172A)
-private val Indigo600 = Color(0xFF4F46E5)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun MonitorMainScreen(
     onLogout: () -> Unit = {},
-    onProtegeClick: (String, String) -> Unit = { _, _ -> }, // name, uid
+    onProtegeClick: (String, String) -> Unit = { _, _ -> },
     viewModel: AuthViewModel = viewModel(),
     monitorViewModel: MonitorMainViewModel = viewModel()
 ) {
@@ -48,18 +44,18 @@ fun MonitorMainScreen(
     val realEmail = viewModel.userEmail
     val proteges = monitorViewModel.proteges
 
-    // Estados de UI
+
     var showProfileMenu by remember { mutableStateOf(false) }
     var showEnterCodeModal by remember { mutableStateOf(false) }
     var isEditingProfile by remember { mutableStateOf(false) }
     val connectionCandidate = monitorViewModel.connectionCandidate
 
-    // Estados para Switch Mode (PIN Check)
+
     var showSetPinDialog by remember { mutableStateOf(false) }
     var newPin by remember { mutableStateOf("") }
     var pinError by remember { mutableStateOf<String?>(null) }
 
-    // Observe user state to trigger navigation after logout
+
     LaunchedEffect(viewModel.user) {
         if (viewModel.user == null) {
             onLogout()
@@ -73,6 +69,8 @@ fun MonitorMainScreen(
     }
 
     val context = LocalContext.current
+    val profileUpdatedMsg = stringResource(R.string.profile_updated)
+    val invalidPinError = stringResource(R.string.error_invalid_pin)
 
     if (isEditingProfile) {
         EditProfileView(
@@ -91,7 +89,7 @@ fun MonitorMainScreen(
                     mfaEnabled = mfa,
                     currentPass = currentPass,
                     onSuccess = {
-                        Toast.makeText(context, context.getString(R.string.profile_updated), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, profileUpdatedMsg, Toast.LENGTH_SHORT).show()
                         isEditingProfile = false
                     },
                     onError = { error ->
@@ -143,7 +141,7 @@ fun MonitorMainScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            // 1. MY PROTEGES
+
                             if (proteges.isNotEmpty()) {
                                 item { SectionHeader(stringResource(id = R.string.monitor_my_proteges)) }
                                 items(items = proteges) { protege ->
@@ -170,7 +168,7 @@ fun MonitorMainScreen(
                 }
             }
 
-            // Menu Overlay
+
             if (showProfileMenu) {
                 Box(
                     modifier = Modifier
@@ -197,10 +195,10 @@ fun MonitorMainScreen(
                         onSwitchMode = {
                             val currentPin = viewModel.currentUserData?.pin
                             if (!currentPin.isNullOrBlank()) {
-                                // Se já tem PIN, troca direto
+
                                 viewModel.switchViewMode()
                             } else {
-                                // Se não tem PIN, pede para definir
+
                                 showProfileMenu = false
                                 showSetPinDialog = true
                             }
@@ -235,7 +233,7 @@ fun MonitorMainScreen(
         )
     }
 
-    // Dialog para Definir PIN (caso o Monitor não tenha)
+
     if (showSetPinDialog) {
         Dialog(onDismissRequest = { showSetPinDialog = false }) {
             Card(
@@ -261,7 +259,7 @@ fun MonitorMainScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "To use Protected Mode, you must define a 4-digit PIN for cancelling alerts.", // Standard enough
+                        text = "To use Protected Mode, you must define a 4-digit PIN for cancelling alerts.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.Gray,
                         modifier = Modifier.padding(bottom = 16.dp)
@@ -303,7 +301,7 @@ fun MonitorMainScreen(
                         Button(
                             onClick = {
                                 if (newPin.length == 4) {
-                                    // Atualiza o perfil com o novo PIN
+
                                     viewModel.updateProfile(
                                         name = viewModel.userName,
                                         email = viewModel.userEmail,
@@ -312,14 +310,14 @@ fun MonitorMainScreen(
                                         mfaEnabled = viewModel.currentUserData?.mfaEnabled ?: false,
                                         onSuccess = {
                                             showSetPinDialog = false
-                                            viewModel.switchViewMode() // Troca após sucesso
+                                            viewModel.switchViewMode()
                                         },
                                         onError = {
                                             pinError = it
                                         }
                                     )
                                 } else {
-                                    pinError = context.getString(R.string.error_invalid_pin)
+                                    pinError = invalidPinError
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Indigo600)

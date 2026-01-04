@@ -37,16 +37,7 @@ import pt.isec.amov2526.projetoKotlin.data.model.ProtectionRule
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.CategoryStatus
 import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
 
-private val Slate50 = Color(0xFFF8FAFC)
-private val Slate100 = Color(0xFFF1F5F9)
-private val Slate200 = Color(0xFFE2E8F0)
-private val Slate400 = Color(0xFF94A3B8)
-private val Slate500 = Color(0xFF64748B)
-private val Slate700 = Color(0xFF334155)
-private val Slate900 = Color(0xFF0F172A)
-private val Indigo600 = Color(0xFF4F46E5)
-private val Emerald500 = Color(0xFF10B981)
-private val Red600 = Color(0xFFDC2626)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun MonitorRuleGroup(
@@ -54,7 +45,7 @@ fun MonitorRuleGroup(
     rules: List<ProtectionRule>, 
     categoryStatus: CategoryStatus?,
     currentTime: Long,
-    isGlobalActive: Boolean, // New Parameter
+    isGlobalActive: Boolean,
     onToggleGroup: (Boolean) -> Unit, 
     onEditRule: (ProtectionRule) -> Unit, 
     onToggleRule: (String, Boolean) -> Unit
@@ -62,7 +53,7 @@ fun MonitorRuleGroup(
     var isExpanded by remember { mutableStateOf(false) }
     val isAnyActive = rules.any { it.isEnabled }
     
-    // Calculate Category Status Result
+
     val catStatusResult = TimeUtils.calculateStatus(
         isEnabled = categoryStatus?.isEnabled ?: true,
         pausedUntil = categoryStatus?.pausedUntil ?: 0L,
@@ -73,7 +64,7 @@ fun MonitorRuleGroup(
         now = currentTime
     )
 
-    // Requirement 4: Hierarchy in Categories - Monitor
+
     val categoryStatusText = when {
         catStatusResult.label == "PAUSED" && (categoryStatus?.pausedUntil ?: 0L) > currentTime -> "Category Paused (${TimeUtils.formatDuration((categoryStatus?.pausedUntil ?: 0L) - currentTime)})"
         catStatusResult.label == "SCHEDULED" -> catStatusResult.subLabel ?: stringResource(id =
@@ -100,7 +91,7 @@ fun MonitorRuleGroup(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Category Dot: Must be Global Active + Category Active + Category Enabled
+
                         val isCategoryEffective = isGlobalActive && catStatusResult.isActive && (categoryStatus?.isEnabled ?: true)
                         Box(
                             modifier = Modifier
@@ -114,7 +105,7 @@ fun MonitorRuleGroup(
                         Text(stringResource(id = type.titleRes), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
                     }
                     
-                    // Show Category Level Status (Protege)
+
                     val statusColor = if (categoryStatusText == "Active") Slate400 else Red600
                     Text(categoryStatusText, style = MaterialTheme.typography.labelSmall, color = statusColor, fontWeight = if(categoryStatusText == "Active") FontWeight.Normal else FontWeight.Bold)
                     
@@ -129,7 +120,7 @@ fun MonitorRuleGroup(
                 Column(modifier = Modifier.background(Color.White.copy(alpha = 0.5f)).padding(bottom = 8.dp)) {
                     HorizontalDivider(color = Slate100, modifier = Modifier.padding(horizontal = 12.dp))
                     rules.forEach { rule ->
-                        // Hoist Status Calculation for Dot
+
                         val status = TimeUtils.calculateStatus(
                             isEnabled = true, 
                             pausedUntil = rule.pausedUntil,
@@ -139,14 +130,14 @@ fun MonitorRuleGroup(
                             end = rule.scheduleEnd,
                             now = currentTime
                         )
-                        // Rule Dot: Must be Global Active + Rule Enabled + Not Deleted + Not User Disabled + Rule Active + Category Active (Implicit in Global, but good to check context if needed, though Global covers it usually)
-                        // Actually, Category status should also impact rule effective status.
+
+
                         val isRuleActive = isGlobalActive && rule.isEnabled && !rule.deletedByProtege && !rule.isDisabledByProtege && status.isActive && (categoryStatus?.isEnabled ?: true) && catStatusResult.isActive
 
                         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             val isDeleted = rule.deletedByProtege
                             
-                            // Dot Indicator
+
                             Box(
                                 modifier = Modifier
                                     .size(8.dp)
@@ -158,7 +149,7 @@ fun MonitorRuleGroup(
                             Spacer(modifier = Modifier.width(12.dp))
 
                             Column(modifier = Modifier.weight(1f)) {
-                                // Line 1: Parameter (Only for rules with parameters - MultiInstance always have params in this context)
+
                                 val baseDetail = when (rule.type) {
                                     MonitorRuleType.GEOFENCING -> if (rule.param1.isEmpty()) "Pending" else "Radius: ${rule.param1}m"
                                     MonitorRuleType.SPEED -> "Limit: ${rule.param1} km/h"
@@ -169,14 +160,14 @@ fun MonitorRuleGroup(
                                 
                                 val isScheduledOff = status.label == "SCHEDULED"
 
-                                // Line 2: Monitor State
+
                                 if (!rule.isEnabled) {
                                     Text(stringResource(id = R.string.monitor_rule_marked_delete), style = MaterialTheme.typography.labelSmall, color = Red600, fontWeight = FontWeight.Bold)
                                 }
 
-                                // Line 3: Protege State
-                                // Requirement 5 & 6: Priority: Disabled > Paused > Scheduled > Active. 
-                                // "Active" only if Line 2 (Monitor) is NOT displayed (rule.isEnabled == true)
+
+                                
+                                
                                 val protegeState = when {
                                     isDeleted -> stringResource(id = R.string.monitor_rule_marked_delete)
                                     rule.isDisabledByProtege -> stringResource(id = R.string.monitor_rule_marked_delete)
@@ -189,7 +180,7 @@ fun MonitorRuleGroup(
                                     Text(protegeState, style = MaterialTheme.typography.labelSmall, color = if (protegeState == stringResource(id = R.string.status_active)) Slate500 else Red600)
                                 }
 
-                                // Line 4: Schedule Plan
+                                
                                 val schedText = TimeUtils.formatSchedule(rule.scheduleDays, rule.scheduleStart, rule.scheduleEnd)
                                 if (schedText.isNotEmpty()) {
                                     Text(
@@ -221,7 +212,7 @@ fun MonitorRuleGroup(
                                     Spacer(modifier = Modifier.width(8.dp))
                                 }
                                 if (rule.pausedUntil > currentTime) {
-                                    Icon(Icons.Default.PauseCircle, "Paused", tint = Color(0xFFF59E0B), modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.PauseCircle, "Paused", tint = Amber500, modifier = Modifier.size(20.dp))
                                     Spacer(modifier = Modifier.width(8.dp))
                                 }
                                 
@@ -267,7 +258,7 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
     var p1 by remember { mutableStateOf(if(rule.param1.isEmpty()) "500" else rule.param1) }
     val p2 = remember { object { var value = rule.param2 } }
     
-    // Schedule States
+    
     var startTime by remember { mutableStateOf(if(rule.scheduleStart.isEmpty()) "09:00" else rule.scheduleStart) }
     var endTime by remember { mutableStateOf(if(rule.scheduleEnd.isEmpty()) "18:00" else rule.scheduleEnd) }
     val daysList = listOf("S", "M", "T", "W", "T", "F", "S")
@@ -322,14 +313,14 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                 
                 if (isSoftDeleted) {
                     Text(
-                        "This rule was removed by the user. Details are shown below for review.", // Standard enough
+                        "This rule was removed by the user. Details are shown below for review.", 
                         style = MaterialTheme.typography.bodyMedium,
                         color = Slate500
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // Content (Map/Params) shown for both active and deleted rules
+                
                 if (rule.type == MonitorRuleType.GEOFENCING) {
                     OutlinedTextField(
                         value = searchQuery, 
@@ -356,7 +347,7 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                                         if (parts.size == 2 && parts[0] != null && parts[1] != null) {
                                             val otherPoly = org.osmdroid.views.overlay.Polygon(this)
                                             otherPoly.points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(GeoPoint(parts[0]!!, parts[1]!!), other.param1.toDoubleOrNull() ?: 100.0)
-                                            val c = if (other.isEnabled) Color(0xFF059669) else Color(0xFFDC2626)
+                                            val c = if (other.isEnabled) Emerald600 else Red600
                                             otherPoly.fillColor = android.graphics.Color.argb(50, (c.red*255).toInt(), (c.green*255).toInt(), (c.blue*255).toInt())
                                             otherPoly.strokeColor = android.graphics.Color.argb(180, (c.red*255).toInt(), (c.green*255).toInt(), (c.blue*255).toInt())
                                             otherPoly.strokeWidth = 3f; overlays.add(otherPoly)
@@ -437,7 +428,7 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                 HorizontalDivider(color = Slate100)
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // --- SCHEDULE SECTION ---
+                
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
@@ -450,12 +441,12 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                     }
                     Switch(
                         checked = useSchedule, 
-                        onCheckedChange = { }, // Read-only
+                        onCheckedChange = { }, 
                         colors = SwitchDefaults.colors(
                             checkedTrackColor = Indigo600.copy(alpha = 0.5f),
                             uncheckedTrackColor = Slate200
                         ),
-                        enabled = false, // Monitor cannot edit
+                        enabled = false, 
                         modifier = Modifier.scale(0.8f)
                     )
                 }
@@ -472,7 +463,7 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                                         .size(32.dp)
                                         .background(color = if (isSelected) Slate900.copy(alpha=0.6f) else Slate100, shape = CircleShape)
                                         .clip(CircleShape),
-                                        // No clickable
+                                        
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(text = d, color = if (isSelected) Color.White else Slate400, fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -509,7 +500,7 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
 
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                // Footer Buttons
+                
                 if (isSoftDeleted) {
                     Button(
                         onClick = { onDelete(rule.id) },

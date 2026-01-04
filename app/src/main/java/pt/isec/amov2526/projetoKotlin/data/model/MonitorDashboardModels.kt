@@ -20,7 +20,7 @@ data class ProtectionRule(
     var isEnabled: Boolean,
     var param1: String = "",
     var param2: String = "",
-    // New fields
+
     val scheduleDays: List<Int> = emptyList(),
     val scheduleStart: String = "",
     val scheduleEnd: String = "",

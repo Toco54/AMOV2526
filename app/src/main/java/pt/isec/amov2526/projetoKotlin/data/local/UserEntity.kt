@@ -5,10 +5,10 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "user_profile")
 data class UserEntity(
-    @PrimaryKey val uid: String, // O ID do Firebase será a nossa chave única
+    @PrimaryKey val uid: String,
     val name: String,
     val email: String,
-    val role: String, // "MONITOR" ou "PROTECTED"
-    val pin: String? = null, // Pode ser nulo se for Monitor
+    val role: String,
+    val pin: String? = null,
     val mfaEnabled: Boolean = false
 )

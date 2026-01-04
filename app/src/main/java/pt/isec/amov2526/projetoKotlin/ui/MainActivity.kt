@@ -30,21 +30,21 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-//            setShowWhenLocked(true)
-//            setTurnScreenOn(true)
-//        } else {
-//            window.addFlags(
-//                android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-//                        android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-//            )
-//        }
+
+
+
+
+
+
+
+
+
 
         checkIntentForAlert(intent)
 
-        // [CORREÇÃO] Notifica o serviço que a UI reiniciou, para limpar estados bloqueados (ex: isAlertInProgress)
-        // Só fazemos reset se NÃO for uma recriação por causa de um alerta ativo (ACTION_SHOW_ALERT)
-        // E só se houver um utilizador logado, para evitar notificações PAUSED orfãs
+
+
+
         if (intent.action != "ACTION_SHOW_ALERT" && com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null) {
              val resetIntent = Intent(this, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
                 action = "pt.isec.amov2526.projetoKotlin.services.ACTION_UI_RESET"
@@ -54,7 +54,7 @@ class MainActivity : AppCompatActivity() {
 
         enableEdgeToEdge()
         setContent {
-            // --- Permission Handling in MainActivity ---
+
             val permissionsToRequest = remember {
                 val perms = mutableListOf(
                     Manifest.permission.CAMERA,
@@ -73,7 +73,7 @@ class MainActivity : AppCompatActivity() {
 
             val permissionLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.RequestMultiplePermissions(),
-                onResult = { /* Handle results if needed */ }
+                onResult = {  }
             )
 
             val context = LocalContext.current
@@ -112,14 +112,14 @@ class MainActivity : AppCompatActivity() {
                 )
             }
 
-            // --- UI Entry Point ---
+
             MainScreen()
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        setIntent(intent) // Atualiza a intenção atual para a nova (que traz o Alerta)
+        setIntent(intent)
         checkIntentForAlert(intent)
     }
 

@@ -16,7 +16,7 @@ import pt.isec.amov2526.projetoKotlin.data.model.RuleType
 class LocationHandler(
     private val locationHelper: LocationHelper,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default),
-    private val isActiveChecker: (MonitorRule) -> Boolean // [NOVO] Verificador dinâmico
+    private val isActiveChecker: (MonitorRule) -> Boolean
 ) {
     private val speedRules = mutableListOf<MonitorRule>()
     private val geofenceRules = mutableListOf<MonitorRule>()
@@ -24,15 +24,15 @@ class LocationHandler(
     private val _infractions = MutableSharedFlow<ProtectionCheckResult>()
     val infractions = _infractions.asSharedFlow()
 
-    // [NOVO] Anti-Spam: Guarda IDs dos monitores que já receberam alerta de saída
+    
     private val triggeredMonitors = mutableSetOf<String>()
     
-    // [NOVO] Throttle para verificação de velocidade
+    
     private var lastSpeedCheckTime = 0L
 
     private var monitoringJob: Job? = null
 
-    // [NOVO] Chamado pelo Serviço quando o sistema reativa (ex: Offline -> Online)
+    
     fun resetAlertStates() {
         synchronized(triggeredMonitors) {
             triggeredMonitors.clear()
@@ -82,10 +82,10 @@ class LocationHandler(
         val detectedInfractions = mutableListOf<RuleInfraction>()
         val monitorsToNotify = mutableSetOf<String>()
 
-        // 1. Verificar Velocidade
+        
         if (location.hasSpeed()) {
             val now = System.currentTimeMillis()
-            if (now - lastSpeedCheckTime >= 30000L) { // 30 segundos throttle
+            if (now - lastSpeedCheckTime >= 30000L) { 
                 lastSpeedCheckTime = now
                 val currentSpeedKmh = location.speed * 3.6f
                 
@@ -126,7 +126,7 @@ class LocationHandler(
             }
         }
 
-        // 2. Verificar Geofences
+        
         val geoRules = synchronized(geofenceRules) { geofenceRules.toList() }
         
         if (geoRules.isNotEmpty()) {
@@ -164,10 +164,10 @@ class LocationHandler(
 
                 if (distanceMeters <= radius) {
                     isSafeInThisMonitor = true
-                    // Não damos break logo para podermos logar as outras zonas se quisermos debug, 
-                    // mas para eficiência mantemos o break da lógica original? 
-                    // Para debug agora, vou comentar o break para veres todas as distâncias.
-                    // break 
+                    
+                    
+                    
+                    
                     isSafeInThisMonitor = true
                 }
                 
@@ -180,13 +180,13 @@ class LocationHandler(
             Log.d("LocationHandler", "  => Result for Monitor: isSafe=$isSafeInThisMonitor")
 
             if (isSafeInThisMonitor) {
-                // [NOVO] Se entrou na zona segura, removemos do anti-spam para permitir futuros alertas
+                
                 if (triggeredMonitors.contains(monitorId)) {
                     Log.d("LocationHandler", "     [INFO] Monitor $monitorId: User re-entered safe zone. Resetting alert trigger.")
                     synchronized(triggeredMonitors) { triggeredMonitors.remove(monitorId) }
                 }
             } else if (referenceRule != null) {
-                // [NOVO] Só gera infração se AINDA não tiver sido gerada para este monitor
+                
                 if (triggeredMonitors.contains(monitorId)) {
                     Log.d("LocationHandler", "     [INFO] Monitor $monitorId: Already alerted. Suppressing spam.")
                 } else {

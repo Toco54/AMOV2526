@@ -28,7 +28,7 @@ class MonitorNotificationService : Service() {
     private val auth = FirebaseAuth.getInstance()
     private var connectionsListener: ListenerRegistration? = null
     
-    // Cache: ProtegeUID -> Set<AlertID>
+
     private val knownAlerts = mutableMapOf<String, MutableSet<String>>()
     private var isFirstLoad = true
 
@@ -78,10 +78,10 @@ class MonitorNotificationService : Service() {
 
         Log.d("MonitorService", "Iniciando escuta de conexões para $uid")
         
-        // Escuta a coleção de conexões deste monitor
+
         connectionsListener = db.collection("users").document(uid)
             .collection("connections")
-            .whereEqualTo("role", "Protege") // Filtra apenas protegidos
+            .whereEqualTo("role", "Protege") 
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
                     Log.e("MonitorService", "Erro ao ouvir conexões: ${e.message}")
@@ -93,15 +93,15 @@ class MonitorNotificationService : Service() {
                         val protegeId = doc.getString("uid") ?: return@forEach
                         val protegeName = doc.getString("name") ?: "Protegido"
                         
-                        // Lê o mapa de referências de alerta (ID -> Path)
+                        
                         val rawAlerts = doc.get("alertRefs") as? Map<String, String> ?: emptyMap()
                         val currentAlertIds = rawAlerts.keys
 
-                        // Se for a primeira vez, apenas popula o cache para não notificar histórico
+                        
                         if (!knownAlerts.containsKey(protegeId)) {
                             knownAlerts[protegeId] = currentAlertIds.toMutableSet()
                         } else {
-                            // Verifica novos alertas
+                            
                             val previousIds = knownAlerts[protegeId]!!
                             val newIds = currentAlertIds - previousIds
                             
@@ -112,7 +112,7 @@ class MonitorNotificationService : Service() {
                                     serviceScope.launch {
                                         var finalName = protegeName
                                         
-                                        // Se o nome for genérico ou nulo, tenta buscar o nome real do utilizador
+                                        
                                         if (finalName == "Protegido" || finalName == "Protege" || finalName == "Monitor" || finalName == "Unknown") {
                                             try {
                                                 val userDoc = db.collection("users").document(protegeId).get().await()
@@ -130,7 +130,7 @@ class MonitorNotificationService : Service() {
                                             val type = alertDoc.getString("type") ?: "ALERTA"
                                             val title = alertDoc.getString("title") ?: "Novo Incidente"
                                             
-                                            // Tradução amigável do tipo
+                                            
                                             val friendlyType = when(type) {
                                                 "FALL" -> "Queda Detetada"
                                                 "ACCIDENT" -> "Acidente"
@@ -145,7 +145,7 @@ class MonitorNotificationService : Service() {
                                             notifyNewAlert(protegeId, finalName, newAlertId, friendlyType)
                                         } catch (e: Exception) {
                                             Log.e("MonitorService", "Erro ao obter detalhes do alerta: ${e.message}")
-                                            // Fallback
+                                            
                                             notifyNewAlert(protegeId, finalName, newAlertId, "Novo Alerta")
                                         }
                                     }
@@ -174,7 +174,7 @@ class MonitorNotificationService : Service() {
             notificationManager.createNotificationChannel(channel)
         }
 
-        // Intent para abrir diretamente o Dashboard do Protegido
+        
         val intent = Intent(this, MainActivity::class.java).apply {
             action = "ACTION_MONITOR_ALERT"
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP

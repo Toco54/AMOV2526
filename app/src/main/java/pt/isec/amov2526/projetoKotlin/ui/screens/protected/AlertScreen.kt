@@ -7,25 +7,25 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import pt.isec.amov2526.projetoKotlin.data.model.InfractionDisplayInfo
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
 import pt.isec.amov2526.projetoKotlin.data.repository.AlertRepository
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.alert.ConfirmedPanel
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.alert.CountdownPanel
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 import pt.isec.amov2526.projetoKotlin.utils.EvidenceManager
-import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
-import pt.isec.amov2526.projetoKotlin.data.model.InfractionDisplayInfo
 import java.io.File
 
 @Composable
 fun AlertScreen(
     alertType: String = "SOS",
     alertDetails: String? = null,
-    alertIdFromIntent: String? = null, // [NOVO]
+    alertIdFromIntent: String? = null,
     onCancel: () -> Unit,
     onConfirm: () -> Unit,
     onValidatePin: suspend (String) -> Boolean,
@@ -33,7 +33,7 @@ fun AlertScreen(
     activeGeofences: List<MonitorRule> = emptyList(),
     infractions: List<InfractionDisplayInfo> = emptyList(),
     initialSeconds: Int = 10,
-    isConfirmedState: Boolean = false // [NOVO] Estado recebido do pai
+    isConfirmedState: Boolean = false
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -43,9 +43,9 @@ fun AlertScreen(
     val alertRepository = remember { AlertRepository() }
     val auth = remember { FirebaseAuth.getInstance() }
 
-    // [CORREÇÃO] Usar estado do pai
+
     var pinInput by remember { mutableStateOf("") }
-    // var alertId não é necessário, usamos alertIdFromIntent diretamente
+
     
     var isRecordingFinished by remember { mutableStateOf(false) }
     var recordingStartTime by remember { mutableLongStateOf(0L) }
@@ -57,7 +57,7 @@ fun AlertScreen(
 
     val previewView = remember { PreviewView(context) }
     
-    // Flag para facilitar testes sem carregar para o Firebase (mudar para false em produção)
+
     val SKIP_UPLOAD_FOR_TESTING = false
 
     fun performUpload(file: File, id: String) {
@@ -72,7 +72,7 @@ fun AlertScreen(
 
             val uid = auth.currentUser?.uid
             if (uid != null) {
-                // MultiMonitor: O vídeo é carregado uma vez para a pasta do alerta
+
                 val vUrl = evidenceManager.uploadFile(file, "users/$uid/alerts/$id")
                 if (vUrl != null) {
                     alertRepository.updateAlertEvidence(id, vUrl)
@@ -81,12 +81,12 @@ fun AlertScreen(
                     hasError = true
                     errorMessage = "UPLOADING FAILED"
                 }
-                // [CORREÇÃO] Sempre finalizar, mesmo que falhe, para não prender a UI
+
                 isRecordingFinished = true
             } else {
                 isRecordingFinished = true
             }
-            isUploading = false // Reset flag
+            isUploading = false
         }
     }
 
@@ -96,8 +96,8 @@ fun AlertScreen(
         }
     }
 
-    // Iniciar gravação assim que o ecrã aparece (mesmo em countdown)
-    // [CORREÇÃO] Reiniciar gravação se o alertId mudar
+
+
     DisposableEffect(lifecycleOwner, alertIdFromIntent) {
         evidenceManager.startVideoRecording(
             lifecycleOwner = lifecycleOwner,
@@ -111,7 +111,7 @@ fun AlertScreen(
         }
     }
 
-    // Sincronizar o timer visual com o início real da gravação
+
     LaunchedEffect(isConfirmedState) {
         if (isConfirmedState) {
              while (recordingStartTime == 0L) {
@@ -122,13 +122,13 @@ fun AlertScreen(
         }
     }
 
-    // [NOVO] Watchdog de Segurança: Garante que a UI nunca fica presa em "UPLOADING"
+
     LaunchedEffect(isConfirmedState) {
         if (isConfirmedState) {
-            delay(25000L) // 25 Segundos (12s gravação + 13s margem para falhas/upload lento)
+            delay(25000L)
             if (!isRecordingFinished) {
                 Log.e("AlertScreen", "Watchdog triggered: Recording/Upload timed out. Forcing UI unlock.")
-                // Tenta parar gravação se ainda estiver a decorrer
+
                 evidenceManager.stopVideoRecording()
                 hasError = true
                 errorMessage = "RECORDING FAILED"
@@ -154,7 +154,7 @@ fun AlertScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0F172A))) {
+    Box(modifier = Modifier.fillMaxSize().background(Slate900)) {
         if (!isConfirmedState) {
             CountdownPanel(
                 alertType = alertType,
@@ -180,7 +180,7 @@ fun AlertScreen(
                 recordingStartTime = recordingStartTime,
                 hasError = hasError,
                 errorMessage = errorMessage,
-                recordedVideoFile = finalizedFile, // [NOVO]
+                recordedVideoFile = finalizedFile,
                 onClose = { onCancel() }
             )
         }

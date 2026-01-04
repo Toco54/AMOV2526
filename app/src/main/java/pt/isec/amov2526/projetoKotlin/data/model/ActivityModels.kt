@@ -14,7 +14,7 @@ data class MonitorAction(
     val name: String,
     val state: MonitorActionState,
     val time: String,
-    val uid: String? = null // [NOVO] Identificador para permitir updates
+    val uid: String? = null
 )
 
 data class ActivityItem(

@@ -6,29 +6,29 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
 import pt.isec.amov2526.projetoKotlin.data.model.*
-//import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertStatus
-//import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
+
+
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
 class AlertRepository {
-    // Estas variáveis pertencem à classe
+    
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
 
-    // A função TEM de estar dentro da classe para ver o 'db' e o 'auth'
+    
     suspend fun createAlert(
         type: ActivityAlertType,
         title: String,
         latitude: Double? = null,
         longitude: Double? = null,
-        visibleToMonitors: List<String>? = null, // [NOVO] Lista de IDs de monitores autorizados
-        initialActions: List<MonitorAction>? = null, // [NOVO] Lista inicial de monitores notificados
-        forcedId: String? = null // [NOVO] ID forçado (gerado pelo serviço)
-    ): String? { // [ALTERADO] Retorna o ID do alerta criado
-        // Se 'auth' der erro aqui, é porque a função está fora da classe!
+        visibleToMonitors: List<String>? = null, 
+        initialActions: List<MonitorAction>? = null, 
+        forcedId: String? = null 
+    ): String? { 
+        
         val currentUser = auth.currentUser ?: return null
         val uid = currentUser.uid
 
@@ -48,23 +48,23 @@ class AlertRepository {
             "latitude" to latitude,
             "longitude" to longitude,
             "created_at" to System.currentTimeMillis(),
-            "videoUrl" to null // [ALTERADO] Campo direto
+            "videoUrl" to null 
         )
         
-        // Se a lista for null ou vazia, assume-se que é visível a TODOS (comportamento fallback)
-        // ou guardamos explicitamente se foi passado
+        
+        
         if (visibleToMonitors != null) {
             alertData["visibleTo"] = visibleToMonitors
         }
 
-        // [NOVO] Guardar a lista inicial de ações/monitores notificados
+        
         if (initialActions != null) {
             val actionsList = initialActions.map { action ->
                 mapOf(
                     "name" to action.name,
                     "state" to action.state.name,
                     "time" to action.time,
-                    "uid" to (action.uid ?: "") // [NOVO] Guardar UID
+                    "uid" to (action.uid ?: "") 
                 )
             }
             alertData["notifiedMonitors"] = actionsList
@@ -73,12 +73,12 @@ class AlertRepository {
         try {
             val batch = db.batch()
 
-            // 1. Criar o Alerta Principal na coleção do Protegido
+            
             val alertRef = db.collection("users").document(uid)
                 .collection("alerts").document(alertId)
             batch.set(alertRef, alertData)
 
-            // 2. Atualizar o documento de conexão em cada Monitor
+            
             visibleToMonitors?.forEach { monitorUid ->
                 val connectionDoc = db.collection("users").document(monitorUid)
                     .collection("connections").document(uid)
@@ -89,7 +89,7 @@ class AlertRepository {
                 batch.update(connectionDoc, updateData)
             }
 
-            // Executar todas as escritas atomicamente
+            
             batch.commit().await()
             return alertId
 
@@ -116,7 +116,7 @@ class AlertRepository {
 
         val query = db.collection("users").document(currentUser.uid)
             .collection("alerts")
-            .orderBy("created_at", Query.Direction.DESCENDING) // Mais recentes primeiro
+            .orderBy("created_at", Query.Direction.DESCENDING) 
 
         return query.addSnapshotListener { snapshot, e ->
             if (e != null || snapshot == null) return@addSnapshotListener
@@ -126,7 +126,7 @@ class AlertRepository {
                     val typeStr = doc.getString("type") ?: return@mapNotNull null
                     val statusStr = doc.getString("status") ?: "PENDING"
 
-                    // Converter Monitors Actions (se existirem)
+                    
                     val monitorsList = mutableListOf<MonitorAction>()
                     val monitorsRaw = doc.get("notifiedMonitors") as? List<Map<String, Any>>
                     monitorsRaw?.forEach { m ->
@@ -134,7 +134,7 @@ class AlertRepository {
                             name = m["name"] as? String ?: "Unknown",
                             state = MonitorActionState.valueOf(m["state"] as? String ?: "SENT"),
                             time = m["time"] as? String ?: "",
-                            uid = m["uid"] as? String // [NOVO] Ler UID
+                            uid = m["uid"] as? String 
                         ))
                     }
 
@@ -158,4 +158,4 @@ class AlertRepository {
         }
     }
 
-} // <--- A classe SÓ fecha aqui!
+} 

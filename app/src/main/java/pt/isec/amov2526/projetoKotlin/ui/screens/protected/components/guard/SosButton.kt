@@ -28,8 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val Red100 = Color(0xFFFEE2E2)
-private val Red600 = Color(0xFFDC2626)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun SosButton(onClick: () -> Unit) {
@@ -55,11 +54,11 @@ fun SosButton(onClick: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize(0.92f)
                 .align(Alignment.Center)
-                .shadow(20.dp, CircleShape, ambientColor = Color.Red, spotColor = Red600)
+                .shadow(20.dp, CircleShape, ambientColor = AlertRed, spotColor = Red600)
                 .clip(CircleShape)
                 .background(
                     Brush.verticalGradient(
-                        listOf(Color(0xFFEF4444), Red600)
+                        listOf(Red500, Red600)
                     )
                 )
                 .clickable(interactionSource, null) { onClick() },

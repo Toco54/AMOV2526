@@ -16,7 +16,7 @@ import kotlin.math.sqrt
 class AccelerometerHandler(
     private val sensorHelper: SensorHelper,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default),
-    private val isActiveChecker: (MonitorRule) -> Boolean // [NOVO]
+    private val isActiveChecker: (MonitorRule) -> Boolean
 ) {
     private val FALL_G_THRESHOLD = 45f
     private val ACCIDENT_G_THRESHOLD = 90f
@@ -51,7 +51,7 @@ class AccelerometerHandler(
             sensorHelper.accelerometerData.collect { (x, y, z) ->
                 val magnitude = sqrt((x * x + y * y + z * z).toDouble()).toFloat()
                 
-                // Log apenas se for um movimento relevante (> 15 m/s²) para não inundar o logcat
+
                 if (magnitude > 15f) {
                     Log.d("AccelerometerHandler", "Magnitude detetada: ${String.format("%.2f", magnitude)} m/s² (~${String.format("%.2f", magnitude/9.81f)}G)")
                 }
@@ -78,7 +78,7 @@ class AccelerometerHandler(
 
         Log.d("AccelerometerHandler", "Avaliar evento $type. Regras totais: ${rawRules.size}")
 
-        // [ATUALIZADO] Verificação Dinâmica (AND)
+
         val activeRules = rawRules.filter { rule ->
             val active = isActiveChecker(rule)
             Log.v("AccelerometerHandler", "Regra ${rule.id} (Monitor: ${rule.monitorName}) ativa: $active")

@@ -4,7 +4,7 @@ import java.util.Calendar
 
 data class StatusResult(
     val isActive: Boolean,
-    val label: String, // "ACTIVE", "PAUSED", "SCHEDULED", "DISABLED"
+    val label: String, 
     val subLabel: String?
 )
 
@@ -14,13 +14,13 @@ object TimeUtils {
         isEnabled: Boolean,
         pausedUntil: Long,
         isScheduleEnabled: Boolean,
-        days: List<Int>, // 0=Sun, 1=Mon...
+        days: List<Int>, 
         start: String,
         end: String,
         now: Long = System.currentTimeMillis()
     ): StatusResult {
 
-        // 1. Check Pause (Timer/Indefinite Priority over "Disabled" flag)
+        
         if (pausedUntil > now) {
             val remaining = pausedUntil - now
             return StatusResult(false, "PAUSED", "Paused: ${formatDuration(remaining)}")
@@ -34,11 +34,11 @@ object TimeUtils {
             return StatusResult(false, "DISABLED", "Disabled by user")
         }
 
-        // 2. Check Schedule (LÓGICA INVERTIDA: Definição de Horário Ativo)
+        
         if (isScheduleEnabled) {
             val cal = Calendar.getInstance()
             cal.timeInMillis = now
-            val currentDay = cal.get(Calendar.DAY_OF_WEEK) - 1 // Calendar.SUNDAY=1 -> 0
+            val currentDay = cal.get(Calendar.DAY_OF_WEEK) - 1 
 
             val (startH, startM) = parseTime(start)
             val (endH, endM) = parseTime(end)
@@ -47,15 +47,15 @@ object TimeUtils {
             val startTime = startH * 60 + startM
             val endTime = endH * 60 + endM
 
-            // Verifica se estamos no dia certo E dentro da janela de horas
+            
             val isDayActive = days.contains(currentDay)
             val isTimeActive = nowTime in startTime until endTime
 
             if (isDayActive && isTimeActive) {
-                // Estamos DENTRO do horário de proteção -> ACTIVE
+                
                 return StatusResult(true, "ACTIVE", "Active until $end")
             } else {
-                // Estamos FORA do horário de proteção -> SCHEDULED (OFF)
+                
                 val msg = if (!isDayActive) "Schedule: Inactive Today"
                 else if (nowTime < startTime) "Schedule: Starts at $start"
                 else "Schedule: Ended at $end"
@@ -89,7 +89,7 @@ object TimeUtils {
         if (days.isEmpty() || start.isEmpty() || end.isEmpty()) return ""
         val dayNames = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
         val activeDays = days.sorted().joinToString(", ") { dayNames[it] }
-        // Adicionei "Active:" para clarificar na UI que estes são os dias ATIVOS
+        
         return "🕒 Active: $activeDays • $start - $end"
     }
 
@@ -97,12 +97,12 @@ object TimeUtils {
         val cal = Calendar.getInstance()
         cal.timeInMillis = now
         var dayOffset = 0
-        // Limit search to 7 days
+        
         while (dayOffset < 8) {
             val checkDay = (cal.get(Calendar.DAY_OF_WEEK) - 1 + dayOffset) % 7
             if (days.contains(checkDay)) {
-                // Found a potential day.
-                // If it's today (offset 0), check if start time is in future.
+                
+                
                 if (dayOffset == 0) {
                     val nowTime = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
                     val targetTime = startH * 60 + startM
@@ -113,8 +113,8 @@ object TimeUtils {
                         return "Active in ${h}h ${m}m"
                     }
                 } else {
-                    // Future day
-                    // "Active Mon 09:00"
+                    
+                    
                     val dayName = when(checkDay) {
                         0 -> "Sun"; 1 -> "Mon"; 2 -> "Tue"; 3 -> "Wed"; 4 -> "Thu"; 5 -> "Fri"; 6 -> "Sat"
                         else -> ""

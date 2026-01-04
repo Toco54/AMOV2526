@@ -17,17 +17,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import pt.isec.amov2526.projetoKotlin.data.model.*
 import pt.isec.amov2526.projetoKotlin.data.repository.RuleRepository
-import pt.isec.amov2526.projetoKotlin.data.model.ProtectionRule
-import pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
-import com.google.firebase.firestore.Query
-import pt.isec.amov2526.projetoKotlin.data.model.ActivityItem
-import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertStatus
-import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
-import pt.isec.amov2526.projetoKotlin.data.model.MonitorAction
-import pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState
-import pt.isec.amov2526.projetoKotlin.data.model.AlertStat
 
 data class GlobalScheduleInfo(
     val isEnabled: Boolean,
@@ -47,7 +40,7 @@ data class CategoryStatus(
 
 class MonitorDashboardViewModel(
     private val ruleRepository: RuleRepository,
-    private val protegeUid: String // Changed from email to UID
+    private val protegeUid: String
 ) : ViewModel() {
 
     private val auth = FirebaseAuth.getInstance()
@@ -56,7 +49,7 @@ class MonitorDashboardViewModel(
     private val _activities = MutableStateFlow<List<ActivityItem>>(emptyList())
     val activities: StateFlow<List<ActivityItem>> = _activities.asStateFlow()
 
-    // Maps para gerir listeners individuais
+
     private val alertListeners = mutableMapOf<String, com.google.firebase.firestore.ListenerRegistration>()
     private val alertDataMap = mutableMapOf<String, ActivityItem>()
 
@@ -105,7 +98,7 @@ class MonitorDashboardViewModel(
 
         private fun startListeningConnectionStatus() {
 
-            // CORREÇÃO: O alertaRefs está na coleção connections do MONITOR, apontando para o protegido.
+
 
             val docRef = com.google.firebase.firestore.FirebaseFirestore.getInstance()
 
@@ -143,7 +136,7 @@ class MonitorDashboardViewModel(
 
     
 
-                // Obtém o mapa de referências (ID -> Caminho) de forma segura
+
 
                 val rawMap = snapshot.get("alertRefs") as? Map<String, Any>
 
@@ -159,7 +152,8 @@ class MonitorDashboardViewModel(
 
         }
 
-                        
+
+    
 
                             private fun updateAlertListeners(refsMap: Map<String, String>) {
 
@@ -169,7 +163,7 @@ class MonitorDashboardViewModel(
 
                         
 
-                                // 1. Remover listeners de alertas que já não estão no mapa
+                                
 
                                 val idsToRemove = currentIds - newIds
 
@@ -187,7 +181,7 @@ class MonitorDashboardViewModel(
 
                         
 
-                                // 2. Adicionar listeners para novos alertas
+                                
 
                                 val idsToAdd = newIds - currentIds
 
@@ -259,7 +253,7 @@ class MonitorDashboardViewModel(
 
                         
 
-                                // Se houve apenas remoções ou se não há nada para adicionar, forçar atualização da UI
+                                
 
                                 if (idsToRemove.isNotEmpty() || (idsToAdd.isEmpty() && alertDataMap.isNotEmpty())) {
 
@@ -317,8 +311,8 @@ class MonitorDashboardViewModel(
 
                                         notifiedMonitors = monitorsList,
                                         
-                                        // Aparentemente o ViewModel original não lia lat/lng aqui,
-                                        // mas para manter consistência com o modelo atualizado:
+                                        
+                                        
                                         latitude = doc.getDouble("latitude"),
                                         longitude = doc.getDouble("longitude"),
                                         videoUrl = doc.getString("videoUrl")
@@ -350,14 +344,14 @@ class MonitorDashboardViewModel(
                             }
 
     private fun calculateStats(items: List<ActivityItem>) {
-        // Tenta contar por tipo. Se o tipo INACTIVITY não existir no Enum,
-        // ele vai cair em 'else' ou podes ajustar conforme o teu modelo.
+        
+        
         val stats = listOf(
             AlertStat("Fall", items.count { it.type == ActivityAlertType.FALL }),
             AlertStat("Crash", items.count { it.type == ActivityAlertType.ACCIDENT }),
             AlertStat("Geo", items.count { it.type == ActivityAlertType.GEOFENCE }),
             AlertStat("Speed", items.count { it.type == ActivityAlertType.SPEED }),
-            // Se não tiveres INACTIVITY no Enum ActivityAlertType, usa FALL ou remove esta linha
+            
             AlertStat("SOS", items.count { it.type == ActivityAlertType.PANIC })
         )
         _alertStats.value = stats
@@ -370,17 +364,17 @@ class MonitorDashboardViewModel(
             if (e != null) return@addSnapshotListener
             
             if (snapshot != null && snapshot.exists()) {
-                // Email
+                
                 _protegeEmail.value = snapshot.getString("email") ?: ""
 
-                // Location
+                
                 val lat = snapshot.getDouble("lastLat")
                 val lng = snapshot.getDouble("lastLng")
                 if (lat != null && lng != null) {
                     _userLocation.value = org.osmdroid.util.GeoPoint(lat, lng)
                 }
 
-                // Read Active Protections (Category Status)
+                
                 val activeProtectionsMap = snapshot.get("activeProtections") as? Map<String, Map<String, Any>> ?: emptyMap()
                 val parsedStatuses = activeProtectionsMap.mapValues { (_, value) ->
                     val enabled = value["enabled"] as? Boolean ?: true
@@ -393,12 +387,12 @@ class MonitorDashboardViewModel(
                 }
                 _categoryStatuses.value = parsedStatuses
 
-                // Status & Connectivity
+                
                 val dbStatus = snapshot.getString("systemStatus") ?: "OFFLINE"
                 val lastUpdate = snapshot.getLong("lastUpdate") ?: 0L
                 val now = System.currentTimeMillis()
                 
-                // Read Schedule & Pause Data
+                
                 val globalPausedUntil = snapshot.getLong("globalPausedUntil") ?: 0L
                 val gDays = (snapshot.get("globalScheduleDays") as? List<Number>)?.map { it.toInt() } ?: listOf(1, 2, 3, 4, 5)
                 val gStart = snapshot.getString("globalScheduleStart") ?: "09:00"
@@ -407,13 +401,13 @@ class MonitorDashboardViewModel(
                 
                 _globalSchedule.value = GlobalScheduleInfo(gEnabled, gDays, gStart, gEnd)
 
-                // Calculate Effective Status if not OFFLINE
+                
                 var finalStatus = dbStatus
                 var detail: String? = null
                 
                 if (dbStatus != "OFFLINE") {
                     val calculated = TimeUtils.calculateStatus(
-                        isEnabled = (dbStatus == "ACTIVE" || dbStatus == "PAUSED"), // Assuming system is technically 'enabled' if not offline
+                        isEnabled = (dbStatus == "ACTIVE" || dbStatus == "PAUSED"), 
                         pausedUntil = globalPausedUntil,
                         isScheduleEnabled = gEnabled,
                         days = gDays,
@@ -429,7 +423,7 @@ class MonitorDashboardViewModel(
                 _statusDetail.value = detail
                 _pausedUntil.value = globalPausedUntil
                 
-                // If status is not OFFLINE but last update was > 2 mins ago, consider DISCONNECTED
+                
                 val isActuallyDisconnected = dbStatus != "OFFLINE" && (now - lastUpdate > 120000L)
                 _isDisconnected.value = isActuallyDisconnected
             }
@@ -450,11 +444,11 @@ class MonitorDashboardViewModel(
                             else -> Icons.Default.Shield
                         },
                         iconColor = when (rule.type) {
-                            MonitorRuleType.FALL -> Color(0xFFFF7043)
-                            MonitorRuleType.ACCIDENT -> Color(0xFFEF4444)
-                            MonitorRuleType.GEOFENCING -> Color(0xFF7E57C2)
-                            MonitorRuleType.SPEED -> Color(0xFF42A5F5)
-                            MonitorRuleType.INACTIVITY -> Color(0xFFFFA726)
+                            MonitorRuleType.FALL -> RuleFall
+                            MonitorRuleType.ACCIDENT -> RuleAccident
+                            MonitorRuleType.GEOFENCING -> RuleGeofence
+                            MonitorRuleType.SPEED -> RuleSpeed
+                            MonitorRuleType.INACTIVITY -> RuleInactivity
                             else -> Color.Gray
                         }
                     )
@@ -493,28 +487,28 @@ class MonitorDashboardViewModel(
         val activity = alertDataMap[activityId] ?: return
         val myId = currentMonitorId
         
-        // Verifica se já está viewed para evitar writes desnecessários
+        
         val me = activity.notifiedMonitors.find { 
-             // Assumindo que o 'name' é o identificador ou se devia haver um ID. 
-             // No parse atual estamos a usar Name. O ideal seria ter ID.
-             // Mas como o sistema grava o nome do monitor, vamos tentar encontrar pela lógica de negócio
-             // Se o nome coincidir com o nome do user atual (que teríamos de buscar).
-             // SIMPLIFICAÇÃO: Vamos procurar pelo indice se soubermos, ou vamos assumir que o backend enviou o meu ID ou Nome.
-             // Dado que ActivityItem só tem 'MonitorAction' com 'name', isto é frágil.
-             // CORREÇÃO: Vamos buscar o documento à Firestore e editar o array 'notifiedMonitors' onde o 'id' (se existir) ou 'uid' for igual ao meu.
+             
+             
+             
+             
+             
+             
+             
              true 
         }
 
         viewModelScope.launch {
-            // Caminho do documento: precisamos saber onde ele está. O alertDataMap tem o ID, mas o caminho estava no listener.
-            // Vamos iterar os listeners para achar o caminho ou usar uma query direta se soubermos a coleção.
-            // Assumindo coleção "alerts" na raiz ou dentro do user?
-            // O código do listener usa 'refsMap' que dá o caminho completo.
             
-            // Hack: Vamos tentar encontrar o caminho através do alertListeners ou DB search
-             // Mas o `MonitorDashboardViewModel` não guardou os caminhos (paths) no `alertDataMap`, só os items.
-             // Vamos melhorar a atualização do listener para guardar o path ou usar o ID para pesquisar se for global.
-             // Assumindo estrutura: users/{protegeId}/alerts/{alertId}
+            
+            
+            
+            
+            
+             
+             
+             
             
             val path = "users/$protegeUid/alerts/$activityId"
             val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
@@ -527,8 +521,8 @@ class MonitorDashboardViewModel(
                         val monitorsRaw = snapshot.get("notifiedMonitors") as? List<Map<String, Any>> ?: emptyList()
                         val updatedMonitors = monitorsRaw.map { m ->
                             val uid = m["uid"] as? String
-                            // Se tiver UID, compara. Se não, tenta pelo nome ou assume que o monitor atual deve marcar-se.
-                            // Para segurança, o monitor só deve marcar o SEU registo.
+                            
+                            
                             if (uid == currentMonitorId && m["state"] != "VIEWED") {
                                 m.toMutableMap().apply {
                                     put("state", "VIEWED")

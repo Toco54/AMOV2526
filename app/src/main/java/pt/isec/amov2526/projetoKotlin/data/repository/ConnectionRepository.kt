@@ -72,7 +72,7 @@ class ConnectionRepository {
         return try {
             val batch = db.batch()
 
-            // 0. Delete all rules defined by this Monitor for this Protege
+            
             val rulesRef = db.collection("users").document(uid)
                 .collection("connections").document(targetUid)
                 .collection("rules")
@@ -82,15 +82,15 @@ class ConnectionRepository {
                 batch.delete(doc.reference)
             }
 
-            // 1. Remove from Protege's side (Hard Delete so it disappears from list and GuardViewModel stops fetching rules)
+            
             batch.delete(db.collection("users").document(uid).collection("connections").document(targetUid))
             batch.update(db.collection("users").document(uid), "associatedIds", FieldValue.arrayRemove(targetUid))
 
-            // 2. Update Monitor's side (Soft Delete / Status Update)
-            // We do NOT delete the document, we mark it as revoked so Monitor sees the icon.
+            
+            
             val monitorConnRef = db.collection("users").document(targetUid).collection("connections").document(uid)
             batch.update(monitorConnRef, "revokedByProtege", true)
-            // We do NOT remove from associatedIds on Monitor side yet, so it stays in the list.
+            
 
             batch.commit().await()
             Result.success(Unit)
@@ -99,11 +99,11 @@ class ConnectionRepository {
         }
     }
 
-    // New function for Monitor to finalize the deletion
+    
     suspend fun deleteConnection(monitorUid: String, protegeUid: String): Result<Unit> {
         return try {
             val batch = db.batch()
-            // Hard delete on Monitor side
+            
             batch.delete(db.collection("users").document(monitorUid).collection("connections").document(protegeUid))
             batch.update(db.collection("users").document(monitorUid), "associatedIds", FieldValue.arrayRemove(protegeUid))
             batch.commit().await()
@@ -113,17 +113,17 @@ class ConnectionRepository {
         }
     }
 
-    // 1. Protected User generates a code
+    
     suspend fun generateConnectionCode(uid: String, accessLevel: String): Result<String> {
         return try {
-            val code = (100000..999999).random().toString() // 6 digit code
+            val code = (100000..999999).random().toString() 
             val data = hashMapOf(
                 "code" to code,
                 "uid" to uid,
                 "accessLevel" to accessLevel,
                 "timestamp" to Timestamp.now()
             )
-            // Save to 'connection_codes' collection
+            
             db.collection("connection_codes").document(code).set(data).await()
             Result.success(code)
         } catch (e: Exception) {
@@ -131,7 +131,7 @@ class ConnectionRepository {
         }
     }
 
-    // 2. Validate code and get details (Step 1 for Monitor)
+    
     suspend fun validateCode(code: String): Result<ConnectionCodeInfo> {
         return try {
             val codeDoc = db.collection("connection_codes").document(code).get().await()
@@ -149,7 +149,7 @@ class ConnectionRepository {
             val protegeUid = codeDoc.getString("uid") ?: throw Exception("Invalid Data")
             val accessLevel = codeDoc.getString("accessLevel") ?: "Full Monitoring"
 
-            // Fetch User Details to show name/email
+            
             val userDoc = db.collection("users").document(protegeUid).get().await()
             val name = userDoc.getString("name") ?: "Unknown User"
             val email = userDoc.getString("email") ?: ""
@@ -160,14 +160,14 @@ class ConnectionRepository {
         }
     }
 
-    // 3. Monitor enters the code to connect (Step 2: Confirm)
+    
     suspend fun connectWithCode(monitorUid: String, code: String): Result<Unit> {
         return try {
             val codeDoc = db.collection("connection_codes").document(code).get().await()
             if (!codeDoc.exists()) {
                 throw Exception("Invalid code")
             }
-            // ... (rest is mostly same, but we can trust validation happened or re-verify)
+            
             
             val timestamp = codeDoc.getTimestamp("timestamp")
             val now = Timestamp.now()
@@ -179,19 +179,19 @@ class ConnectionRepository {
             val protegeUid = codeDoc.getString("uid") ?: throw Exception("Invalid Data")
             val accessLevel = codeDoc.getString("accessLevel") ?: "Full Monitoring"
 
-            // Prevent self-connection
+            
             if (monitorUid == protegeUid) {
                 throw Exception("Cannot connect to yourself")
             }
 
-            // Fetch Names to store in connection docs (Optimization for Services)
+            
             val monitorDoc = db.collection("users").document(monitorUid).get().await()
             val monitorName = monitorDoc.getString("name") ?: "Monitor"
             
             val protegeDoc = db.collection("users").document(protegeUid).get().await()
             val protegeName = protegeDoc.getString("name") ?: "Protege"
 
-            // Prevent duplicate connection
+            
             val existingConnection = db.collection("users").document(monitorUid)
                 .collection("connections").document(protegeUid)
                 .get().await()
@@ -202,32 +202,32 @@ class ConnectionRepository {
 
             val batch = db.batch()
 
-            // 1. Add Protege to Monitor's list
+            
             val monitorRef = db.collection("users").document(monitorUid)
             batch.update(monitorRef, "associatedIds", FieldValue.arrayUnion(protegeUid))
             
             val monitorConnectionRef = monitorRef.collection("connections").document(protegeUid)
             batch.set(monitorConnectionRef, hashMapOf(
                 "uid" to protegeUid,
-                "name" to protegeName, // [NOVO] Guardar nome para evitar fetch no futuro
+                "name" to protegeName, 
                 "role" to "Protege",
                 "since" to FieldValue.serverTimestamp()
             ))
 
-            // 2. Add Monitor to Protege's list with ACCESS LEVEL
+            
             val protegeRef = db.collection("users").document(protegeUid)
             batch.update(protegeRef, "associatedIds", FieldValue.arrayUnion(monitorUid))
 
             val protegeConnectionRef = protegeRef.collection("connections").document(monitorUid)
             batch.set(protegeConnectionRef, hashMapOf(
                 "uid" to monitorUid,
-                "name" to monitorName, // [NOVO] Guardar nome para evitar fetch no futuro
+                "name" to monitorName, 
                 "role" to "Monitor",
                 "accessLevel" to accessLevel,
                 "since" to FieldValue.serverTimestamp()
             ))
 
-            // 3. Delete code after usage (One-time use)
+            
             val codeRef = db.collection("connection_codes").document(code)
             batch.delete(codeRef)
 

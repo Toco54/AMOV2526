@@ -26,18 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import pt.isec.amov2526.projetoKotlin.utils.StatusResult
 
-// --- CORES ---
-private val Slate100 = Color(0xFFF1F5F9)
-private val Slate200 = Color(0xFFE2E8F0)
-private val Slate400 = Color(0xFF94A3B8)
-private val Slate500 = Color(0xFF64748B)
-private val Slate900 = Color(0xFF0F172A)
-private val Emerald50 = Color(0xFFECFDF5)
-private val Emerald200 = Color(0xFFA7F3D0)
-private val Emerald500 = Color(0xFF10B981)
-private val Emerald700 = Color(0xFF047857)
-private val Amber500 = Color(0xFFF59E0B)
-private val Indigo600 = Color(0xFF4F46E5)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun SystemStatusCard(
@@ -132,9 +121,9 @@ fun SystemStatusCard(
                             fontSize = 10.sp
                         )
                     }
-                    // Status Pill
-                    // [CORREÇÃO] Se estiver "SCHEDULED", o switch manual ainda deve aparecer como "ACTIVE" (Verde),
-                    // porque o utilizador não o pausou manualmente. Eles não estão relacionados diretamente no switch.
+
+
+
                     val statusLabel = if (rawSystemStatus == "SCHEDULED") "ACTIVE" else rawSystemStatus
                     
                     val statusColor = when (statusLabel) {
@@ -144,12 +133,12 @@ fun SystemStatusCard(
                     }
                     val statusBg = when (statusLabel) {
                         "ACTIVE" -> Emerald50
-                        "PAUSED" -> Color(0xFFFFFBEB) // Amber50
+                        "PAUSED" -> Amber50
                         else -> Slate200
                     }
                     val statusBorder = when (statusLabel) {
                         "ACTIVE" -> Emerald200
-                        "PAUSED" -> Color(0xFFFDE68A) // Amber200
+                        "PAUSED" -> Amber200
                         else -> Slate200
                     }
 

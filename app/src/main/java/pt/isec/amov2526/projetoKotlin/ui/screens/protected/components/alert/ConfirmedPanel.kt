@@ -41,7 +41,7 @@ import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker // [RESTAURADO]
+import org.osmdroid.views.overlay.Marker
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Divider
@@ -62,39 +62,32 @@ import android.media.MediaPlayer
 import androidx.compose.material.icons.filled.PlayArrow
 import java.io.File
 
-// --- Theme Colors ---
-private val AlertRed = Color(0xFFDC2626)
-private val AlertGreen = Color(0xFF16A34A)
-private val HeaderColor = Color(0xFF334155)
-private val AlertYellow = Color(0xFFFFC107) 
-private val SafeGreen = Color(0xFF4CAF50)   
-private val TabSelectedColor = Color(0xFF334155) // [RESTAURADO]
-private val TabUnselectedColor = Color(0xFF1E293B) // [RESTAURADO]
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun ConfirmedPanel(
     currentLocation: Location?,
-    activeGeofences: List<MonitorRule> = emptyList(), // [NOVO]
-    infractions: List<InfractionDisplayInfo> = emptyList(), // [NOVO]
-    previewView: PreviewView? = null, // [NOVO]
-    isRecordingFinished: Boolean = false, // [NOVO]
-    recordingStartTime: Long = 0L, // [NOVO]
-    hasError: Boolean = false, // [NOVO]
-    errorMessage: String? = null, // [NOVO]
-    recordedVideoFile: File? = null, // [NOVO]
-    onClose: () -> Unit = {} // [NOVO]
+    activeGeofences: List<MonitorRule> = emptyList(),
+    infractions: List<InfractionDisplayInfo> = emptyList(),
+    previewView: PreviewView? = null,
+    isRecordingFinished: Boolean = false,
+    recordingStartTime: Long = 0L,
+    hasError: Boolean = false,
+    errorMessage: String? = null,
+    recordedVideoFile: File? = null,
+    onClose: () -> Unit = {}
 ) {
-    var remainingSeconds by remember { mutableLongStateOf(12L) } // 12s como no branch fix/vids
+    var remainingSeconds by remember { mutableLongStateOf(12L) }
     val isTimeUp = remainingSeconds <= 0
 
-    // [NOVO] Estado para controlar visibilidade das zonas por monitor
-    // Inicialmente todos os monitores com infrações estão visíveis
+
+
     val visibleMonitors = remember { mutableStateListOf<String>() }
 
     LaunchedEffect(infractions) {
         visibleMonitors.clear()
         visibleMonitors.addAll(infractions.map { it.monitorName }.distinct())
-        // Adiciona também monitores das activeGeofences que possam não estar nas infrações (opcional, mas seguro)
+
         activeGeofences.forEach { rule ->
             if (!visibleMonitors.contains(rule.monitorName)) {
                 visibleMonitors.add(rule.monitorName)
@@ -103,8 +96,7 @@ fun ConfirmedPanel(
     }
 
     val context = LocalContext.current
-    
-    // Timer Loop para atualizar o UI de forma sincronizada com o início real
+
     LaunchedEffect(recordingStartTime, isRecordingFinished) {
         if (!isRecordingFinished && recordingStartTime > 0) {
             while (true) {
@@ -119,13 +111,13 @@ fun ConfirmedPanel(
         }
     }
 
-    //(tiles) da internet
+
     LaunchedEffect(Unit) {
         Configuration.getInstance().load(
             context,
             PreferenceManager.getDefaultSharedPreferences(context)
         )
-        // Opcional: Define um UserAgent para evitar bloqueios dos servidores do OSM
+
         Configuration.getInstance().userAgentValue = context.packageName
     }
 
@@ -136,7 +128,7 @@ fun ConfirmedPanel(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 1. Status Header
+
         val headerBg = when {
             hasError -> AlertYellow
             isRecordingFinished -> AlertGreen
@@ -186,7 +178,7 @@ fun ConfirmedPanel(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 2. Camera Header
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -198,7 +190,7 @@ fun ConfirmedPanel(
             Text(text = stringResource(id = R.string.evidence_camera_recording), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
         }
 
-        // 3. Video Feed Area
+
         val showVideoPlayer = isRecordingFinished && !hasError && recordedVideoFile != null
         var isPlaying by remember { mutableStateOf(true) }
 
@@ -217,7 +209,7 @@ fun ConfirmedPanel(
             contentAlignment = Alignment.Center
         ) {
             if (showVideoPlayer && recordedVideoFile != null) {
-                // Video Player Logic
+
                 val mediaPlayer = remember { MediaPlayer() }
                 
                 DisposableEffect(Unit) {
@@ -275,7 +267,7 @@ fun ConfirmedPanel(
                 }
 
             } else {
-                 // Camera Preview Logic (Existing)
+
                  if (previewView != null) {
                     AndroidView(
                         factory = { 
@@ -315,7 +307,7 @@ fun ConfirmedPanel(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 4. Map View
+
         Text(
             text = stringResource(id = R.string.evidence_live_location),
             color = Color.White.copy(alpha = 0.7f),
@@ -327,20 +319,20 @@ fun ConfirmedPanel(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(250.dp) // Altura fixa para o mapa dentro do Scroll
+                .height(250.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFFE2E8F0))
+                .background(Slate200)
         ) {
             if (currentLocation != null) {
-                // Aqui usamos o MapView do OSMDroid dentro de uma AndroidView
+
                 AndroidView(
                     factory = { ctx ->
                         MapView(ctx).apply {
-                            setTileSource(TileSourceFactory.MAPNIK) // Estilo de mapa padrão
-                            setMultiTouchControls(true) // Permitir zoom com dedos
-                            controller.setZoom(18.0) // Zoom inicial
+                            setTileSource(TileSourceFactory.MAPNIK)
+                            setMultiTouchControls(true)
+                            controller.setZoom(18.0)
                             
-                            // [CORREÇÃO] Prevenir que o ScrollView pai intercepte o toque no mapa
+
                             setOnTouchListener { v, event ->
                                 v.parent.requestDisallowInterceptTouchEvent(true)
                                 false
@@ -351,24 +343,24 @@ fun ConfirmedPanel(
                     update = { map ->
                         val point = GeoPoint(currentLocation.latitude, currentLocation.longitude)
 
-                        // Centrar o mapa na localização atual
+
                         map.controller.setCenter(point)
 
-                        // Limpar marcadores e overlays antigos
+
                         map.overlays.clear()
 
-                        // 1. Desenhar Geofences (Apenas as INFRINGIDAS)
+
                         activeGeofences.forEach { rule ->
                             val isVisible = visibleMonitors.contains(rule.monitorName)
                             
                             if (isVisible) {
                                 rule.geofenceData?.let { (lat, lng, radius) ->
-                                    // Verificar se esta regra pertence a um monitor que gerou infração de Geofence
+
                                     val hasInfraction = infractions.any { 
                                         it.monitorName == rule.monitorName && it.ruleType == "GEOFENCING" 
                                     }
 
-                                    // [MODIFICADO] Apenas desenha se houver infração (Zonas Violadas)
+
                                     if (hasInfraction) {
                                         val circle = Polygon(map)
                                         circle.points = Polygon.pointsAsCircle(GeoPoint(lat, lng), radius.toDouble())
@@ -384,14 +376,14 @@ fun ConfirmedPanel(
                             }
                         }
 
-                        // 2. Adicionar Marcador do User
+
                         val marker = Marker(map)
                         marker.position = point
                         marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                         marker.title = "Eu estou aqui!"
                         map.overlays.add(marker)
 
-                        map.invalidate() // Forçar atualização visual
+                        map.invalidate()
                     }
                 )
             } else {
@@ -408,11 +400,11 @@ fun ConfirmedPanel(
                     .background(Color.White.copy(alpha = 0.8f), RoundedCornerShape(4.dp))
                     .padding(4.dp)
             ) {
-                // Se tivermos localização, mostramos Lat/Lng. Se não, "A adquirir..."
+
                 val locText = if (currentLocation != null) {
                     "Lat: %.4f\nLng: %.4f".format(currentLocation.latitude, currentLocation.longitude)
                 } else {
-                    context.getString(R.string.evidence_acquiring_gps)
+                    stringResource(R.string.evidence_acquiring_gps)
                 }
 
                 Text(
@@ -424,7 +416,7 @@ fun ConfirmedPanel(
             }
         }
         
-        // 5. Infractions List
+
         if (infractions.isNotEmpty()) {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
@@ -439,7 +431,7 @@ fun ConfirmedPanel(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF1E293B))
+                    .background(PinBoxColor)
                     .padding(12.dp)
             ) {
                 infractions.forEachIndexed { index, inf ->
@@ -457,7 +449,7 @@ fun ConfirmedPanel(
                             },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // [NOVO] Checkbox de seleção
+
                         androidx.compose.material3.Checkbox(
                             checked = isSelected,
                             onCheckedChange = { checked ->
@@ -471,7 +463,7 @@ fun ConfirmedPanel(
                             )
                         )
                         
-                        // Monitor Icon/Name
+
                          Box(
                             modifier = Modifier
                                 .size(32.dp)
@@ -486,7 +478,7 @@ fun ConfirmedPanel(
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
-                            // Primary: Monitor Name
+
                             Text(
                                 text = inf.monitorName,
                                 color = Color.White,
@@ -494,7 +486,7 @@ fun ConfirmedPanel(
                                 fontSize = 16.sp
                             )
                             
-                            // Secondary: Detail based on Type
+
                             val detailText = when(inf.ruleType) {
                                 "SPEED" -> "Limit: ${inf.parameter ?: "?"} km/h"
                                 "INACTIVITY" -> "Max Time: ${inf.parameter ?: "?"} min"

@@ -16,9 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import pt.isec.amov2526.projetoKotlin.utils.LocaleHelper
 
-private val Slate900 = Color(0xFF0F172A)
-private val Indigo600 = Color(0xFF4F46E5)
-private val Slate200 = Color(0xFFE2E8F0)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun LanguageSwitch(
@@ -37,7 +35,7 @@ fun LanguageSwitch(
             .padding(2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // ENG
+
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -61,7 +59,7 @@ fun LanguageSwitch(
             )
         }
 
-        // PT
+
         Box(
             modifier = Modifier
                 .weight(1f)

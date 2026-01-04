@@ -25,20 +25,12 @@ import androidx.compose.ui.res.stringResource
 import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.MonitorMainViewModel
 
-private val Slate50 = Color(0xFFF8FAFC)
-private val Slate100 = Color(0xFFF1F5F9)
-private val Slate200 = Color(0xFFE2E8F0)
-private val Slate400 = Color(0xFF94A3B8)
-private val Slate500 = Color(0xFF64748B)
-private val Slate900 = Color(0xFF0F172A)
-private val Emerald500 = Color(0xFF10B981)
-private val Emerald700 = Color(0xFF047857)
-private val Red600 = Color(0xFFDC2626)
+import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun ConfirmConnectionDialog(
     candidate: pt.isec.amov2526.projetoKotlin.data.repository.ConnectionCodeInfo,
-    errorMsg: String? = null, // New Parameter
+    errorMsg: String? = null,
     onAccept: () -> Unit,
     onReject: () -> Unit
 ) {
@@ -231,7 +223,7 @@ fun EnterCodeModal(
                     color = Slate900
                 )
                 Text(
-                    text = "Enter the 6-digit pairing code from the Protected user.", // Standard enough or add to strings
+                    text = "Enter the 6-digit pairing code from the Protected user.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Slate500
                 )

@@ -19,19 +19,16 @@ class LocationHelper(private val context: Context) {
     private val fusedLocationClient: FusedLocationProviderClient =
         LocationServices.getFusedLocationProviderClient(context)
 
-    // --- StateFlow ---
+
     private val _currentLocation = MutableStateFlow<Location?>(null)
     val currentLocation = _currentLocation.asStateFlow()
 
     private var locationCallback: LocationCallback? = null
 
-    /**
-     * Start receiving location updates.
-     * @param intervalMs How often to update (default 5s)
-     */
+
     @SuppressLint("MissingPermission")
     fun startLocationUpdates(intervalMs: Long = 5000L) {
-        if (locationCallback != null) return // Already running
+        if (locationCallback != null) return
 
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalMs)
             .setMinUpdateIntervalMillis(intervalMs / 2)
