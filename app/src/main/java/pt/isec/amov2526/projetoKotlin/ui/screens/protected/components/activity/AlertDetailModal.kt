@@ -68,6 +68,7 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Polygon
+import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
 import pt.isec.amov2526.projetoKotlin.data.model.ActivityItem
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
@@ -440,7 +441,7 @@ fun AlertDetailModal(
 
                                 activeGeofences.forEach { rule ->
                                     val isAlertContext =
-                                        activity.type == pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType.GEOFENCE
+                                        activity.type == ActivityAlertType.GEOFENCE
                                     val wasNotified =
                                         activity.notifiedMonitors.any { it.name == rule.monitorName }
                                     val isVisible = visibleMonitors.contains(rule.monitorName)
@@ -542,7 +543,7 @@ fun AlertDetailModal(
 
                                 val isSelected = visibleMonitors.contains(action.name)
                                 val isGeofenceAlert =
-                                    activity.type == pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType.GEOFENCE
+                                    activity.type == ActivityAlertType.GEOFENCE
 
                                 Row(
                                     modifier = Modifier

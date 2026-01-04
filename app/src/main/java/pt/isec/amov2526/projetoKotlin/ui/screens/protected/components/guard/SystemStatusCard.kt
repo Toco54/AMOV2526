@@ -1,5 +1,6 @@
 package pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.guard
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,9 +32,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.ui.theme.Amber200
 import pt.isec.amov2526.projetoKotlin.ui.theme.Amber50
 import pt.isec.amov2526.projetoKotlin.ui.theme.Amber500
@@ -68,7 +71,7 @@ fun SystemStatusCard(
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(24.dp),
-        border = if (!isActive || !globalScheduleStatus.isActive) androidx.compose.foundation.BorderStroke(
+        border = if (!isActive || !globalScheduleStatus.isActive) BorderStroke(
             1.dp,
             Slate200
         ) else null
@@ -80,7 +83,7 @@ fun SystemStatusCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.monitor_current_status),
+                    text = stringResource(id = R.string.monitor_current_status),
                     style = MaterialTheme.typography.labelSmall,
                     color = Slate400,
                     fontWeight = FontWeight.Bold,
@@ -185,9 +188,9 @@ fun SystemStatusCard(
                         ) {
                             Text(
                                 text = when (statusLabel) {
-                                    "ACTIVE" -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.status_active)
-                                    "PAUSED" -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.status_paused)
-                                    "OFFLINE" -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.status_offline)
+                                    "ACTIVE" -> stringResource(id = R.string.status_active)
+                                    "PAUSED" -> stringResource(id = R.string.status_paused)
+                                    "OFFLINE" -> stringResource(id = R.string.status_offline)
                                     else -> statusLabel
                                 },
                                 style = MaterialTheme.typography.labelSmall,
@@ -237,10 +240,10 @@ fun SystemStatusCard(
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
                     val titleText = when (rawSystemStatus) {
-                        "PAUSED" -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.status_paused)
-                        "OFFLINE" -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.status_offline)
-                        "SCHEDULED" -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.status_scheduled)
-                        else -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.auth_protected)
+                        "PAUSED" -> stringResource(id = R.string.status_paused)
+                        "OFFLINE" -> stringResource(id = R.string.status_offline)
+                        "SCHEDULED" -> stringResource(id = R.string.status_scheduled)
+                        else -> stringResource(id = R.string.auth_protected)
                     }
 
                     Text(
@@ -252,9 +255,9 @@ fun SystemStatusCard(
 
                     val subText = when {
                         globalScheduleStatus.label == "PAUSED" -> globalScheduleStatus.subLabel
-                            ?: androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.status_paused)
+                            ?: stringResource(id = R.string.status_paused)
 
-                        !isActive -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.guard_no_protections)
+                        !isActive -> stringResource(id = R.string.guard_no_protections)
                         !globalScheduleStatus.isActive -> globalScheduleStatus.subLabel
                             ?: "Outside active hours"
 
