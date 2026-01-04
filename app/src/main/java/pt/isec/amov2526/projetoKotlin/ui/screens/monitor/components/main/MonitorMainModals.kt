@@ -46,7 +46,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.text.TextStyle
 import pt.isec.amov2526.projetoKotlin.R
+import pt.isec.amov2526.projetoKotlin.data.repository.ConnectionCodeInfo
 import pt.isec.amov2526.projetoKotlin.ui.theme.Emerald500
 import pt.isec.amov2526.projetoKotlin.ui.theme.Emerald700
 import pt.isec.amov2526.projetoKotlin.ui.theme.Red600
@@ -60,7 +62,7 @@ import pt.isec.amov2526.projetoKotlin.ui.viewmodels.MonitorMainViewModel
 
 @Composable
 fun ConfirmConnectionDialog(
-    candidate: pt.isec.amov2526.projetoKotlin.data.repository.ConnectionCodeInfo,
+    candidate: ConnectionCodeInfo,
     errorMsg: String? = null,
     onAccept: () -> Unit,
     onReject: () -> Unit
@@ -217,7 +219,7 @@ fun ConfigureProtectedModal(
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent
                     ),
-                    textStyle = androidx.compose.ui.text.TextStyle(
+                    textStyle = TextStyle(
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
@@ -323,7 +325,7 @@ fun EnterCodeModal(
                     ),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    textStyle = androidx.compose.ui.text.TextStyle(
+                    textStyle = TextStyle(
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,

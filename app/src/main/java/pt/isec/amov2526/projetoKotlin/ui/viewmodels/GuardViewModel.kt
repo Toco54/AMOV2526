@@ -141,7 +141,7 @@ class GuardViewModel(
             val lng = lastLocation?.longitude
 
 
-            var initialActions: List<pt.isec.amov2526.projetoKotlin.data.model.MonitorAction>? =
+            var initialActions: List<MonitorAction>? =
                 null
             var monitorIds: List<String>? = targetMonitorIds
 
@@ -156,9 +156,9 @@ class GuardViewModel(
                     monitorIds = snapshot.documents.mapNotNull { it.getString("uid") }
 
                     initialActions = snapshot.documents.map { doc ->
-                        pt.isec.amov2526.projetoKotlin.data.model.MonitorAction(
+                        MonitorAction(
                             name = doc.getString("name") ?: "Monitor",
-                            state = pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState.SENT,
+                            state = MonitorActionState.SENT,
                             time = java.text.SimpleDateFormat(
                                 "HH:mm",
                                 java.util.Locale.getDefault()
@@ -181,9 +181,9 @@ class GuardViewModel(
                         .get().await()
 
                     initialActions = snapshot.documents.map { doc ->
-                        pt.isec.amov2526.projetoKotlin.data.model.MonitorAction(
+                        MonitorAction(
                             name = doc.getString("name") ?: "Monitor",
-                            state = pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState.SENT,
+                            state = MonitorActionState.SENT,
                             time = java.text.SimpleDateFormat(
                                 "HH:mm",
                                 java.util.Locale.getDefault()
@@ -193,9 +193,9 @@ class GuardViewModel(
                 } catch (e: Exception) {
 
                     initialActions = monitorIds.map {
-                        pt.isec.amov2526.projetoKotlin.data.model.MonitorAction(
+                        MonitorAction(
                             "Monitor",
-                            pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState.SENT,
+                            MonitorActionState.SENT,
                             ""
                         )
                     }
@@ -495,16 +495,16 @@ class GuardViewModel(
 
                         val typeStr = doc.getString("type") ?: return@mapNotNull null
                         val type =
-                            pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType.valueOf(
+                            MonitorRuleType.valueOf(
                                 typeStr
                             )
 
                         val uiType = when (type) {
-                            pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType.FALL -> RuleType.FALL
-                            pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType.ACCIDENT -> RuleType.ACCIDENT
-                            pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType.GEOFENCING -> RuleType.GEOFENCING
-                            pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType.SPEED -> RuleType.SPEED
-                            pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType.INACTIVITY -> RuleType.INACTIVITY
+                            MonitorRuleType.FALL -> RuleType.FALL
+                            MonitorRuleType.ACCIDENT -> RuleType.ACCIDENT
+                            MonitorRuleType.GEOFENCING -> RuleType.GEOFENCING
+                            MonitorRuleType.SPEED -> RuleType.SPEED
+                            MonitorRuleType.INACTIVITY -> RuleType.INACTIVITY
                         }
 
                         val param1 = doc.getString("param1") ?: ""
