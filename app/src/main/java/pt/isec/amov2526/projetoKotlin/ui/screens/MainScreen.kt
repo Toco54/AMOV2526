@@ -84,8 +84,8 @@ fun MainScreen() {
                             }
                             // Navega diretamente, limpando backstack relativo ao monitor se necessário
                             navController.navigate("monitor/dashboard/$targetUid/$targetName") {
-                                // Evita duplicar se já estiver lá
-                                launchSingleTop = true 
+                                // Força a recriação do ecrã de destino se necessário
+                                launchSingleTop = false 
                             }
                             // Limpa a action para não re-navegar ao rodar o ecrã
                             intent.action = null 
@@ -102,19 +102,22 @@ fun MainScreen() {
         // Observador Global de Mudança de Modo e Login
         LaunchedEffect(user, currentViewMode) {
             if (user != null && currentViewMode != null) {
-                // [ALTERADO] Removemos o startService automático cego. 
-                // A responsabilidade de iniciar o serviço baseada no estado persistido (Firestore) 
-                // deve ser do ViewModel (ProtectedMainViewModel ou SafetyMonitorService logic).
-                // Se forçarmos aqui, ele ignora o botão de "Ligar/Desligar".
-
-                val destination = if (currentViewMode == "MONITOR") "monitor" else "protected"
                 val currentRoute = navController.currentBackStackEntry?.destination?.route
 
-                // Só navega se não estivermos já no destino correto
-                if (currentRoute != destination) {
-                    navController.navigate(destination) {
-                        // Limpa a pilha até ao início para evitar voltar ao login com "Back"
-                        popUpTo("landing") { inclusive = true }
+                if (currentViewMode == "MONITOR") {
+                    // [CORREÇÃO] Permite qualquer rota que comece por "monitor" (ex: dashboard)
+                    // para não expulsar o utilizador do dashboard ao mudar o modo ou ao navegar via notificação.
+                    if (currentRoute?.startsWith("monitor") != true) {
+                        navController.navigate("monitor") {
+                            popUpTo("landing") { inclusive = true }
+                        }
+                    }
+                } else {
+                    // Modo PROTECTED
+                    if (currentRoute != "protected") {
+                        navController.navigate("protected") {
+                            popUpTo("landing") { inclusive = true }
+                        }
                     }
                 }
             } else if (user == null) {
