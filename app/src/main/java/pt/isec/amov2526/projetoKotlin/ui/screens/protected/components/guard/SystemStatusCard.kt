@@ -3,7 +3,17 @@ package pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.guard
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,9 +34,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import pt.isec.amov2526.projetoKotlin.ui.theme.Amber200
+import pt.isec.amov2526.projetoKotlin.ui.theme.Amber50
+import pt.isec.amov2526.projetoKotlin.ui.theme.Amber500
+import pt.isec.amov2526.projetoKotlin.ui.theme.Emerald200
+import pt.isec.amov2526.projetoKotlin.ui.theme.Emerald50
+import pt.isec.amov2526.projetoKotlin.ui.theme.Emerald500
+import pt.isec.amov2526.projetoKotlin.ui.theme.Emerald700
+import pt.isec.amov2526.projetoKotlin.ui.theme.Indigo600
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate100
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate200
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate400
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate500
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 import pt.isec.amov2526.projetoKotlin.utils.StatusResult
-
-import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun SystemStatusCard(
@@ -47,7 +68,10 @@ fun SystemStatusCard(
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(24.dp),
-        border = if (!isActive || !globalScheduleStatus.isActive) androidx.compose.foundation.BorderStroke(1.dp, Slate200) else null
+        border = if (!isActive || !globalScheduleStatus.isActive) androidx.compose.foundation.BorderStroke(
+            1.dp,
+            Slate200
+        ) else null
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(
@@ -67,20 +91,20 @@ fun SystemStatusCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val isScheduleActiveNow = globalScheduleStatus.label == "SCHEDULED"
-                    
+
                     Box(
                         modifier = Modifier
                             .border(
-                                1.dp, 
+                                1.dp,
                                 if (isScheduleActiveNow) Indigo600
-                                else if (isGlobalScheduleEnabled) Indigo600.copy(alpha = 0.2f) 
-                                else Slate200, 
+                                else if (isGlobalScheduleEnabled) Indigo600.copy(alpha = 0.2f)
+                                else Slate200,
                                 RoundedCornerShape(20.dp)
                             )
                             .background(
                                 if (isScheduleActiveNow) Indigo600
-                                else if (isGlobalScheduleEnabled) Indigo600.copy(alpha = 0.1f) 
-                                else Color.White, 
+                                else if (isGlobalScheduleEnabled) Indigo600.copy(alpha = 0.1f)
+                                else Color.White,
                                 RoundedCornerShape(20.dp)
                             )
                             .clip(RoundedCornerShape(20.dp))
@@ -123,9 +147,9 @@ fun SystemStatusCard(
                     }
 
 
+                    val statusLabel =
+                        if (rawSystemStatus == "SCHEDULED") "ACTIVE" else rawSystemStatus
 
-                    val statusLabel = if (rawSystemStatus == "SCHEDULED") "ACTIVE" else rawSystemStatus
-                    
                     val statusColor = when (statusLabel) {
                         "ACTIVE" -> Emerald700
                         "PAUSED" -> Amber500
@@ -145,7 +169,11 @@ fun SystemStatusCard(
                     Box(
                         modifier = Modifier
                             .height(28.dp)
-                            .border(width = 1.dp, color = statusBorder, shape = RoundedCornerShape(20.dp))
+                            .border(
+                                width = 1.dp,
+                                color = statusBorder,
+                                shape = RoundedCornerShape(20.dp)
+                            )
                             .background(color = statusBg, shape = RoundedCornerShape(20.dp))
                             .clip(RoundedCornerShape(20.dp))
                             .clickable { onStatusClick() }
@@ -156,7 +184,7 @@ fun SystemStatusCard(
                             modifier = Modifier.fillMaxHeight()
                         ) {
                             Text(
-                                text = when(statusLabel) {
+                                text = when (statusLabel) {
                                     "ACTIVE" -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.status_active)
                                     "PAUSED" -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.status_paused)
                                     "OFFLINE" -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.status_offline)
@@ -223,10 +251,15 @@ fun SystemStatusCard(
                     )
 
                     val subText = when {
-                        globalScheduleStatus.label == "PAUSED" -> globalScheduleStatus.subLabel ?: androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.status_paused)
+                        globalScheduleStatus.label == "PAUSED" -> globalScheduleStatus.subLabel
+                            ?: androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.status_paused)
+
                         !isActive -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.guard_no_protections)
-                        !globalScheduleStatus.isActive -> globalScheduleStatus.subLabel ?: "Outside active hours"
-                        else -> globalScheduleStatus.subLabel ?: "Active security by multiple monitors"
+                        !globalScheduleStatus.isActive -> globalScheduleStatus.subLabel
+                            ?: "Outside active hours"
+
+                        else -> globalScheduleStatus.subLabel
+                            ?: "Active security by multiple monitors"
                     }
 
                     Text(

@@ -1,24 +1,59 @@
 package pt.isec.amov2526.projetoKotlin.ui.screens.monitor.components.dashboard
 
-import android.preference.PreferenceManager
-import android.view.Surface
-import android.view.TextureView
 import android.graphics.SurfaceTexture
 import android.media.MediaPlayer
 import android.net.Uri
+import android.preference.PreferenceManager
+import android.view.Surface
+import android.view.TextureView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.BatteryAlert
+import androidx.compose.material.icons.filled.CarCrash
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MonitorHeart
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,25 +75,52 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Polygon
 import pt.isec.amov2526.projetoKotlin.R
-import pt.isec.amov2526.projetoKotlin.data.model.*
+import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
+import pt.isec.amov2526.projetoKotlin.data.model.ActivityItem
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
+import pt.isec.amov2526.projetoKotlin.ui.theme.Amber100
+import pt.isec.amov2526.projetoKotlin.ui.theme.Amber700
+import pt.isec.amov2526.projetoKotlin.ui.theme.Indigo500
+import pt.isec.amov2526.projetoKotlin.ui.theme.Red700
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate100
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate200
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate400
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate50
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate500
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
 
-import pt.isec.amov2526.projetoKotlin.ui.theme.*
-
 @Composable
 fun RecentActivityCard(activities: List<ActivityItem>, onActivityClick: (ActivityItem) -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), shape = RoundedCornerShape(20.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = RoundedCornerShape(20.dp)
+    ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.History, null, tint = Slate400, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(id = R.string.history_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
+                Text(
+                    stringResource(id = R.string.history_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate900
+                )
             }
             Spacer(modifier = Modifier.height(16.dp))
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                activities.forEach { activity -> ActivityItemRow(activity) { onActivityClick(activity) } }
+                activities.forEach { activity ->
+                    ActivityItemRow(activity) {
+                        onActivityClick(
+                            activity
+                        )
+                    }
+                }
             }
         }
     }
@@ -66,18 +128,54 @@ fun RecentActivityCard(activities: List<ActivityItem>, onActivityClick: (Activit
 
 @Composable
 fun ActivityItemRow(activity: ActivityItem, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Slate50), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = 0.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Slate100)) {
-        Row(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(40.dp).background(Color.White, CircleShape).border(1.dp, Slate100, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(getMonitorIconForActivityType(activity.type), null, tint = Slate500, modifier = Modifier.size(20.dp))
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Slate50),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Slate100)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(Color.White, CircleShape)
+                    .border(1.dp, Slate100, CircleShape), contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    getMonitorIconForActivityType(activity.type),
+                    null,
+                    tint = Slate500,
+                    modifier = Modifier.size(20.dp)
+                )
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(activity.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = Slate900)
-                Text("${activity.date} • ${activity.time}", style = MaterialTheme.typography.labelSmall, color = Slate400)
+                Text(
+                    activity.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate900
+                )
+                Text(
+                    "${activity.date} • ${activity.time}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Slate400
+                )
             }
             Spacer(modifier = Modifier.width(8.dp))
-            Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, null, tint = Slate200, modifier = Modifier.size(14.dp))
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowForwardIos,
+                null,
+                tint = Slate200,
+                modifier = Modifier.size(14.dp)
+            )
         }
     }
 }
@@ -116,7 +214,8 @@ fun MonitorAlertDetailModal(
     }
 
     LaunchedEffect(Unit) {
-        Configuration.getInstance().load(context, PreferenceManager.getDefaultSharedPreferences(context))
+        Configuration.getInstance()
+            .load(context, PreferenceManager.getDefaultSharedPreferences(context))
         Configuration.getInstance().userAgentValue = context.packageName
     }
 
@@ -143,7 +242,7 @@ fun MonitorAlertDetailModal(
                     localVideoFile = file
                     isDownloading = false
                 }
-            } catch(e: Exception) {
+            } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
                     downloadError = "Download failed"
@@ -251,23 +350,39 @@ fun MonitorAlertDetailModal(
                         AndroidView(
                             factory = { ctx ->
                                 TextureView(ctx).apply {
-                                    surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-                                        override fun onSurfaceTextureAvailable(surface: SurfaceTexture, w: Int, h: Int) {
-                                            try {
-                                                mediaPlayer.setDataSource(ctx, Uri.fromFile(localVideoFile))
-                                                mediaPlayer.setSurface(Surface(surface))
-                                                mediaPlayer.isLooping = true
-                                                mediaPlayer.prepare()
-                                                if (isPlaying) mediaPlayer.start()
-                                            } catch (e: Exception) {
-                                                e.printStackTrace()
+                                    surfaceTextureListener =
+                                        object : TextureView.SurfaceTextureListener {
+                                            override fun onSurfaceTextureAvailable(
+                                                surface: SurfaceTexture,
+                                                w: Int,
+                                                h: Int
+                                            ) {
+                                                try {
+                                                    mediaPlayer.setDataSource(
+                                                        ctx,
+                                                        Uri.fromFile(localVideoFile)
+                                                    )
+                                                    mediaPlayer.setSurface(Surface(surface))
+                                                    mediaPlayer.isLooping = true
+                                                    mediaPlayer.prepare()
+                                                    if (isPlaying) mediaPlayer.start()
+                                                } catch (e: Exception) {
+                                                    e.printStackTrace()
+                                                }
                                             }
-                                        }
 
-                                        override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, w: Int, h: Int) {}
-                                        override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean = true
-                                        override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
-                                    }
+                                            override fun onSurfaceTextureSizeChanged(
+                                                surface: SurfaceTexture,
+                                                w: Int,
+                                                h: Int
+                                            ) {
+                                            }
+
+                                            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean =
+                                                true
+
+                                            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
+                                        }
                                 }
                             },
                             modifier = Modifier.fillMaxSize()
@@ -311,7 +426,9 @@ fun MonitorAlertDetailModal(
                                 Text(
                                     text = if (downloadError != null) "Error: $downloadError" else "TAP TO DOWNLOAD VIDEO",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (downloadError != null) Red700 else Color.White.copy(alpha = 0.4f),
+                                    color = if (downloadError != null) Red700 else Color.White.copy(
+                                        alpha = 0.4f
+                                    ),
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 1.sp
                                 )
@@ -392,18 +509,20 @@ fun MonitorAlertDetailModal(
                                 map.overlays.clear()
 
 
-                                val centerPoint = if (activity.latitude != null && activity.longitude != null) {
-                                    GeoPoint(activity.latitude, activity.longitude)
-                                } else {
-
-                                    val firstActive = activeGeofences.firstOrNull { it.geofenceData != null }
-                                    if (firstActive != null) {
-                                        val (lat, lng, _) = firstActive.geofenceData!!
-                                        GeoPoint(lat, lng)
+                                val centerPoint =
+                                    if (activity.latitude != null && activity.longitude != null) {
+                                        GeoPoint(activity.latitude, activity.longitude)
                                     } else {
-                                        GeoPoint(40.2033, -8.4103)
+
+                                        val firstActive =
+                                            activeGeofences.firstOrNull { it.geofenceData != null }
+                                        if (firstActive != null) {
+                                            val (lat, lng, _) = firstActive.geofenceData!!
+                                            GeoPoint(lat, lng)
+                                        } else {
+                                            GeoPoint(40.2033, -8.4103)
+                                        }
                                     }
-                                }
 
                                 map.controller.setCenter(centerPoint)
 
@@ -414,12 +533,25 @@ fun MonitorAlertDetailModal(
                                     if (isAlertContext) {
                                         rule.geofenceData?.let { (lat, lng, radius) ->
                                             val circle = Polygon(map)
-                                            circle.points = Polygon.pointsAsCircle(GeoPoint(lat, lng), radius.toDouble())
+                                            circle.points = Polygon.pointsAsCircle(
+                                                GeoPoint(lat, lng),
+                                                radius.toDouble()
+                                            )
 
                                             val color = Red700
 
-                                            circle.fillPaint.color = android.graphics.Color.argb(70, (color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt())
-                                            circle.outlinePaint.color = android.graphics.Color.argb(255, (color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt())
+                                            circle.fillPaint.color = android.graphics.Color.argb(
+                                                70,
+                                                (color.red * 255).toInt(),
+                                                (color.green * 255).toInt(),
+                                                (color.blue * 255).toInt()
+                                            )
+                                            circle.outlinePaint.color = android.graphics.Color.argb(
+                                                255,
+                                                (color.red * 255).toInt(),
+                                                (color.green * 255).toInt(),
+                                                (color.blue * 255).toInt()
+                                            )
                                             circle.outlinePaint.strokeWidth = 3f
 
                                             map.overlays.add(circle)
@@ -430,8 +562,12 @@ fun MonitorAlertDetailModal(
 
                                 if (activity.latitude != null && activity.longitude != null) {
                                     val marker = org.osmdroid.views.overlay.Marker(map)
-                                    marker.position = GeoPoint(activity.latitude, activity.longitude)
-                                    marker.setAnchor(org.osmdroid.views.overlay.Marker.ANCHOR_CENTER, org.osmdroid.views.overlay.Marker.ANCHOR_BOTTOM)
+                                    marker.position =
+                                        GeoPoint(activity.latitude, activity.longitude)
+                                    marker.setAnchor(
+                                        org.osmdroid.views.overlay.Marker.ANCHOR_CENTER,
+                                        org.osmdroid.views.overlay.Marker.ANCHOR_BOTTOM
+                                    )
                                     marker.title = activity.title
                                     map.overlays.add(marker)
                                 }
@@ -480,6 +616,7 @@ fun MonitorAlertDetailModal(
                                         Slate400,
                                         R.string.status_active
                                     )
+
                                     MonitorActionState.VIEWED -> Triple(
                                         Icons.Default.Visibility,
                                         Indigo500,

@@ -1,7 +1,15 @@
 package pt.isec.amov2526.projetoKotlin.ui.screens.monitor.components.dashboard
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -21,13 +29,17 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType
 import pt.isec.amov2526.projetoKotlin.data.model.ProtectionRule
-
-import pt.isec.amov2526.projetoKotlin.ui.theme.*
+import pt.isec.amov2526.projetoKotlin.ui.theme.Emerald500
+import pt.isec.amov2526.projetoKotlin.ui.theme.Emerald600
+import pt.isec.amov2526.projetoKotlin.ui.theme.Red600
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 
 @Composable
 fun LiveLocationMapCard(userLocation: GeoPoint?, rules: List<ProtectionRule>) {
     Card(
-        modifier = Modifier.fillMaxWidth().height(300.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(300.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(20.dp)
@@ -39,7 +51,7 @@ fun LiveLocationMapCard(userLocation: GeoPoint?, rules: List<ProtectionRule>) {
                         setTileSource(TileSourceFactory.MAPNIK)
                         setMultiTouchControls(true)
                         controller.setZoom(15.0)
-                        
+
 
                         setOnTouchListener { v, _ ->
                             v.parent.requestDisallowInterceptTouchEvent(true)
@@ -57,13 +69,23 @@ fun LiveLocationMapCard(userLocation: GeoPoint?, rules: List<ProtectionRule>) {
                         if (parts.size == 2 && parts[0] != null && parts[1] != null) {
                             val poly = org.osmdroid.views.overlay.Polygon(map)
                             poly.points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(
-                                GeoPoint(parts[0]!!, parts[1]!!), 
+                                GeoPoint(parts[0]!!, parts[1]!!),
                                 rule.param1.toDoubleOrNull() ?: 100.0
                             )
-                            
+
                             val c = if (rule.isEnabled) Emerald600 else Red600
-                            poly.fillColor = android.graphics.Color.argb(50, (c.red*255).toInt(), (c.green*255).toInt(), (c.blue*255).toInt())
-                            poly.strokeColor = android.graphics.Color.argb(180, (c.red*255).toInt(), (c.green*255).toInt(), (c.blue*255).toInt())
+                            poly.fillColor = android.graphics.Color.argb(
+                                50,
+                                (c.red * 255).toInt(),
+                                (c.green * 255).toInt(),
+                                (c.blue * 255).toInt()
+                            )
+                            poly.strokeColor = android.graphics.Color.argb(
+                                180,
+                                (c.red * 255).toInt(),
+                                (c.green * 255).toInt(),
+                                (c.blue * 255).toInt()
+                            )
                             poly.strokeWidth = 3f
                             map.overlays.add(poly)
                         }
@@ -73,7 +95,10 @@ fun LiveLocationMapCard(userLocation: GeoPoint?, rules: List<ProtectionRule>) {
                     if (userLocation != null) {
                         val marker = org.osmdroid.views.overlay.Marker(map)
                         marker.position = userLocation
-                        marker.setAnchor(org.osmdroid.views.overlay.Marker.ANCHOR_CENTER, org.osmdroid.views.overlay.Marker.ANCHOR_BOTTOM)
+                        marker.setAnchor(
+                            org.osmdroid.views.overlay.Marker.ANCHOR_CENTER,
+                            org.osmdroid.views.overlay.Marker.ANCHOR_BOTTOM
+                        )
                         marker.title = "Protege Location"
                         map.overlays.add(marker)
                         map.controller.setCenter(userLocation)
@@ -86,7 +111,7 @@ fun LiveLocationMapCard(userLocation: GeoPoint?, rules: List<ProtectionRule>) {
                     map.invalidate()
                 }
             )
-            
+
 
             Box(
                 modifier = Modifier
@@ -96,7 +121,14 @@ fun LiveLocationMapCard(userLocation: GeoPoint?, rules: List<ProtectionRule>) {
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(8.dp).background(if (userLocation != null) Emerald500 else Red600, CircleShape))
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(
+                                if (userLocation != null) Emerald500 else Red600,
+                                CircleShape
+                            )
+                    )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = if (userLocation != null) "LIVE LOCATION" else "OFFLINE",

@@ -2,12 +2,29 @@ package pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.monitors
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,9 +38,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import pt.isec.amov2526.projetoKotlin.R
+import pt.isec.amov2526.projetoKotlin.ui.theme.Indigo600
+import pt.isec.amov2526.projetoKotlin.ui.theme.Red600
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate100
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate200
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate50
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate500
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
-
-import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun GenerateCodeModal(
@@ -86,9 +108,14 @@ fun GenerateCodeModal(
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Button(
                             onClick = { viewModel.generateCode("Full Monitoring") },
-                            colors = ButtonDefaults.buttonColors(containerColor = Slate100, contentColor = Slate900),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Slate100,
+                                contentColor = Slate900
+                            ),
                             shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f).height(50.dp)
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp)
                         ) {
                             Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
@@ -101,7 +128,9 @@ fun GenerateCodeModal(
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Indigo600),
                             shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f).height(50.dp)
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp)
                         ) {
                             Icon(Icons.Default.ContentCopy, null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))

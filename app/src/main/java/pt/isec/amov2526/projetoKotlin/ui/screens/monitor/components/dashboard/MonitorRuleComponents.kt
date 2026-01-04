@@ -4,16 +4,64 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.PauseCircle
+import androidx.compose.material.icons.filled.PersonOff
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,7 +70,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import pt.isec.amov2526.projetoKotlin.R
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,27 +79,38 @@ import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
+import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType
 import pt.isec.amov2526.projetoKotlin.data.model.ProtectionRule
+import pt.isec.amov2526.projetoKotlin.ui.theme.Amber500
+import pt.isec.amov2526.projetoKotlin.ui.theme.Emerald500
+import pt.isec.amov2526.projetoKotlin.ui.theme.Emerald600
+import pt.isec.amov2526.projetoKotlin.ui.theme.Indigo600
+import pt.isec.amov2526.projetoKotlin.ui.theme.Red600
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate100
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate200
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate400
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate50
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate500
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate700
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.CategoryStatus
 import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
 
-import pt.isec.amov2526.projetoKotlin.ui.theme.*
-
 @Composable
 fun MonitorRuleGroup(
-    type: MonitorRuleType, 
-    rules: List<ProtectionRule>, 
+    type: MonitorRuleType,
+    rules: List<ProtectionRule>,
     categoryStatus: CategoryStatus?,
     currentTime: Long,
     isGlobalActive: Boolean,
-    onToggleGroup: (Boolean) -> Unit, 
-    onEditRule: (ProtectionRule) -> Unit, 
+    onToggleGroup: (Boolean) -> Unit,
+    onEditRule: (ProtectionRule) -> Unit,
     onToggleRule: (String, Boolean) -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(false) }
     val isAnyActive = rules.any { it.isEnabled }
-    
+
 
     val catStatusResult = TimeUtils.calculateStatus(
         isEnabled = categoryStatus?.isEnabled ?: true,
@@ -66,33 +124,58 @@ fun MonitorRuleGroup(
 
 
     val categoryStatusText = when {
-        catStatusResult.label == "PAUSED" && (categoryStatus?.pausedUntil ?: 0L) > currentTime -> "Category Paused (${TimeUtils.formatDuration((categoryStatus?.pausedUntil ?: 0L) - currentTime)})"
-        catStatusResult.label == "SCHEDULED" -> catStatusResult.subLabel ?: stringResource(id =
+        catStatusResult.label == "PAUSED" && (categoryStatus?.pausedUntil
+            ?: 0L) > currentTime -> "Category Paused (${TimeUtils.formatDuration((categoryStatus?.pausedUntil ?: 0L) - currentTime)})"
+
+        catStatusResult.label == "SCHEDULED" -> catStatusResult.subLabel ?: stringResource(
+            id =
 
 
+                R.string.status_scheduled
+        )
 
-            R.string.status_scheduled)
-        !(categoryStatus?.isEnabled ?: true) || (categoryStatus?.pausedUntil ?: 0L) == -1L -> stringResource(id = R.string.monitor_managed_by_user)
+        !(categoryStatus?.isEnabled ?: true) || (categoryStatus?.pausedUntil
+            ?: 0L) == -1L -> stringResource(id = R.string.monitor_managed_by_user)
+
         else -> stringResource(id = R.string.status_active)
     }
-    
+
     val categoryScheduleText = if (categoryStatus?.isScheduleEnabled == true) {
-        TimeUtils.formatSchedule(categoryStatus?.days ?: emptyList(), categoryStatus?.start ?: "", categoryStatus?.end ?: "")
+        TimeUtils.formatSchedule(
+            categoryStatus?.days ?: emptyList(),
+            categoryStatus?.start ?: "",
+            categoryStatus?.end ?: ""
+        )
     } else ""
 
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Slate50), shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Slate100)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Slate50),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Slate100)
+    ) {
         Column {
-            Row(modifier = Modifier.fillMaxWidth().clickable { isExpanded = !isExpanded }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(modifier = Modifier
+                .fillMaxWidth()
+                .clickable { isExpanded = !isExpanded }
+                .padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 val iconColor = rules.firstOrNull()?.iconColor ?: Slate400
                 val iconVector = rules.firstOrNull()?.icon ?: Icons.Default.Shield
-                Box(modifier = Modifier.size(36.dp).background(iconColor.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(iconColor.copy(alpha = 0.1f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(iconVector, null, tint = iconColor, modifier = Modifier.size(20.dp))
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
 
-                        val isCategoryEffective = isGlobalActive && catStatusResult.isActive && (categoryStatus?.isEnabled ?: true)
+                        val isCategoryEffective =
+                            isGlobalActive && catStatusResult.isActive && (categoryStatus?.isEnabled
+                                ?: true)
                         Box(
                             modifier = Modifier
                                 .size(8.dp)
@@ -102,27 +185,57 @@ fun MonitorRuleGroup(
                                 )
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(id = type.titleRes), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
+                        Text(
+                            stringResource(id = type.titleRes),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
                     }
-                    
+
 
                     val statusColor = if (categoryStatusText == "Active") Slate400 else Red600
-                    Text(categoryStatusText, style = MaterialTheme.typography.labelSmall, color = statusColor, fontWeight = if(categoryStatusText == "Active") FontWeight.Normal else FontWeight.Bold)
-                    
+                    Text(
+                        categoryStatusText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = statusColor,
+                        fontWeight = if (categoryStatusText == "Active") FontWeight.Normal else FontWeight.Bold
+                    )
+
                     if (categoryScheduleText.isNotEmpty()) {
-                        Text("Plan: $categoryScheduleText", style = MaterialTheme.typography.labelSmall, color = Indigo600)
+                        Text(
+                            "Plan: $categoryScheduleText",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Indigo600
+                        )
                     }
                 }
-                Switch(checked = isAnyActive, onCheckedChange = onToggleGroup, modifier = Modifier.scale(0.6f), colors = SwitchDefaults.colors(checkedTrackColor = Emerald500))
-                Icon(if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null, tint = Slate200)
+                Switch(
+                    checked = isAnyActive,
+                    onCheckedChange = onToggleGroup,
+                    modifier = Modifier.scale(0.6f),
+                    colors = SwitchDefaults.colors(checkedTrackColor = Emerald500)
+                )
+                Icon(
+                    if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    null,
+                    tint = Slate200
+                )
             }
             AnimatedVisibility(visible = isExpanded) {
-                Column(modifier = Modifier.background(Color.White.copy(alpha = 0.5f)).padding(bottom = 8.dp)) {
-                    HorizontalDivider(color = Slate100, modifier = Modifier.padding(horizontal = 12.dp))
+                Column(
+                    modifier = Modifier
+                        .background(Color.White.copy(alpha = 0.5f))
+                        .padding(bottom = 8.dp)
+                ) {
+                    HorizontalDivider(
+                        color = Slate100,
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
                     rules.forEach { rule ->
 
                         val status = TimeUtils.calculateStatus(
-                            isEnabled = true, 
+                            isEnabled = true,
                             pausedUntil = rule.pausedUntil,
                             isScheduleEnabled = rule.isScheduleEnabled,
                             days = rule.scheduleDays,
@@ -132,11 +245,19 @@ fun MonitorRuleGroup(
                         )
 
 
-                        val isRuleActive = isGlobalActive && rule.isEnabled && !rule.deletedByProtege && !rule.isDisabledByProtege && status.isActive && (categoryStatus?.isEnabled ?: true) && catStatusResult.isActive
+                        val isRuleActive =
+                            isGlobalActive && rule.isEnabled && !rule.deletedByProtege && !rule.isDisabledByProtege && status.isActive && (categoryStatus?.isEnabled
+                                ?: true) && catStatusResult.isActive
 
-                        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 4.dp)
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             val isDeleted = rule.deletedByProtege
-                            
+
 
                             Box(
                                 modifier = Modifier
@@ -156,32 +277,55 @@ fun MonitorRuleGroup(
                                     MonitorRuleType.INACTIVITY -> "Limit: ${rule.param1} min"
                                     else -> "Always Active"
                                 }
-                                Text(baseDetail, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = Indigo600)
-                                
+                                Text(
+                                    baseDetail,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Indigo600
+                                )
+
                                 val isScheduledOff = status.label == "SCHEDULED"
 
 
                                 if (!rule.isEnabled) {
-                                    Text(stringResource(id = R.string.monitor_rule_marked_delete), style = MaterialTheme.typography.labelSmall, color = Red600, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        stringResource(id = R.string.monitor_rule_marked_delete),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Red600,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
 
 
-                                
-                                
                                 val protegeState = when {
                                     isDeleted -> stringResource(id = R.string.monitor_rule_marked_delete)
                                     rule.isDisabledByProtege -> stringResource(id = R.string.monitor_rule_marked_delete)
-                                    rule.pausedUntil > currentTime -> "Paused (${TimeUtils.formatDuration(rule.pausedUntil - currentTime)})"
-                                    isScheduledOff -> status.subLabel ?: stringResource(id = R.string.status_scheduled)
-                                    else -> if (rule.isEnabled) stringResource(id = R.string.status_active) else "" 
-                                }
-                                
-                                if (protegeState.isNotEmpty()) {
-                                    Text(protegeState, style = MaterialTheme.typography.labelSmall, color = if (protegeState == stringResource(id = R.string.status_active)) Slate500 else Red600)
+                                    rule.pausedUntil > currentTime -> "Paused (${
+                                        TimeUtils.formatDuration(
+                                            rule.pausedUntil - currentTime
+                                        )
+                                    })"
+
+                                    isScheduledOff -> status.subLabel
+                                        ?: stringResource(id = R.string.status_scheduled)
+
+                                    else -> if (rule.isEnabled) stringResource(id = R.string.status_active) else ""
                                 }
 
-                                
-                                val schedText = TimeUtils.formatSchedule(rule.scheduleDays, rule.scheduleStart, rule.scheduleEnd)
+                                if (protegeState.isNotEmpty()) {
+                                    Text(
+                                        protegeState,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (protegeState == stringResource(id = R.string.status_active)) Slate500 else Red600
+                                    )
+                                }
+
+
+                                val schedText = TimeUtils.formatSchedule(
+                                    rule.scheduleDays,
+                                    rule.scheduleStart,
+                                    rule.scheduleEnd
+                                )
                                 if (schedText.isNotEmpty()) {
                                     Text(
                                         text = schedText,
@@ -191,31 +335,62 @@ fun MonitorRuleGroup(
                                     )
                                 }
                             }
-                            
+
                             if (!isDeleted) {
-                                IconButton(onClick = { onEditRule(rule) }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Default.Settings, null, tint = Slate400, modifier = Modifier.size(16.dp))
+                                IconButton(
+                                    onClick = { onEditRule(rule) },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Settings,
+                                        null,
+                                        tint = Slate400,
+                                        modifier = Modifier.size(16.dp)
+                                    )
                                 }
                             } else {
-                                IconButton(onClick = { onEditRule(rule) }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Default.Delete, null, tint = Red600, modifier = Modifier.size(16.dp))
+                                IconButton(
+                                    onClick = { onEditRule(rule) },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        null,
+                                        tint = Red600,
+                                        modifier = Modifier.size(16.dp)
+                                    )
                                 }
                             }
-                            
+
                             Spacer(modifier = Modifier.width(8.dp))
-                            
+
                             if (isDeleted) {
-                                Icon(Icons.Default.Warning, "Deleted", tint = Red600, modifier = Modifier.size(20.dp))
+                                Icon(
+                                    Icons.Default.Warning,
+                                    "Deleted",
+                                    tint = Red600,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             } else {
                                 if (rule.isDisabledByProtege) {
-                                    Icon(Icons.Default.PersonOff, "Disabled by User", tint = Red600, modifier = Modifier.size(20.dp))
+                                    Icon(
+                                        Icons.Default.PersonOff,
+                                        "Disabled by User",
+                                        tint = Red600,
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                     Spacer(modifier = Modifier.width(8.dp))
                                 }
                                 if (rule.pausedUntil > currentTime) {
-                                    Icon(Icons.Default.PauseCircle, "Paused", tint = Amber500, modifier = Modifier.size(20.dp))
+                                    Icon(
+                                        Icons.Default.PauseCircle,
+                                        "Paused",
+                                        tint = Amber500,
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                     Spacer(modifier = Modifier.width(8.dp))
                                 }
-                                
+
                                 Switch(
                                     checked = rule.isEnabled,
                                     onCheckedChange = { onToggleRule(rule.id, it) },
@@ -232,35 +407,92 @@ fun MonitorRuleGroup(
 }
 
 @Composable
-fun AddRuleTypeDialog(existingRules: List<ProtectionRule>, onDismiss: () -> Unit, onTypeSelected: (MonitorRuleType) -> Unit) {
+fun AddRuleTypeDialog(
+    existingRules: List<ProtectionRule>,
+    onDismiss: () -> Unit,
+    onTypeSelected: (MonitorRuleType) -> Unit
+) {
     Dialog(onDismissRequest = onDismiss) {
-        Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+        ) {
             Column(modifier = Modifier.padding(24.dp)) {
-                Text(stringResource(id = R.string.monitor_rule_type), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Slate900)
+                Text(
+                    stringResource(id = R.string.monitor_rule_type),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate900
+                )
                 Spacer(modifier = Modifier.height(16.dp))
                 MonitorRuleType.entries.forEach { type ->
-                    val isAlreadyDefined = !type.isMultiInstance && existingRules.any { it.type == type && !it.deletedByProtege }
-                    
-                    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).background(if (isAlreadyDefined) Slate100 else Slate50, RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).clickable(enabled = !isAlreadyDefined) { onTypeSelected(type) }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(stringResource(id = type.titleRes), fontWeight = FontWeight.Bold, color = if (isAlreadyDefined) Slate400 else Slate700)
+                    val isAlreadyDefined =
+                        !type.isMultiInstance && existingRules.any { it.type == type && !it.deletedByProtege }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .background(
+                                if (isAlreadyDefined) Slate100 else Slate50,
+                                RoundedCornerShape(12.dp)
+                            )
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(enabled = !isAlreadyDefined) { onTypeSelected(type) }
+                            .padding(16.dp), verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            stringResource(id = type.titleRes),
+                            fontWeight = FontWeight.Bold,
+                            color = if (isAlreadyDefined) Slate400 else Slate700
+                        )
                         Spacer(modifier = Modifier.weight(1f))
-                        if (isAlreadyDefined) Text(stringResource(id = R.string.monitor_rule_defined), style = MaterialTheme.typography.labelSmall, color = Slate400) else Icon(Icons.Default.ChevronRight, null, tint = Slate400)
+                        if (isAlreadyDefined) Text(
+                            stringResource(id = R.string.monitor_rule_defined),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Slate400
+                        ) else Icon(Icons.Default.ChevronRight, null, tint = Slate400)
                     }
                 }
-                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 16.dp)) { Text(stringResource(id = R.string.action_cancel), color = Slate400, fontWeight = FontWeight.Bold) }
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(top = 16.dp)
+                ) {
+                    Text(
+                        stringResource(id = R.string.action_cancel),
+                        color = Slate400,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<ProtectionRule>, onDismiss: () -> Unit, onSave: (ProtectionRule) -> Unit, onDelete: (String) -> Unit) {
-    var p1 by remember { mutableStateOf(if(rule.param1.isEmpty()) "500" else rule.param1) }
-    val p2 = remember { object { var value = rule.param2 } }
-    
-    
-    var startTime by remember { mutableStateOf(if(rule.scheduleStart.isEmpty()) "09:00" else rule.scheduleStart) }
-    var endTime by remember { mutableStateOf(if(rule.scheduleEnd.isEmpty()) "18:00" else rule.scheduleEnd) }
+fun EditRuleDialog(
+    rule: ProtectionRule,
+    isNew: Boolean,
+    existingRules: List<ProtectionRule>,
+    onDismiss: () -> Unit,
+    onSave: (ProtectionRule) -> Unit,
+    onDelete: (String) -> Unit
+) {
+    var p1 by remember { mutableStateOf(if (rule.param1.isEmpty()) "500" else rule.param1) }
+    val p2 = remember {
+        object {
+            var value = rule.param2
+        }
+    }
+
+
+    var startTime by remember { mutableStateOf(if (rule.scheduleStart.isEmpty()) "09:00" else rule.scheduleStart) }
+    var endTime by remember { mutableStateOf(if (rule.scheduleEnd.isEmpty()) "18:00" else rule.scheduleEnd) }
     val daysList = listOf("S", "M", "T", "W", "T", "F", "S")
     val selectedDays = remember {
         mutableStateListOf<Int>().apply {
@@ -276,113 +508,208 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
     var hasInitializedMap by remember { mutableStateOf(false) }
     var mapViewRef by remember { mutableStateOf<MapView?>(null) }
     var currentPoly by remember { mutableStateOf<org.osmdroid.views.overlay.Polygon?>(null) }
-    
+
     val isSoftDeleted = rule.deletedByProtege
 
     fun zoomToRadius(map: MapView, center: GeoPoint, radiusMeters: Double) {
         val delta = (radiusMeters * 1.5) / 111000.0
-        map.zoomToBoundingBox(org.osmdroid.util.BoundingBox(center.latitude+delta, center.longitude+delta, center.latitude-delta, center.longitude-delta), true)
+        map.zoomToBoundingBox(
+            org.osmdroid.util.BoundingBox(
+                center.latitude + delta,
+                center.longitude + delta,
+                center.latitude - delta,
+                center.longitude - delta
+            ), true
+        )
     }
 
-    LaunchedEffect(Unit) { Configuration.getInstance().userAgentValue = context.packageName; locationHelper.getLastLocation() }
+    LaunchedEffect(Unit) {
+        Configuration.getInstance().userAgentValue =
+            context.packageName; locationHelper.getLastLocation()
+    }
     LaunchedEffect(p1) {
         val r = p1.toDoubleOrNull() ?: 100.0
         mapViewRef?.let { map ->
-            currentPoly?.points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(map.mapCenter as GeoPoint, r)
+            currentPoly?.points =
+                org.osmdroid.views.overlay.Polygon.pointsAsCircle(map.mapCenter as GeoPoint, r)
             zoomToRadius(map, map.mapCenter as GeoPoint, r)
             map.invalidate()
         }
     }
 
     Dialog(onDismissRequest = onDismiss) {
-        Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
-            Column(modifier = Modifier.padding(20.dp).verticalScroll(rememberScrollState())) {
+        Card(
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+        ) {
+            Column(modifier = Modifier
+                .padding(20.dp)
+                .verticalScroll(rememberScrollState())) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(44.dp).background(rule.iconColor.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
-                        Icon(rule.icon, null, tint = rule.iconColor, modifier = Modifier.size(24.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(rule.iconColor.copy(alpha = 0.1f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            rule.icon,
+                            null,
+                            tint = rule.iconColor,
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
-                        Text(stringResource(id = rule.type.titleRes), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Slate900)
+                        Text(
+                            stringResource(id = rule.type.titleRes),
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
                         if (isSoftDeleted) {
-                            Text(stringResource(id = R.string.monitor_rule_marked_delete), style = MaterialTheme.typography.labelSmall, color = Red600, fontWeight = FontWeight.Bold)
+                            Text(
+                                stringResource(id = R.string.monitor_rule_marked_delete),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Red600,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 if (isSoftDeleted) {
                     Text(
-                        "This rule was removed by the user. Details are shown below for review.", 
+                        "This rule was removed by the user. Details are shown below for review.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Slate500
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                
+
                 if (rule.type == MonitorRuleType.GEOFENCING) {
                     OutlinedTextField(
-                        value = searchQuery, 
-                        onValueChange = { searchQuery = it }, 
-                        placeholder = { Text(stringResource(id = R.string.monitor_search_address)) }, 
-                        leadingIcon = { Icon(Icons.Default.Search, null) }, 
-                        modifier = Modifier.fillMaxWidth(), 
-                        shape = RoundedCornerShape(12.dp), 
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text(stringResource(id = R.string.monitor_search_address)) },
+                        leadingIcon = { Icon(Icons.Default.Search, null) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
                         singleLine = true,
                         enabled = !isSoftDeleted
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    Box(modifier = Modifier.fillMaxWidth().height(250.dp).clip(RoundedCornerShape(16.dp)).border(1.dp, Slate200, RoundedCornerShape(16.dp))) {
-                        AndroidView(factory = { ctx ->
-                            MapView(ctx).apply {
-                                setTileSource(TileSourceFactory.MAPNIK); setMultiTouchControls(true); controller.setZoom(15.5); mapViewRef = this
-                                setOnTouchListener { v, _ ->
-                                    v.parent.requestDisallowInterceptTouchEvent(true)
-                                    false
-                                }
-                                existingRules.forEach { other ->
-                                    if (other.type == MonitorRuleType.GEOFENCING && other.id != rule.id) {
-                                        val parts = other.param2.split(",").map { it.trim().toDoubleOrNull() }
-                                        if (parts.size == 2 && parts[0] != null && parts[1] != null) {
-                                            val otherPoly = org.osmdroid.views.overlay.Polygon(this)
-                                            otherPoly.points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(GeoPoint(parts[0]!!, parts[1]!!), other.param1.toDoubleOrNull() ?: 100.0)
-                                            val c = if (other.isEnabled) Emerald600 else Red600
-                                            otherPoly.fillColor = android.graphics.Color.argb(50, (c.red*255).toInt(), (c.green*255).toInt(), (c.blue*255).toInt())
-                                            otherPoly.strokeColor = android.graphics.Color.argb(180, (c.red*255).toInt(), (c.green*255).toInt(), (c.blue*255).toInt())
-                                            otherPoly.strokeWidth = 3f; overlays.add(otherPoly)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(250.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .border(1.dp, Slate200, RoundedCornerShape(16.dp))
+                    ) {
+                        AndroidView(
+                            factory = { ctx ->
+                                MapView(ctx).apply {
+                                    setTileSource(TileSourceFactory.MAPNIK); setMultiTouchControls(
+                                    true
+                                ); controller.setZoom(15.5); mapViewRef = this
+                                    setOnTouchListener { v, _ ->
+                                        v.parent.requestDisallowInterceptTouchEvent(true)
+                                        false
+                                    }
+                                    existingRules.forEach { other ->
+                                        if (other.type == MonitorRuleType.GEOFENCING && other.id != rule.id) {
+                                            val parts = other.param2.split(",")
+                                                .map { it.trim().toDoubleOrNull() }
+                                            if (parts.size == 2 && parts[0] != null && parts[1] != null) {
+                                                val otherPoly =
+                                                    org.osmdroid.views.overlay.Polygon(this)
+                                                otherPoly.points =
+                                                    org.osmdroid.views.overlay.Polygon.pointsAsCircle(
+                                                        GeoPoint(parts[0]!!, parts[1]!!),
+                                                        other.param1.toDoubleOrNull() ?: 100.0
+                                                    )
+                                                val c = if (other.isEnabled) Emerald600 else Red600
+                                                otherPoly.fillColor = android.graphics.Color.argb(
+                                                    50,
+                                                    (c.red * 255).toInt(),
+                                                    (c.green * 255).toInt(),
+                                                    (c.blue * 255).toInt()
+                                                )
+                                                otherPoly.strokeColor = android.graphics.Color.argb(
+                                                    180,
+                                                    (c.red * 255).toInt(),
+                                                    (c.green * 255).toInt(),
+                                                    (c.blue * 255).toInt()
+                                                )
+                                                otherPoly.strokeWidth = 3f; overlays.add(otherPoly)
+                                            }
                                         }
                                     }
-                                }
-                                val poly = org.osmdroid.views.overlay.Polygon(this)
-                                poly.fillColor = android.graphics.Color.argb(60, 79, 70, 229); poly.strokeColor = android.graphics.Color.argb(200, 79, 70, 229); poly.strokeWidth = 4f
-                                overlays.add(poly); currentPoly = poly
-                                addMapListener(object : org.osmdroid.events.MapListener {
-                                    override fun onScroll(e: org.osmdroid.events.ScrollEvent?): Boolean {
-                                        if (!isSoftDeleted) {
-                                            val center = mapCenter as GeoPoint; p2.value = "${center.latitude}, ${center.longitude}"
-                                            poly.points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(center, p1.toDoubleOrNull() ?: 100.0); invalidate()
+                                    val poly = org.osmdroid.views.overlay.Polygon(this)
+                                    poly.fillColor = android.graphics.Color.argb(
+                                        60,
+                                        79,
+                                        70,
+                                        229
+                                    ); poly.strokeColor = android.graphics.Color.argb(
+                                    200,
+                                    79,
+                                    70,
+                                    229
+                                ); poly.strokeWidth = 4f
+                                    overlays.add(poly); currentPoly = poly
+                                    addMapListener(object : org.osmdroid.events.MapListener {
+                                        override fun onScroll(e: org.osmdroid.events.ScrollEvent?): Boolean {
+                                            if (!isSoftDeleted) {
+                                                val center = mapCenter as GeoPoint; p2.value =
+                                                    "${center.latitude}, ${center.longitude}"
+                                                poly.points =
+                                                    org.osmdroid.views.overlay.Polygon.pointsAsCircle(
+                                                        center,
+                                                        p1.toDoubleOrNull() ?: 100.0
+                                                    ); invalidate()
+                                            }
+                                            return true
                                         }
-                                        return true
-                                    }
-                                    override fun onZoom(e: org.osmdroid.events.ZoomEvent?): Boolean {
-                                        poly.points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(mapCenter as GeoPoint, p1.toDoubleOrNull() ?: 100.0); return true
-                                    }
-                                })
-                            }
-                        }, modifier = Modifier.fillMaxSize(),
+
+                                        override fun onZoom(e: org.osmdroid.events.ZoomEvent?): Boolean {
+                                            poly.points =
+                                                org.osmdroid.views.overlay.Polygon.pointsAsCircle(
+                                                    mapCenter as GeoPoint,
+                                                    p1.toDoubleOrNull() ?: 100.0
+                                                ); return true
+                                        }
+                                    })
+                                }
+                            }, modifier = Modifier.fillMaxSize(),
                             update = { map ->
                                 if (!hasInitializedMap) {
-                                    val start = if (isNew && userLocation != null) GeoPoint(userLocation!!.latitude, userLocation!!.longitude)
-                                                else if (p2.value.isNotBlank()) {
-                                                    val parts = p2.value.split(",").map { it.trim().toDoubleOrNull() }
-                                                    if(parts.size == 2 && parts[0] != null && parts[1] != null) GeoPoint(parts[0]!!, parts[1]!!) else null
-                                                } else if (!isNew) GeoPoint(40.2033, -8.4103) else null
-                                    
+                                    val start = if (isNew && userLocation != null) GeoPoint(
+                                        userLocation!!.latitude,
+                                        userLocation!!.longitude
+                                    )
+                                    else if (p2.value.isNotBlank()) {
+                                        val parts =
+                                            p2.value.split(",").map { it.trim().toDoubleOrNull() }
+                                        if (parts.size == 2 && parts[0] != null && parts[1] != null) GeoPoint(
+                                            parts[0]!!,
+                                            parts[1]!!
+                                        ) else null
+                                    } else if (!isNew) GeoPoint(40.2033, -8.4103) else null
+
                                     start?.let {
                                         map.controller.setCenter(it)
                                         p2.value = "${it.latitude}, ${it.longitude}"
-                                        currentPoly?.points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(it, p1.toDoubleOrNull() ?: 500.0)
+                                        currentPoly?.points =
+                                            org.osmdroid.views.overlay.Polygon.pointsAsCircle(
+                                                it,
+                                                p1.toDoubleOrNull() ?: 500.0
+                                            )
                                         map.invalidate()
                                         hasInitializedMap = true
                                     }
@@ -390,106 +717,205 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                             }
                         )
                         Box(modifier = Modifier.align(Alignment.Center)) {
-                            Icon(Icons.Default.LocationOn, null, tint = Indigo600, modifier = Modifier.size(44.dp).offset(y = (-22).dp))
+                            Icon(
+                                Icons.Default.LocationOn,
+                                null,
+                                tint = Indigo600,
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .offset(y = (-22).dp)
+                            )
                         }
                         if (!isSoftDeleted) {
-                            SmallFloatingActionButton(onClick = { locationHelper.getLastLocation(); userLocation?.let { mapViewRef?.controller?.animateTo(GeoPoint(it.latitude, it.longitude)) } }, modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp), containerColor = Color.White, contentColor = Indigo600) {
-                                Icon(Icons.Default.MyLocation, null, modifier = Modifier.size(20.dp))
+                            SmallFloatingActionButton(
+                                onClick = {
+                                    locationHelper.getLastLocation(); userLocation?.let {
+                                    mapViewRef?.controller?.animateTo(
+                                        GeoPoint(it.latitude, it.longitude)
+                                    )
+                                }
+                                },
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(12.dp),
+                                containerColor = Color.White,
+                                contentColor = Indigo600
+                            ) {
+                                Icon(
+                                    Icons.Default.MyLocation,
+                                    null,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                         }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(stringResource(id = R.string.monitor_radius_meters, p1), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate500)
+                    Text(
+                        stringResource(id = R.string.monitor_radius_meters, p1),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate500
+                    )
                     Slider(
-                        value = p1.toFloatOrNull() ?: 500f, 
-                        onValueChange = { p1 = it.toInt().toString() }, 
-                        valueRange = 100f..5000f, 
-                        steps = 49, 
-                        colors = SliderDefaults.colors(thumbColor = Indigo600, activeTrackColor = Indigo600),
+                        value = p1.toFloatOrNull() ?: 500f,
+                        onValueChange = { p1 = it.toInt().toString() },
+                        valueRange = 100f..5000f,
+                        steps = 49,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Indigo600,
+                            activeTrackColor = Indigo600
+                        ),
                         enabled = !isSoftDeleted
                     )
                 }
                 if (rule.type.isMultiInstance && rule.type != MonitorRuleType.GEOFENCING) {
-                    Text(if (rule.type == MonitorRuleType.SPEED) "MAX SPEED (KM/H)" else "TIME LIMIT (MINUTES)", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+                    Text(
+                        if (rule.type == MonitorRuleType.SPEED) "MAX SPEED (KM/H)" else "TIME LIMIT (MINUTES)",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate400
+                    )
                     TextField(
-                        value = p1, 
-                        onValueChange = { p1 = it }, 
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
-                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp), 
-                        shape = RoundedCornerShape(12.dp), 
-                        colors = TextFieldDefaults.colors(focusedContainerColor = Slate50, unfocusedContainerColor = Slate50),
+                        value = p1,
+                        onValueChange = { p1 = it },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Slate50,
+                            unfocusedContainerColor = Slate50
+                        ),
                         enabled = !isSoftDeleted
                     )
                 } else if (!rule.type.isMultiInstance) {
-                    Text(stringResource(id = R.string.monitor_rule_no_params), color = Slate500, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        stringResource(id = R.string.monitor_rule_no_params),
+                        color = Slate500,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
-                
+
                 Spacer(modifier = Modifier.height(24.dp))
                 HorizontalDivider(color = Slate100)
                 Spacer(modifier = Modifier.height(24.dp))
 
-                
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.CalendarMonth, null, tint = Indigo600, modifier = Modifier.size(20.dp))
+                    Icon(
+                        Icons.Default.CalendarMonth,
+                        null,
+                        tint = Indigo600,
+                        modifier = Modifier.size(20.dp)
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(id = R.string.monitor_rule_schedule), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
-                        Text(stringResource(id = R.string.monitor_managed_by_user), style = MaterialTheme.typography.labelSmall, color = Slate400)
+                        Text(
+                            stringResource(id = R.string.monitor_rule_schedule),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
+                        Text(
+                            stringResource(id = R.string.monitor_managed_by_user),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Slate400
+                        )
                     }
                     Switch(
-                        checked = useSchedule, 
-                        onCheckedChange = { }, 
+                        checked = useSchedule,
+                        onCheckedChange = { },
                         colors = SwitchDefaults.colors(
                             checkedTrackColor = Indigo600.copy(alpha = 0.5f),
                             uncheckedTrackColor = Slate200
                         ),
-                        enabled = false, 
+                        enabled = false,
                         modifier = Modifier.scale(0.8f)
                     )
                 }
-                
+
                 AnimatedVisibility(visible = useSchedule) {
                     Column(modifier = Modifier.padding(top = 16.dp)) {
-                        Text(stringResource(id = R.string.monitor_active_days), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+                        Text(
+                            stringResource(id = R.string.monitor_active_days),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate400
+                        )
                         Spacer(modifier = Modifier.height(12.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
                             daysList.forEachIndexed { i, d ->
                                 val isSelected = selectedDays.contains(i)
                                 Box(
                                     modifier = Modifier
                                         .size(32.dp)
-                                        .background(color = if (isSelected) Slate900.copy(alpha=0.6f) else Slate100, shape = CircleShape)
+                                        .background(
+                                            color = if (isSelected) Slate900.copy(alpha = 0.6f) else Slate100,
+                                            shape = CircleShape
+                                        )
                                         .clip(CircleShape),
-                                        
+
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(text = d, color = if (isSelected) Color.White else Slate400, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        text = d,
+                                        color = if (isSelected) Color.White else Slate400,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
                             }
                         }
                         Spacer(modifier = Modifier.height(20.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(stringResource(id = R.string.monitor_start), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+                                Text(
+                                    stringResource(id = R.string.monitor_start),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Slate400
+                                )
                                 OutlinedTextField(
-                                    value = startTime, 
-                                    onValueChange = { }, 
-                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                    textStyle = androidx.compose.ui.text.TextStyle(textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontWeight = FontWeight.Bold),
+                                    value = startTime,
+                                    onValueChange = { },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 4.dp),
+                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        fontWeight = FontWeight.Bold
+                                    ),
                                     enabled = false,
                                     singleLine = true
                                 )
                             }
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(stringResource(id = R.string.monitor_end), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+                                Text(
+                                    stringResource(id = R.string.monitor_end),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Slate400
+                                )
                                 OutlinedTextField(
-                                    value = endTime, 
-                                    onValueChange = { }, 
-                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                    textStyle = androidx.compose.ui.text.TextStyle(textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontWeight = FontWeight.Bold),
+                                    value = endTime,
+                                    onValueChange = { },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 4.dp),
+                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        fontWeight = FontWeight.Bold
+                                    ),
                                     enabled = false,
                                     singleLine = true
                                 )
@@ -499,52 +925,77 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
-                
-                
+
+
                 if (isSoftDeleted) {
                     Button(
                         onClick = { onDelete(rule.id) },
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Red600),
                         shape = RoundedCornerShape(14.dp)
-                    ) { Text(stringResource(id = R.string.monitor_perm_delete), fontWeight = FontWeight.Bold) }
-                    
+                    ) {
+                        Text(
+                            stringResource(id = R.string.monitor_perm_delete),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
                     TextButton(
                         onClick = onDismiss,
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
                     ) { Text(stringResource(id = R.string.action_cancel), color = Slate500) }
                 } else {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Button(
                             onClick = { if (isNew) onDismiss() else onDelete(rule.id) },
-                            modifier = Modifier.weight(1f).height(52.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (isNew) Slate100 else Red600,
                                 contentColor = if (isNew) Slate500 else Color.White
                             ),
                             shape = RoundedCornerShape(14.dp)
-                        ) { Text(if (isNew) stringResource(id = R.string.action_cancel) else stringResource(id = R.string.action_delete), fontWeight = FontWeight.Bold) }
-                        
+                        ) {
+                            Text(
+                                if (isNew) stringResource(id = R.string.action_cancel) else stringResource(
+                                    id = R.string.action_delete
+                                ), fontWeight = FontWeight.Bold
+                            )
+                        }
+
                         Button(
-                            onClick = { 
+                            onClick = {
                                 val updatedRule = rule.copy(
-                                    param1 = p1, 
-                                    param2 = p2.value, 
+                                    param1 = p1,
+                                    param2 = p2.value,
                                     isEnabled = true,
                                     isScheduleEnabled = useSchedule,
                                     scheduleDays = selectedDays.toList(),
                                     scheduleStart = startTime,
                                     scheduleEnd = endTime
                                 )
-                                onSave(updatedRule) 
+                                onSave(updatedRule)
                             },
-                            modifier = Modifier.weight(1f).height(52.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Indigo600,
                                 contentColor = Color.White
                             ),
                             shape = RoundedCornerShape(14.dp)
-                        ) { Text(if (isNew) stringResource(id = R.string.action_add) else stringResource(id = R.string.action_save), fontWeight = FontWeight.Bold) }
+                        ) {
+                            Text(
+                                if (isNew) stringResource(id = R.string.action_add) else stringResource(
+                                    id = R.string.action_save
+                                ), fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }

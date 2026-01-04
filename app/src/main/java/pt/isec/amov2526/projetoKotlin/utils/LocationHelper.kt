@@ -31,8 +31,7 @@ class LocationHelper(private val context: Context) {
         if (locationCallback != null) return
 
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalMs)
-            .setMinUpdateIntervalMillis(intervalMs / 2)
-            .build()
+            .setMinUpdateIntervalMillis(intervalMs / 2).build()
 
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
@@ -45,9 +44,7 @@ class LocationHelper(private val context: Context) {
         Log.d("LocationHelper", "Starting location updates...")
         try {
             fusedLocationClient.requestLocationUpdates(
-                locationRequest,
-                locationCallback!!,
-                Looper.getMainLooper()
+                locationRequest, locationCallback!!, Looper.getMainLooper()
             )
         } catch (e: Exception) {
             Log.e("LocationHelper", "Error starting location updates", e)

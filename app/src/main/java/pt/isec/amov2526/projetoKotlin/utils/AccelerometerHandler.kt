@@ -33,8 +33,18 @@ class AccelerometerHandler(
 
     fun addRule(rule: MonitorRule) {
         when (rule.type) {
-            RuleType.FALL -> synchronized(fallRules) { fallRules.removeAll { it.id == rule.id }; fallRules.add(rule) }
-            RuleType.ACCIDENT -> synchronized(accidentRules) { accidentRules.removeAll { it.id == rule.id }; accidentRules.add(rule) }
+            RuleType.FALL -> synchronized(fallRules) {
+                fallRules.removeAll { it.id == rule.id }; fallRules.add(
+                rule
+            )
+            }
+
+            RuleType.ACCIDENT -> synchronized(accidentRules) {
+                accidentRules.removeAll { it.id == rule.id }; accidentRules.add(
+                rule
+            )
+            }
+
             else -> {}
         }
     }
@@ -50,20 +60,34 @@ class AccelerometerHandler(
         monitoringJob = scope.launch {
             sensorHelper.accelerometerData.collect { (x, y, z) ->
                 val magnitude = sqrt((x * x + y * y + z * z).toDouble()).toFloat()
-                
+
 
                 if (magnitude > 15f) {
-                    Log.d("AccelerometerHandler", "Magnitude detetada: ${String.format("%.2f", magnitude)} m/s² (~${String.format("%.2f", magnitude/9.81f)}G)")
+                    Log.d(
+                        "AccelerometerHandler",
+                        "Magnitude detetada: ${
+                            String.format(
+                                "%.2f",
+                                magnitude
+                            )
+                        } m/s² (~${String.format("%.2f", magnitude / 9.81f)}G)"
+                    )
                 }
 
                 val currentTime = System.currentTimeMillis()
                 if (currentTime - lastAlertTime >= ALERT_COOLDOWN_MS) {
                     if (magnitude > ACCIDENT_G_THRESHOLD) {
-                        Log.i("AccelerometerHandler", "!!! LIMIAR DE ACIDENTE EXCEDIDO: $magnitude !!!")
+                        Log.i(
+                            "AccelerometerHandler",
+                            "!!! LIMIAR DE ACIDENTE EXCEDIDO: $magnitude !!!"
+                        )
                         handleEvent(RuleType.ACCIDENT, magnitude)
                         lastAlertTime = currentTime
                     } else if (magnitude > FALL_G_THRESHOLD) {
-                        Log.i("AccelerometerHandler", "!!! LIMIAR DE QUEDA EXCEDIDO: $magnitude !!!")
+                        Log.i(
+                            "AccelerometerHandler",
+                            "!!! LIMIAR DE QUEDA EXCEDIDO: $magnitude !!!"
+                        )
                         handleEvent(RuleType.FALL, magnitude)
                         lastAlertTime = currentTime
                     }
@@ -73,15 +97,18 @@ class AccelerometerHandler(
     }
 
     private suspend fun handleEvent(type: RuleType, value: Float) {
-        val rawRules = if (type == RuleType.FALL) synchronized(fallRules) { fallRules.toList() } 
-                       else synchronized(accidentRules) { accidentRules.toList() }
+        val rawRules = if (type == RuleType.FALL) synchronized(fallRules) { fallRules.toList() }
+        else synchronized(accidentRules) { accidentRules.toList() }
 
         Log.d("AccelerometerHandler", "Avaliar evento $type. Regras totais: ${rawRules.size}")
 
 
         val activeRules = rawRules.filter { rule ->
             val active = isActiveChecker(rule)
-            Log.v("AccelerometerHandler", "Regra ${rule.id} (Monitor: ${rule.monitorName}) ativa: $active")
+            Log.v(
+                "AccelerometerHandler",
+                "Regra ${rule.id} (Monitor: ${rule.monitorName}) ativa: $active"
+            )
             active
         }
 
@@ -102,7 +129,7 @@ class AccelerometerHandler(
                 ruleParameter = rule.parameter
             )
         }
-        
+
         _infractions.emit(ProtectionCheckResult(infractionsList, monitorsToNotify))
     }
 

@@ -1,30 +1,46 @@
 package pt.isec.amov2526.projetoKotlin.ui.screens.protected
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
-import pt.isec.amov2526.projetoKotlin.data.model.*
-import pt.isec.amov2526.projetoKotlin.data.model.InfractionDisplayInfo
-import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.guard.*
+import pt.isec.amov2526.projetoKotlin.R
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
+import pt.isec.amov2526.projetoKotlin.data.model.ProtectionGroup
+import pt.isec.amov2526.projetoKotlin.data.model.RuleType
+import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.guard.ActiveProtectionsCard
+import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.guard.PauseSystemModal
+import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.guard.RemoveRuleChallengeModal
+import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.guard.ScheduleSystemModal
+import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.guard.SosButton
+import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.guard.SystemStatusCard
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate50
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
-import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
 import pt.isec.amov2526.projetoKotlin.utils.LocationHelper
-import pt.isec.amov2526.projetoKotlin.R
-
-import pt.isec.amov2526.projetoKotlin.ui.theme.*
+import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
 
 @Composable
 fun GuardScreen(
@@ -37,9 +53,6 @@ fun GuardScreen(
     LaunchedEffect(Unit) {
         protectedViewModel.refreshServiceState()
     }
-
-
-
 
 
     val locationHelper = remember { LocationHelper(context) }
@@ -66,13 +79,12 @@ fun GuardScreen(
     var showGlobalScheduleModal by remember { mutableStateOf(false) }
     var showScheduleModal by remember { mutableStateOf(false) }
 
-    
+
     var ruleToRemove by remember { mutableStateOf<MonitorRule?>(null) }
     var selectedTypeToPause by remember { mutableStateOf<RuleType?>(null) }
     var selectedRuleToPause by remember { mutableStateOf<MonitorRule?>(null) }
     var selectedGroupToSchedule by remember { mutableStateOf<ProtectionGroup?>(null) }
     var selectedRuleToSchedule by remember { mutableStateOf<MonitorRule?>(null) }
-    
 
 
     val scope = rememberCoroutineScope()
@@ -80,11 +92,14 @@ fun GuardScreen(
     val isServiceRunning = protectedViewModel.isProtectionActive
 
     val globalScheduleStatus = TimeUtils.calculateStatus(
-        isEnabled = true, pausedUntil = globalPausedUntil, isScheduleEnabled = globalSchedule.isEnabled,
-        days = globalSchedule.days, start = globalSchedule.start, end = globalSchedule.end, now = currentTime
+        isEnabled = true,
+        pausedUntil = globalPausedUntil,
+        isScheduleEnabled = globalSchedule.isEnabled,
+        days = globalSchedule.days,
+        start = globalSchedule.start,
+        end = globalSchedule.end,
+        now = currentTime
     )
-
-
 
 
     val rawSystemStatus = if (!isServiceRunning) "OFFLINE"
@@ -134,7 +149,12 @@ fun GuardScreen(
             ActiveProtectionsCard(
                 protectionGroups = protectionGroups,
                 currentTime = currentTime,
-                onToggleGroupExpansion = { group, expanded -> viewModel.toggleGroupExpansion(group.type, expanded) },
+                onToggleGroupExpansion = { group, expanded ->
+                    viewModel.toggleGroupExpansion(
+                        group.type,
+                        expanded
+                    )
+                },
                 onToggleGroupGlobal = { group, enabled ->
                     if (enabled) {
                         viewModel.setProtectionStatus(group.type, true)
@@ -147,7 +167,9 @@ fun GuardScreen(
                     var ruleFound: MonitorRule? = null
                     for (group in protectionGroups) {
                         val r = group.rules.find { it.id == ruleId }
-                        if (r != null) { ruleFound = r; break }
+                        if (r != null) {
+                            ruleFound = r; break
+                        }
                     }
                     if (ruleFound != null) {
                         if (enabled) {
@@ -177,8 +199,16 @@ fun GuardScreen(
 
     if (showPauseModal) {
         val title = when {
-            selectedRuleToPause != null -> stringResource(R.string.guard_pause_rule, selectedRuleToPause!!.monitorName)
-            selectedTypeToPause != null -> stringResource(R.string.guard_pause_type, stringResource(selectedTypeToPause!!.titleRes))
+            selectedRuleToPause != null -> stringResource(
+                R.string.guard_pause_rule,
+                selectedRuleToPause!!.monitorName
+            )
+
+            selectedTypeToPause != null -> stringResource(
+                R.string.guard_pause_type,
+                stringResource(selectedTypeToPause!!.titleRes)
+            )
+
             else -> stringResource(id = R.string.guard_pause_protection)
         }
         PauseSystemModal(
@@ -191,7 +221,11 @@ fun GuardScreen(
             onConfirm = { pin, duration ->
                 showPauseModal = false
                 if (selectedRuleToPause != null) {
-                    viewModel.setRulePaused(selectedRuleToPause!!.id, selectedRuleToPause!!.monitorId, duration)
+                    viewModel.setRulePaused(
+                        selectedRuleToPause!!.id,
+                        selectedRuleToPause!!.monitorId,
+                        duration
+                    )
                     selectedRuleToPause = null
                 } else if (selectedTypeToPause != null) {
                     viewModel.setProtectionStatus(selectedTypeToPause!!, false, duration)
@@ -209,15 +243,26 @@ fun GuardScreen(
     if (showScheduleModal) {
         val scheduleCtx = when {
             selectedRuleToSchedule != null -> Triple(
-                Triple(stringResource(id = R.string.guard_schedule_rule), selectedRuleToSchedule!!.isScheduleEnabled, selectedRuleToSchedule!!.scheduleDays.ifEmpty { listOf(1, 2, 3, 4, 5) }),
+                Triple(
+                    stringResource(id = R.string.guard_schedule_rule),
+                    selectedRuleToSchedule!!.isScheduleEnabled,
+                    selectedRuleToSchedule!!.scheduleDays.ifEmpty { listOf(1, 2, 3, 4, 5) }),
                 selectedRuleToSchedule!!.scheduleStart.ifEmpty { "09:00" },
                 selectedRuleToSchedule!!.scheduleEnd.ifEmpty { "18:00" }
             )
+
             selectedGroupToSchedule != null -> Triple(
-                Triple(stringResource(R.string.guard_schedule_type, stringResource(selectedGroupToSchedule!!.type.titleRes)), selectedGroupToSchedule!!.isScheduleEnabled, selectedGroupToSchedule!!.scheduleDays.ifEmpty { listOf(1, 2, 3, 4, 5) }),
+                Triple(
+                    stringResource(
+                        R.string.guard_schedule_type,
+                        stringResource(selectedGroupToSchedule!!.type.titleRes)
+                    ),
+                    selectedGroupToSchedule!!.isScheduleEnabled,
+                    selectedGroupToSchedule!!.scheduleDays.ifEmpty { listOf(1, 2, 3, 4, 5) }),
                 selectedGroupToSchedule!!.scheduleStart.ifEmpty { "09:00" },
                 selectedGroupToSchedule!!.scheduleEnd.ifEmpty { "18:00" }
             )
+
             else -> null
         }
 
@@ -237,9 +282,21 @@ fun GuardScreen(
                 },
                 onSave = { newDays, newStart, newEnd, newEnabled ->
                     if (selectedRuleToSchedule != null) {
-                        viewModel.setRuleSchedule(selectedRuleToSchedule!!, newDays, newStart, newEnd, newEnabled)
+                        viewModel.setRuleSchedule(
+                            selectedRuleToSchedule!!,
+                            newDays,
+                            newStart,
+                            newEnd,
+                            newEnabled
+                        )
                     } else if (selectedGroupToSchedule != null) {
-                        viewModel.setProtectionSchedule(selectedGroupToSchedule!!.type, newDays, newStart, newEnd, newEnabled)
+                        viewModel.setProtectionSchedule(
+                            selectedGroupToSchedule!!.type,
+                            newDays,
+                            newStart,
+                            newEnd,
+                            newEnabled
+                        )
                     }
                     showScheduleModal = false
                     selectedGroupToSchedule = null
@@ -250,7 +307,7 @@ fun GuardScreen(
         }
     }
 
-    
+
     if (showGlobalScheduleModal) {
         ScheduleSystemModal(
             title = stringResource(id = R.string.guard_global_schedule),
@@ -267,7 +324,7 @@ fun GuardScreen(
         )
     }
 
-    
+
     if (ruleToRemove != null) {
         RemoveRuleChallengeModal(
             ruleName = ruleToRemove!!.monitorName,

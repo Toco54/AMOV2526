@@ -4,8 +4,17 @@ import android.location.Location
 import android.util.Log
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -17,7 +26,7 @@ import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
 import pt.isec.amov2526.projetoKotlin.data.repository.AlertRepository
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.alert.ConfirmedPanel
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.alert.CountdownPanel
-import pt.isec.amov2526.projetoKotlin.ui.theme.*
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 import pt.isec.amov2526.projetoKotlin.utils.EvidenceManager
 import java.io.File
 
@@ -46,17 +55,17 @@ fun AlertScreen(
 
     var pinInput by remember { mutableStateOf("") }
 
-    
+
     var isRecordingFinished by remember { mutableStateOf(false) }
     var recordingStartTime by remember { mutableLongStateOf(0L) }
-    
+
     var finalizedFile by remember { mutableStateOf<File?>(null) }
     var isUploading by remember { mutableStateOf(false) }
     var hasError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val previewView = remember { PreviewView(context) }
-    
+
 
     val SKIP_UPLOAD_FOR_TESTING = false
 
@@ -114,11 +123,11 @@ fun AlertScreen(
 
     LaunchedEffect(isConfirmedState) {
         if (isConfirmedState) {
-             while (recordingStartTime == 0L) {
-                 recordingStartTime = evidenceManager.getRecordingStartTime()
-                 delay(100)
-                 if (isRecordingFinished) break 
-             }
+            while (recordingStartTime == 0L) {
+                recordingStartTime = evidenceManager.getRecordingStartTime()
+                delay(100)
+                if (isRecordingFinished) break
+            }
         }
     }
 
@@ -127,7 +136,10 @@ fun AlertScreen(
         if (isConfirmedState) {
             delay(25000L)
             if (!isRecordingFinished) {
-                Log.e("AlertScreen", "Watchdog triggered: Recording/Upload timed out. Forcing UI unlock.")
+                Log.e(
+                    "AlertScreen",
+                    "Watchdog triggered: Recording/Upload timed out. Forcing UI unlock."
+                )
 
                 evidenceManager.stopVideoRecording()
                 hasError = true
@@ -150,11 +162,15 @@ fun AlertScreen(
     LaunchedEffect(pinInput) {
         if (!isConfirmedState && pinInput.length == 4) {
             if (onValidatePin(pinInput)) handleCancel()
-            else { delay(500); pinInput = "" }
+            else {
+                delay(500); pinInput = ""
+            }
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Slate900)) {
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .background(Slate900)) {
         if (!isConfirmedState) {
             CountdownPanel(
                 alertType = alertType,
@@ -163,11 +179,11 @@ fun AlertScreen(
                 initialSeconds = initialSeconds,
                 onPinDigit = { if (pinInput.length < 4) pinInput += it },
                 onPinDelete = { if (pinInput.isNotEmpty()) pinInput = pinInput.dropLast(1) },
-                onTimerFinished = { 
-                    onConfirm() 
+                onTimerFinished = {
+                    onConfirm()
                 },
-                onHelpNow = { 
-                    onConfirm() 
+                onHelpNow = {
+                    onConfirm()
                 }
             )
         } else {

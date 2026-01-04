@@ -2,7 +2,16 @@ package pt.isec.amov2526.projetoKotlin.ui.screens.auth
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -13,12 +22,25 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -28,9 +50,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import pt.isec.amov2526.projetoKotlin.R
+import pt.isec.amov2526.projetoKotlin.ui.theme.AlertRed
+import pt.isec.amov2526.projetoKotlin.ui.theme.Emerald500
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate400
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate800
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
-
-import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun LoginScreen(
@@ -88,14 +113,18 @@ fun LoginScreen(
 
 
         Text(
-            text = if (mfaRequired) stringResource(id = R.string.auth_security_check) else stringResource(id = R.string.auth_welcome),
+            text = if (mfaRequired) stringResource(id = R.string.auth_security_check) else stringResource(
+                id = R.string.auth_welcome
+            ),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
             color = Color.White
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = if (mfaRequired) stringResource(id = R.string.auth_mfa_tagline) else stringResource(id = R.string.auth_signin_tagline),
+            text = if (mfaRequired) stringResource(id = R.string.auth_mfa_tagline) else stringResource(
+                id = R.string.auth_signin_tagline
+            ),
             style = MaterialTheme.typography.bodyLarge,
             color = Slate400
         )
@@ -104,7 +133,6 @@ fun LoginScreen(
 
 
         if (mfaRequired) {
-
 
 
             Text(
@@ -200,9 +228,6 @@ fun LoginScreen(
         } else {
 
 
-
-
-
             Text(
                 text = stringResource(id = R.string.auth_email),
                 style = MaterialTheme.typography.labelSmall,
@@ -294,7 +319,7 @@ fun LoginScreen(
 
             if (errorMsg != null) {
                 Spacer(modifier = Modifier.height(16.dp))
-                val localizedError = when(errorMsg) {
+                val localizedError = when (errorMsg) {
                     "Please fill in all fields" -> stringResource(id = R.string.error_fill_all)
                     "Invalid Email Format" -> stringResource(id = R.string.error_invalid_email)
                     else -> errorMsg
@@ -329,7 +354,9 @@ fun LoginScreen(
 
                     if (trimmedEmail.isBlank() || trimmedPassword.isBlank()) {
                         viewModel.errorMsg = "Please fill in all fields"
-                    } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches()) {
+                    } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(trimmedEmail)
+                            .matches()
+                    ) {
                         viewModel.errorMsg = "Invalid Email Format"
                     } else {
                         viewModel.login(trimmedEmail, trimmedPassword)

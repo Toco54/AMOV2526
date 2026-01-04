@@ -7,11 +7,11 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.WindowManager
-import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -46,7 +46,10 @@ class MainActivity : AppCompatActivity() {
 
 
         if (intent.action != "ACTION_SHOW_ALERT" && com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null) {
-             val resetIntent = Intent(this, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
+            val resetIntent = Intent(
+                this,
+                pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java
+            ).apply {
                 action = "pt.isec.amov2526.projetoKotlin.services.ACTION_UI_RESET"
             }
             startService(resetIntent)
@@ -73,7 +76,7 @@ class MainActivity : AppCompatActivity() {
 
             val permissionLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.RequestMultiplePermissions(),
-                onResult = {  }
+                onResult = { }
             )
 
             val context = LocalContext.current
@@ -81,7 +84,10 @@ class MainActivity : AppCompatActivity() {
 
             LaunchedEffect(Unit) {
                 permissionLauncher.launch(permissionsToRequest.toTypedArray())
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(
+                        context
+                    )
+                ) {
                     showOverlayPermissionDialog = true
                 }
             }

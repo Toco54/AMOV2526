@@ -7,15 +7,13 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
-import pt.isec.amov2526.projetoKotlin.data.model.ProtectionRule
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType
+import pt.isec.amov2526.projetoKotlin.data.model.ProtectionRule
 
 class RuleRepository {
     private val db = FirebaseFirestore.getInstance()
 
 
-
-    
     private fun getRulesCollection(protegeUid: String, monitorUid: String) =
         db.collection("users").document(protegeUid)
             .collection("connections").document(monitorUid)
@@ -34,9 +32,9 @@ class RuleRepository {
             "pausedUntil" to rule.pausedUntil,
             "isDisabledByProtege" to rule.isDisabledByProtege
         )
-        
+
         val collection = getRulesCollection(protegeUid, monitorId)
-        
+
         if (rule.id.startsWith("NEW_")) {
             collection.add(docData).await()
         } else {
@@ -64,46 +62,49 @@ class RuleRepository {
     }
 
 
-    fun getRulesFlow(monitorId: String, protegeUid: String): Flow<List<ProtectionRule>> = callbackFlow {
-        val query = getRulesCollection(protegeUid, monitorId)
+    fun getRulesFlow(monitorId: String, protegeUid: String): Flow<List<ProtectionRule>> =
+        callbackFlow {
+            val query = getRulesCollection(protegeUid, monitorId)
 
-        val registration: ListenerRegistration = query.addSnapshotListener { snapshot, e ->
-            if (e != null) {
-                close(e)
-                return@addSnapshotListener
-            }
-
-            if (snapshot != null) {
-                val rules = snapshot.documents.mapNotNull { doc ->
-                    try {
-                        val typeStr = doc.getString("type") ?: return@mapNotNull null
-                        val type = MonitorRuleType.valueOf(typeStr)
-                        
-                        ProtectionRule(
-                            id = doc.id,
-                            type = type,
-
-                            icon = androidx.compose.material.icons.Icons.Default.Shield, 
-                            iconColor = androidx.compose.ui.graphics.Color.Gray,
-                            isEnabled = doc.getBoolean("isEnabled") ?: true,
-                            param1 = doc.getString("param1") ?: "",
-                            param2 = doc.getString("param2") ?: "",
-                            scheduleDays = (doc.get("scheduleDays") as? List<Long>)?.map { it.toInt() } ?: emptyList(),
-                            scheduleStart = doc.getString("scheduleStart") ?: "",
-                            scheduleEnd = doc.getString("scheduleEnd") ?: "",
-                            isScheduleEnabled = doc.getBoolean("isScheduleEnabled") ?: false,
-                            pausedUntil = doc.getLong("pausedUntil") ?: 0L,
-                            isDisabledByProtege = doc.getBoolean("isDisabledByProtege") ?: false,
-                            deletedByProtege = doc.getBoolean("deletedByProtege") ?: false
-                        )
-                    } catch (e: Exception) {
-                        null
-                    }
+            val registration: ListenerRegistration = query.addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    close(e)
+                    return@addSnapshotListener
                 }
-                trySend(rules)
-            }
-        }
 
-        awaitClose { registration.remove() }
-    }
+                if (snapshot != null) {
+                    val rules = snapshot.documents.mapNotNull { doc ->
+                        try {
+                            val typeStr = doc.getString("type") ?: return@mapNotNull null
+                            val type = MonitorRuleType.valueOf(typeStr)
+
+                            ProtectionRule(
+                                id = doc.id,
+                                type = type,
+
+                                icon = androidx.compose.material.icons.Icons.Default.Shield,
+                                iconColor = androidx.compose.ui.graphics.Color.Gray,
+                                isEnabled = doc.getBoolean("isEnabled") ?: true,
+                                param1 = doc.getString("param1") ?: "",
+                                param2 = doc.getString("param2") ?: "",
+                                scheduleDays = (doc.get("scheduleDays") as? List<Long>)?.map { it.toInt() }
+                                    ?: emptyList(),
+                                scheduleStart = doc.getString("scheduleStart") ?: "",
+                                scheduleEnd = doc.getString("scheduleEnd") ?: "",
+                                isScheduleEnabled = doc.getBoolean("isScheduleEnabled") ?: false,
+                                pausedUntil = doc.getLong("pausedUntil") ?: 0L,
+                                isDisabledByProtege = doc.getBoolean("isDisabledByProtege")
+                                    ?: false,
+                                deletedByProtege = doc.getBoolean("deletedByProtege") ?: false
+                            )
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    trySend(rules)
+                }
+            }
+
+            awaitClose { registration.remove() }
+        }
 }

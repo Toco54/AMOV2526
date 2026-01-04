@@ -2,7 +2,14 @@ package pt.isec.amov2526.projetoKotlin.ui.screens.monitor.components.main
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,8 +31,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import pt.isec.amov2526.projetoKotlin.data.model.ConnectedUser
-
-import pt.isec.amov2526.projetoKotlin.ui.theme.*
+import pt.isec.amov2526.projetoKotlin.ui.theme.Emerald500
+import pt.isec.amov2526.projetoKotlin.ui.theme.Red50
+import pt.isec.amov2526.projetoKotlin.ui.theme.Red600
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate100
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate200
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate400
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate500
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 
 @Composable
 fun ProtegeCard(
@@ -34,9 +47,9 @@ fun ProtegeCard(
     onDelete: () -> Unit = {}
 ) {
     val isRevoked = protege.revokedByProtege
-    
+
     Card(
-        colors = CardDefaults.cardColors(containerColor = if(isRevoked) Red50 else Color.White),
+        colors = CardDefaults.cardColors(containerColor = if (isRevoked) Red50 else Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(20.dp),
         modifier = Modifier
@@ -51,14 +64,18 @@ fun ProtegeCard(
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(if(isRevoked) Red600.copy(alpha=0.1f) else Slate100, CircleShape),
+                    .background(
+                        if (isRevoked) Red600.copy(alpha = 0.1f) else Slate100,
+                        CircleShape
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 if (isRevoked) {
                     Icon(Icons.Default.LinkOff, null, tint = Red600)
                 } else {
                     Text(
-                        text = if (protege.name.isNotEmpty()) protege.name.first().toString() else "?",
+                        text = if (protege.name.isNotEmpty()) protege.name.first()
+                            .toString() else "?",
                         fontWeight = FontWeight.Bold,
                         color = Slate500,
                         fontSize = 20.sp
@@ -73,23 +90,23 @@ fun ProtegeCard(
                     text = protege.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if(isRevoked) Slate400 else Slate900
+                    color = if (isRevoked) Slate400 else Slate900
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
                             .size(8.dp)
-                            .background(if(isRevoked) Red600 else Emerald500, CircleShape)
+                            .background(if (isRevoked) Red600 else Emerald500, CircleShape)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = if (isRevoked) "Connection Revoked" else "Active Monitoring",
                         style = MaterialTheme.typography.bodySmall,
-                        color = if(isRevoked) Red600 else Slate500
+                        color = if (isRevoked) Red600 else Slate500
                     )
                 }
             }
-            
+
             if (isRevoked) {
                 IconButton(onClick = onDelete) {
                     Icon(Icons.Default.Delete, "Remove", tint = Red600)

@@ -42,10 +42,10 @@ class InactivityHandler(
     fun startMonitoring() {
         if (monitoringJob?.isActive == true) return
         sensorHelper.startMotionDetection()
-        
+
 
         sensorJob = scope.launch {
-            sensorHelper.lastMotionTimestamp.collect { timestamp -> 
+            sensorHelper.lastMotionTimestamp.collect { timestamp ->
 
                 if (timestamp > lastMotionTimestamp) {
                     Log.d("InactivityHandler", "Movimento detetado em: $timestamp")
@@ -53,10 +53,12 @@ class InactivityHandler(
                 }
             }
         }
-        
+
 
         monitoringJob = scope.launch {
-            while (true) { checkRules(); delay(5000L) }
+            while (true) {
+                checkRules(); delay(5000L)
+            }
         }
     }
 
@@ -93,7 +95,7 @@ class InactivityHandler(
         for (rule in currentRules) {
 
             if (!isActiveChecker(rule)) continue
-            
+
             if (triggeredRulesThisSession.contains(rule.id)) continue
 
             val ruleMinutes = rule.parameter.toLongOrNull() ?: continue

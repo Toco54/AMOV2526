@@ -1,34 +1,37 @@
 package pt.isec.amov2526.projetoKotlin.data.repository
 
+
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
-import pt.isec.amov2526.projetoKotlin.data.model.*
-
-
+import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertStatus
+import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
+import pt.isec.amov2526.projetoKotlin.data.model.ActivityItem
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorAction
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
 class AlertRepository {
-    
+
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
 
-    
+
     suspend fun createAlert(
         type: ActivityAlertType,
         title: String,
         latitude: Double? = null,
         longitude: Double? = null,
-        visibleToMonitors: List<String>? = null, 
-        initialActions: List<MonitorAction>? = null, 
-        forcedId: String? = null 
-    ): String? { 
-        
+        visibleToMonitors: List<String>? = null,
+        initialActions: List<MonitorAction>? = null,
+        forcedId: String? = null
+    ): String? {
+
         val currentUser = auth.currentUser ?: return null
         val uid = currentUser.uid
 
@@ -48,23 +51,23 @@ class AlertRepository {
             "latitude" to latitude,
             "longitude" to longitude,
             "created_at" to System.currentTimeMillis(),
-            "videoUrl" to null 
+            "videoUrl" to null
         )
-        
-        
-        
+
+
+
         if (visibleToMonitors != null) {
             alertData["visibleTo"] = visibleToMonitors
         }
 
-        
+
         if (initialActions != null) {
             val actionsList = initialActions.map { action ->
                 mapOf(
                     "name" to action.name,
                     "state" to action.state.name,
                     "time" to action.time,
-                    "uid" to (action.uid ?: "") 
+                    "uid" to (action.uid ?: "")
                 )
             }
             alertData["notifiedMonitors"] = actionsList
@@ -73,23 +76,23 @@ class AlertRepository {
         try {
             val batch = db.batch()
 
-            
+
             val alertRef = db.collection("users").document(uid)
                 .collection("alerts").document(alertId)
             batch.set(alertRef, alertData)
 
-            
+
             visibleToMonitors?.forEach { monitorUid ->
                 val connectionDoc = db.collection("users").document(monitorUid)
                     .collection("connections").document(uid)
-                
+
                 val updateData = mapOf(
                     "alertRefs.$alertId" to "users/$uid/alerts/$alertId"
                 )
                 batch.update(connectionDoc, updateData)
             }
 
-            
+
             batch.commit().await()
             return alertId
 
@@ -116,7 +119,7 @@ class AlertRepository {
 
         val query = db.collection("users").document(currentUser.uid)
             .collection("alerts")
-            .orderBy("created_at", Query.Direction.DESCENDING) 
+            .orderBy("created_at", Query.Direction.DESCENDING)
 
         return query.addSnapshotListener { snapshot, e ->
             if (e != null || snapshot == null) return@addSnapshotListener
@@ -126,16 +129,18 @@ class AlertRepository {
                     val typeStr = doc.getString("type") ?: return@mapNotNull null
                     val statusStr = doc.getString("status") ?: "PENDING"
 
-                    
+
                     val monitorsList = mutableListOf<MonitorAction>()
                     val monitorsRaw = doc.get("notifiedMonitors") as? List<Map<String, Any>>
                     monitorsRaw?.forEach { m ->
-                        monitorsList.add(MonitorAction(
-                            name = m["name"] as? String ?: "Unknown",
-                            state = MonitorActionState.valueOf(m["state"] as? String ?: "SENT"),
-                            time = m["time"] as? String ?: "",
-                            uid = m["uid"] as? String 
-                        ))
+                        monitorsList.add(
+                            MonitorAction(
+                                name = m["name"] as? String ?: "Unknown",
+                                state = MonitorActionState.valueOf(m["state"] as? String ?: "SENT"),
+                                time = m["time"] as? String ?: "",
+                                uid = m["uid"] as? String
+                            )
+                        )
                     }
 
                     ActivityItem(

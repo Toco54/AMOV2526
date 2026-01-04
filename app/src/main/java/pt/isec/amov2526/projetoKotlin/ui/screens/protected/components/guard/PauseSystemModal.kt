@@ -3,7 +3,16 @@ package pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.guard
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -11,8 +20,21 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,9 +47,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.launch
+import pt.isec.amov2526.projetoKotlin.ui.theme.Amber500
+import pt.isec.amov2526.projetoKotlin.ui.theme.Indigo600
+import pt.isec.amov2526.projetoKotlin.ui.theme.Red600
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate200
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate400
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate50
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate500
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate700
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel
-
-import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun PauseSystemModal(
@@ -74,7 +103,9 @@ fun PauseSystemModal(
                     color = Slate500,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
-                listOf("1 Min","15 Min", "30 Min", "1 Hour", "8 Hours", "Indefinite").forEach { dur ->
+                listOf(
+                    "1 Min", "15 Min", "30 Min", "1 Hour", "8 Hours", "Indefinite"
+                ).forEach { dur ->
                     val isSelected = selectedDuration == dur
                     Row(
                         modifier = Modifier
@@ -92,8 +123,7 @@ fun PauseSystemModal(
                             .clickable { selectedDuration = dur }
                             .padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                        verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = dur,
                             fontWeight = FontWeight.Bold,
@@ -135,8 +165,7 @@ fun PauseSystemModal(
                         decorationBox = { innerTextField ->
                             if (pin.isEmpty()) {
                                 Text(
-                                    text = "****",
-                                    style = TextStyle(
+                                    text = "****", style = TextStyle(
                                         fontSize = 24.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Slate200,
@@ -157,7 +186,12 @@ fun PauseSystemModal(
                     )
                 }
                 if (errorText != null) {
-                    Text(errorText!!, color = Red600, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 4.dp))
+                    Text(
+                        errorText!!,
+                        color = Red600,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
                 Spacer(modifier = Modifier.height(24.dp))
                 Button(
@@ -166,7 +200,7 @@ fun PauseSystemModal(
                             isChecking = true
                             scope.launch {
                                 if (viewModel.verifyPin(pin)) {
-                                    val durationMillis = when(selectedDuration) {
+                                    val durationMillis = when (selectedDuration) {
                                         "1 Min" -> 1 * 60 * 1000L
                                         "15 Min" -> 15 * 60 * 1000L
                                         "30 Min" -> 30 * 60 * 1000L
@@ -188,13 +222,14 @@ fun PauseSystemModal(
                         .fillMaxWidth()
                         .height(56.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Red600,
-                        contentColor = Color.White
+                        containerColor = Red600, contentColor = Color.White
                     ),
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     if (isChecking) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                        CircularProgressIndicator(
+                            color = Color.White, modifier = Modifier.size(24.dp)
+                        )
                     } else {
                         Text(
                             text = if (selectedDuration == "Indefinite") "Turn Off System" else "Confirm Pause",
@@ -204,15 +239,12 @@ fun PauseSystemModal(
                     }
                 }
                 TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier
+                    onClick = onDismiss, modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp)
                 ) {
                     Text(
-                        text = "Cancel",
-                        color = Slate400,
-                        fontWeight = FontWeight.Bold
+                        text = "Cancel", color = Slate400, fontWeight = FontWeight.Bold
                     )
                 }
             }

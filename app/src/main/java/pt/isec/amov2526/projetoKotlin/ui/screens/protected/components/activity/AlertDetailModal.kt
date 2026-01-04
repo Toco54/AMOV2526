@@ -1,27 +1,54 @@
 package pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.activity
 
-import android.preference.PreferenceManager
-import android.util.Log
-import android.view.ViewGroup
-import android.view.TextureView
-import android.view.Surface
 import android.graphics.SurfaceTexture
 import android.media.MediaPlayer
 import android.net.Uri
-import android.widget.MediaController
+import android.preference.PreferenceManager
+import android.view.Surface
+import android.view.TextureView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DirectionsRun
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,11 +71,18 @@ import org.osmdroid.views.overlay.Polygon
 import pt.isec.amov2526.projetoKotlin.data.model.ActivityItem
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
+import pt.isec.amov2526.projetoKotlin.ui.theme.Amber100
+import pt.isec.amov2526.projetoKotlin.ui.theme.Amber700
+import pt.isec.amov2526.projetoKotlin.ui.theme.Indigo500
+import pt.isec.amov2526.projetoKotlin.ui.theme.Red700
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate200
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate400
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate50
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate500
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
-
-import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun AlertDetailModal(
@@ -61,24 +95,24 @@ fun AlertDetailModal(
 
 
     val visibleMonitors = remember { mutableStateListOf<String>() }
-    
+
 
     var localVideoFile by remember { mutableStateOf<File?>(null) }
     var isDownloading by remember { mutableStateOf(false) }
     var downloadError by remember { mutableStateOf<String?>(null) }
     var isPlaying by remember { mutableStateOf(true) }
-    
+
     val videoUrl = activity.videoUrl
 
     LaunchedEffect(activity) {
         visibleMonitors.clear()
         visibleMonitors.addAll(activity.notifiedMonitors.map { it.name }.distinct())
         activeGeofences.forEach { rule ->
-             if (!visibleMonitors.contains(rule.monitorName)) {
-                 visibleMonitors.add(rule.monitorName)
-             }
+            if (!visibleMonitors.contains(rule.monitorName)) {
+                visibleMonitors.add(rule.monitorName)
+            }
         }
-        
+
 
         val file = File(context.filesDir, "alert_video_${activity.id}.mp4")
         if (file.exists() && file.length() > 0) {
@@ -89,16 +123,17 @@ fun AlertDetailModal(
     }
 
     LaunchedEffect(Unit) {
-        Configuration.getInstance().load(context, PreferenceManager.getDefaultSharedPreferences(context))
+        Configuration.getInstance()
+            .load(context, PreferenceManager.getDefaultSharedPreferences(context))
         Configuration.getInstance().userAgentValue = context.packageName
     }
-    
+
     fun downloadVideo() {
         if (videoUrl == null || videoUrl == "PENDING/UNAVAILABLE") {
             downloadError = "Video unavailable"
             return
         }
-        
+
         scope.launch(Dispatchers.IO) {
             isDownloading = true
             downloadError = null
@@ -111,12 +146,12 @@ fun AlertDetailModal(
                 input.copyTo(output)
                 output.close()
                 input.close()
-                
+
                 withContext(Dispatchers.Main) {
                     localVideoFile = file
                     isDownloading = false
                 }
-            } catch(e: Exception) {
+            } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
                     downloadError = "Download failed"
@@ -195,7 +230,7 @@ fun AlertDetailModal(
                     if (localVideoFile != null) {
 
                         val mediaPlayer = remember { MediaPlayer() }
-                        
+
                         DisposableEffect(Unit) {
                             onDispose {
                                 try {
@@ -224,28 +259,44 @@ fun AlertDetailModal(
                         AndroidView(
                             factory = { ctx ->
                                 TextureView(ctx).apply {
-                                    surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-                                        override fun onSurfaceTextureAvailable(surface: SurfaceTexture, w: Int, h: Int) {
-                                            try {
-                                                mediaPlayer.setDataSource(ctx, Uri.fromFile(localVideoFile))
-                                                mediaPlayer.setSurface(Surface(surface))
-                                                mediaPlayer.isLooping = true
-                                                mediaPlayer.prepare()
-                                                if (isPlaying) mediaPlayer.start()
-                                            } catch (e: Exception) {
-                                                e.printStackTrace()
+                                    surfaceTextureListener =
+                                        object : TextureView.SurfaceTextureListener {
+                                            override fun onSurfaceTextureAvailable(
+                                                surface: SurfaceTexture,
+                                                w: Int,
+                                                h: Int
+                                            ) {
+                                                try {
+                                                    mediaPlayer.setDataSource(
+                                                        ctx,
+                                                        Uri.fromFile(localVideoFile)
+                                                    )
+                                                    mediaPlayer.setSurface(Surface(surface))
+                                                    mediaPlayer.isLooping = true
+                                                    mediaPlayer.prepare()
+                                                    if (isPlaying) mediaPlayer.start()
+                                                } catch (e: Exception) {
+                                                    e.printStackTrace()
+                                                }
                                             }
-                                        }
 
-                                        override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, w: Int, h: Int) {}
-                                        override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean = true
-                                        override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
-                                    }
+                                            override fun onSurfaceTextureSizeChanged(
+                                                surface: SurfaceTexture,
+                                                w: Int,
+                                                h: Int
+                                            ) {
+                                            }
+
+                                            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean =
+                                                true
+
+                                            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
+                                        }
                                 }
                             },
                             modifier = Modifier.fillMaxSize()
                         )
-                        
+
 
                         if (!isPlaying) {
                             Icon(
@@ -284,12 +335,14 @@ fun AlertDetailModal(
                                 Text(
                                     text = if (downloadError != null) "Error: $downloadError" else "TAP TO DOWNLOAD VIDEO",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (downloadError != null) Red700 else Color.White.copy(alpha = 0.4f),
+                                    color = if (downloadError != null) Red700 else Color.White.copy(
+                                        alpha = 0.4f
+                                    ),
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 1.sp
                                 )
                                 if (videoUrl == null || videoUrl == "PENDING/UNAVAILABLE") {
-                                      Text(
+                                    Text(
                                         text = "(No video available)",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = Color.White.copy(alpha = 0.3f),
@@ -299,8 +352,8 @@ fun AlertDetailModal(
                             }
                         }
                     }
-                    
-                    
+
+
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopStart)
@@ -317,7 +370,7 @@ fun AlertDetailModal(
                     }
                 }
 
-                
+
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
@@ -336,8 +389,8 @@ fun AlertDetailModal(
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    
-                    
+
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -353,8 +406,8 @@ fun AlertDetailModal(
                                     setTileSource(TileSourceFactory.MAPNIK)
                                     setMultiTouchControls(true)
                                     controller.setZoom(18.0)
-                                    
-                                    
+
+
                                     setOnTouchListener { v, event ->
                                         v.parent.requestDisallowInterceptTouchEvent(true)
                                         false
@@ -364,56 +417,77 @@ fun AlertDetailModal(
                             modifier = Modifier.fillMaxSize(),
                             update = { map ->
                                 map.overlays.clear()
-                                
-                                
-                                
-                                val centerPoint = if (activity.latitude != null && activity.longitude != null) {
-                                    GeoPoint(activity.latitude, activity.longitude)
-                                } else {
-                                    
-                                    val firstVisible = activeGeofences.firstOrNull { visibleMonitors.contains(it.monitorName) && it.geofenceData != null }
-                                    if (firstVisible != null) {
-                                        val (lat, lng, _) = firstVisible.geofenceData!!
-                                        GeoPoint(lat, lng)
+
+
+                                val centerPoint =
+                                    if (activity.latitude != null && activity.longitude != null) {
+                                        GeoPoint(activity.latitude, activity.longitude)
                                     } else {
-                                        GeoPoint(40.2033, -8.4103) 
+
+                                        val firstVisible = activeGeofences.firstOrNull {
+                                            visibleMonitors.contains(it.monitorName) && it.geofenceData != null
+                                        }
+                                        if (firstVisible != null) {
+                                            val (lat, lng, _) = firstVisible.geofenceData!!
+                                            GeoPoint(lat, lng)
+                                        } else {
+                                            GeoPoint(40.2033, -8.4103)
+                                        }
                                     }
-                                }
-                                
+
                                 map.controller.setCenter(centerPoint)
 
-                                
+
                                 activeGeofences.forEach { rule ->
-                                    val isAlertContext = activity.type == pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType.GEOFENCE
-                                    val wasNotified = activity.notifiedMonitors.any { it.name == rule.monitorName }
+                                    val isAlertContext =
+                                        activity.type == pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType.GEOFENCE
+                                    val wasNotified =
+                                        activity.notifiedMonitors.any { it.name == rule.monitorName }
                                     val isVisible = visibleMonitors.contains(rule.monitorName)
 
                                     if (isAlertContext && wasNotified && isVisible) {
                                         rule.geofenceData?.let { (lat, lng, radius) ->
                                             val circle = Polygon(map)
-                                            circle.points = Polygon.pointsAsCircle(GeoPoint(lat, lng), radius.toDouble())
-                                            
+                                            circle.points = Polygon.pointsAsCircle(
+                                                GeoPoint(lat, lng),
+                                                radius.toDouble()
+                                            )
+
                                             val color = Red700
-                                            
-                                            circle.fillPaint.color = android.graphics.Color.argb(70, (color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt())
-                                            circle.outlinePaint.color = android.graphics.Color.argb(255, (color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt())
+
+                                            circle.fillPaint.color = android.graphics.Color.argb(
+                                                70,
+                                                (color.red * 255).toInt(),
+                                                (color.green * 255).toInt(),
+                                                (color.blue * 255).toInt()
+                                            )
+                                            circle.outlinePaint.color = android.graphics.Color.argb(
+                                                255,
+                                                (color.red * 255).toInt(),
+                                                (color.green * 255).toInt(),
+                                                (color.blue * 255).toInt()
+                                            )
                                             circle.outlinePaint.strokeWidth = 3f
 
                                             map.overlays.add(circle)
                                         }
                                     }
                                 }
-                                
-                                
+
+
                                 if (activity.latitude != null && activity.longitude != null) {
                                     val marker = org.osmdroid.views.overlay.Marker(map)
-                                    marker.position = GeoPoint(activity.latitude, activity.longitude)
-                                    marker.setAnchor(org.osmdroid.views.overlay.Marker.ANCHOR_CENTER, org.osmdroid.views.overlay.Marker.ANCHOR_BOTTOM)
+                                    marker.position =
+                                        GeoPoint(activity.latitude, activity.longitude)
+                                    marker.setAnchor(
+                                        org.osmdroid.views.overlay.Marker.ANCHOR_CENTER,
+                                        org.osmdroid.views.overlay.Marker.ANCHOR_BOTTOM
+                                    )
                                     marker.title = activity.title
-                                    
+
                                     map.overlays.add(marker)
                                 }
-                                
+
                                 map.invalidate()
                             }
                         )
@@ -421,7 +495,7 @@ fun AlertDetailModal(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    
+
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.Notifications,
@@ -439,7 +513,7 @@ fun AlertDetailModal(
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     if (activity.notifiedMonitors.isEmpty()) {
                         Text(
                             text = "No monitors notified for this alert.",
@@ -458,16 +532,18 @@ fun AlertDetailModal(
                                         Slate400,
                                         "Notified"
                                     )
+
                                     MonitorActionState.VIEWED -> Triple(
                                         Icons.Default.Visibility,
                                         Indigo500,
                                         "Viewed"
                                     )
                                 }
-                                
+
                                 val isSelected = visibleMonitors.contains(action.name)
-                                val isGeofenceAlert = activity.type == pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType.GEOFENCE
-    
+                                val isGeofenceAlert =
+                                    activity.type == pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType.GEOFENCE
+
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -483,7 +559,7 @@ fun AlertDetailModal(
                                         ),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    
+
                                     if (isGeofenceAlert) {
                                         Checkbox(
                                             checked = isSelected,
@@ -499,10 +575,10 @@ fun AlertDetailModal(
                                             modifier = Modifier.scale(0.8f)
                                         )
                                     } else {
-                                        
+
                                         Spacer(modifier = Modifier.width(8.dp))
                                     }
-    
+
                                     Box(
                                         modifier = Modifier
                                             .size(32.dp)

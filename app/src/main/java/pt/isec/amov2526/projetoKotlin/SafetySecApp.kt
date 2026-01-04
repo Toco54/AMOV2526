@@ -15,7 +15,7 @@ class SafetySecApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        
+
 
         pt.isec.amov2526.projetoKotlin.utils.LocaleHelper.applyInitialLocale(this)
 
@@ -33,10 +33,16 @@ class SafetySecApp : Application() {
                         .document(user.uid)
                         .update("systemStatus", "OFFLINE")
                         .addOnSuccessListener {
-                            Log.i("SafetySecApp", "Estado do sistema resetado para OFFLINE no arranque.")
+                            Log.i(
+                                "SafetySecApp",
+                                "Estado do sistema resetado para OFFLINE no arranque."
+                            )
                         }
                         .addOnFailureListener { e ->
-                            Log.e("SafetySecApp", "Falha ao resetar estado para OFFLINE: ${e.message}")
+                            Log.e(
+                                "SafetySecApp",
+                                "Falha ao resetar estado para OFFLINE: ${e.message}"
+                            )
                         }
                 } catch (e: Exception) {
                     Log.e("SafetySecApp", "Erro excecional ao resetar estado: ${e.message}")

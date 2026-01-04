@@ -4,13 +4,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import pt.isec.amov2526.projetoKotlin.ui.screens.auth.ForgotPasswordScreen
@@ -23,17 +27,10 @@ import pt.isec.amov2526.projetoKotlin.ui.screens.protected.ProtectedMainScreen
 import pt.isec.amov2526.projetoKotlin.ui.theme.ProjetoKotlinTheme
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
 
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.compose.ui.platform.LocalLifecycleOwner
-
 @Composable
 fun MainScreen() {
     ProjetoKotlinTheme {
         val navController = rememberNavController()
-
 
 
         val authViewModel: AuthViewModel = viewModel()
@@ -41,15 +38,17 @@ fun MainScreen() {
 
         val currentViewMode = authViewModel.currentViewMode
         val user = authViewModel.user
-        
 
 
         val context = LocalContext.current
         val lifecycleOwner = LocalLifecycleOwner.current
-        
+
 
         LaunchedEffect(user) {
-            val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.MonitorNotificationService::class.java)
+            val intent = android.content.Intent(
+                context,
+                pt.isec.amov2526.projetoKotlin.services.MonitorNotificationService::class.java
+            )
             if (user != null) {
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                     context.startForegroundService(intent)
@@ -60,13 +59,13 @@ fun MainScreen() {
                 context.stopService(intent)
             }
         }
-        
+
         DisposableEffect(lifecycleOwner) {
             val observer = LifecycleEventObserver { _, event ->
                 if (event == Lifecycle.Event.ON_RESUME) {
                     val activity = context as? android.app.Activity
                     val intent = activity?.intent
-                    
+
                     if (intent?.action == "ACTION_SHOW_ALERT") {
 
                         if (authViewModel.currentViewMode != "PROTECTED") {
@@ -76,25 +75,25 @@ fun MainScreen() {
 
                         val targetUid = intent.getStringExtra("TARGET_PROTEGE_ID")
                         val targetName = intent.getStringExtra("TARGET_PROTEGE_NAME")
-                        
+
 
                         if (targetUid != null && targetName != null && !authViewModel.isUserInEmergency) {
                             if (authViewModel.currentViewMode != "MONITOR") {
                                 authViewModel.currentViewMode = "MONITOR"
                             }
-                            
+
 
 
                             navController.navigate("monitor") {
                                 popUpTo("landing") { inclusive = true }
                             }
-                            
-                            navController.navigate("monitor/dashboard/$targetUid/$targetName") {
-                                launchSingleTop = true 
-                            }
-                            
 
-                            intent.action = null 
+                            navController.navigate("monitor/dashboard/$targetUid/$targetName") {
+                                launchSingleTop = true
+                            }
+
+
+                            intent.action = null
                         }
                     }
                 }
@@ -110,7 +109,7 @@ fun MainScreen() {
             if (user != null && currentViewMode != null) {
                 val currentRoute = navController.currentBackStackEntry?.destination?.route
                 val activity = context as? android.app.Activity
-                
+
 
 
                 if (activity?.intent?.action == "ACTION_MONITOR_ALERT") return@LaunchedEffect
@@ -181,7 +180,7 @@ fun MainScreen() {
                         viewModel = authViewModel,
                         onBack = { navController.popBackStack() },
                         onSignUp = { _ ->
-                            
+
                         },
                         onLoginClick = {
                             navController.navigate("login") {
@@ -199,23 +198,23 @@ fun MainScreen() {
                     )
                 }
 
-                
+
                 composable("protected") {
-                    
+
                     ProtectedMainScreen(
-                        viewModel = authViewModel, 
+                        viewModel = authViewModel,
                         onLogout = {
                             authViewModel.logout()
-                            
+
                         }
                     )
                 }
 
-                
+
                 composable("monitor") {
-                    
+
                     MonitorMainScreen(
-                        viewModel = authViewModel, 
+                        viewModel = authViewModel,
                         onLogout = {
                             authViewModel.logout()
                         },
@@ -225,7 +224,7 @@ fun MainScreen() {
                     )
                 }
 
-                
+
                 composable(
                     route = "monitor/dashboard/{uid}/{name}",
                     arguments = listOf(

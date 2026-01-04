@@ -7,16 +7,13 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.launch
-import pt.isec.amov2526.projetoKotlin.data.repository.ConnectionRepository
-
-import pt.isec.amov2526.projetoKotlin.data.repository.ConnectionCodeInfo
-
-import pt.isec.amov2526.projetoKotlin.data.model.ConnectedUser
-
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import pt.isec.amov2526.projetoKotlin.data.model.ConnectedUser
+import pt.isec.amov2526.projetoKotlin.data.repository.ConnectionCodeInfo
+import pt.isec.amov2526.projetoKotlin.data.repository.ConnectionRepository
 
 class MonitorMainViewModel : ViewModel() {
     private val repository = ConnectionRepository()
@@ -36,7 +33,7 @@ class MonitorMainViewModel : ViewModel() {
     private fun startListeningProteges() {
         val currentUser = auth.currentUser ?: return
         isLoading = true
-        
+
         val query = db.collection("users").document(currentUser.uid)
             .collection("connections")
             .whereEqualTo("role", "Protege")
@@ -124,7 +121,7 @@ class MonitorMainViewModel : ViewModel() {
         viewModelScope.launch {
             val result = repository.connectWithCode(currentUser.uid, candidate.code)
             if (result.isSuccess) {
-                connectionCandidate = null 
+                connectionCandidate = null
                 onSuccess()
             } else {
                 errorMsg = result.exceptionOrNull()?.message ?: "Failed to connect"
@@ -143,7 +140,7 @@ class MonitorMainViewModel : ViewModel() {
         viewModelScope.launch {
             val result = repository.deleteConnection(currentUser.uid, protegeUid)
             if (result.isSuccess) {
-                
+
             } else {
                 errorMsg = result.exceptionOrNull()?.message ?: "Failed to delete connection"
             }

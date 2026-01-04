@@ -9,17 +9,23 @@ import android.util.Log
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.video.*
+import androidx.camera.video.FallbackStrategy
+import androidx.camera.video.FileOutputOptions
+import androidx.camera.video.Quality
+import androidx.camera.video.QualitySelector
+import androidx.camera.video.Recorder
+import androidx.camera.video.Recording
+import androidx.camera.video.VideoCapture
+import androidx.camera.video.VideoRecordEvent
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.tasks.await
 import java.io.File
-import java.util.concurrent.Executor
 
 class EvidenceManager(private val context: Context) {
-    
+
     private var activeRecording: Recording? = null
     private var videoFile: File? = null
     private var recordingStartTime: Long = 0L
@@ -31,8 +37,15 @@ class EvidenceManager(private val context: Context) {
         surfaceProvider: Preview.SurfaceProvider,
         onVideoFinalized: (File) -> Unit
     ): File? {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) != PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
             return null
         }
 
@@ -83,21 +96,26 @@ class EvidenceManager(private val context: Context) {
                     .prepareRecording(context, outputOptions)
                     .withAudioEnabled()
                     .start(executor) { recordEvent ->
-                        when(recordEvent) {
+                        when (recordEvent) {
                             is VideoRecordEvent.Start -> {
                                 recordingStartTime = System.currentTimeMillis()
                                 Log.d("EvidenceManager", "Recording effectively started")
                             }
+
                             is VideoRecordEvent.Finalize -> {
                                 if (recordEvent.hasError()) {
-                                    val errorMsg = "Video capture failed: code=${recordEvent.error}, cause=${recordEvent.cause?.message}"
+                                    val errorMsg =
+                                        "Video capture failed: code=${recordEvent.error}, cause=${recordEvent.cause?.message}"
                                     Log.e("EvidenceManager", errorMsg)
-                                    
-                                    
+
+
                                 } else {
-                                    Log.d("EvidenceManager", "Recording finalize event received successfully")
+                                    Log.d(
+                                        "EvidenceManager",
+                                        "Recording finalize event received successfully"
+                                    )
                                 }
-                                activeRecording = null 
+                                activeRecording = null
                                 onVideoFinalized(file)
                             }
                         }
@@ -112,15 +130,12 @@ class EvidenceManager(private val context: Context) {
 
     fun stopVideoRecording(): File? {
         try {
-            
+
             activeRecording?.let {
                 it.stop()
                 activeRecording = null
             }
 
-            
-            
-            
 
         } catch (e: Exception) {
             Log.e("EvidenceManager", "Error during stopVideoRecording", e)
@@ -143,15 +158,21 @@ class EvidenceManager(private val context: Context) {
             return null
         }
         if (file.length() == 0L) {
-            Log.e("EvidenceManager", "Upload failed: File is empty (0 bytes). Recording likely failed.")
+            Log.e(
+                "EvidenceManager",
+                "Upload failed: File is empty (0 bytes). Recording likely failed."
+            )
             return null
         }
 
-        Log.d("EvidenceManager", "Starting upload: ${file.name} (${file.length()} bytes) to $folder")
-        
+        Log.d(
+            "EvidenceManager",
+            "Starting upload: ${file.name} (${file.length()} bytes) to $folder"
+        )
+
         val storageRef = FirebaseStorage.getInstance().reference
         val fileRef = storageRef.child("$folder/${file.name}")
-        
+
         return try {
             fileRef.putFile(Uri.fromFile(file)).await()
             val url = fileRef.downloadUrl.await().toString()

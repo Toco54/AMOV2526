@@ -3,14 +3,15 @@ package pt.isec.amov2526.projetoKotlin.ui.viewmodels
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import pt.isec.amov2526.projetoKotlin.data.local.UserEntity
 import pt.isec.amov2526.projetoKotlin.data.repository.AuthRepository
 
-class AuthViewModel(application: android.app.Application) : androidx.lifecycle.AndroidViewModel(application) {
-    private val repository = AuthRepository(application as pt.isec.amov2526.projetoKotlin.SafetySecApp)
+class AuthViewModel(application: android.app.Application) :
+    androidx.lifecycle.AndroidViewModel(application) {
+    private val repository =
+        AuthRepository(application as pt.isec.amov2526.projetoKotlin.SafetySecApp)
 
 
     var user by mutableStateOf(repository.currentUser)
@@ -30,7 +31,6 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
 
 
     var currentUserData by mutableStateOf<UserEntity?>(null)
-
 
 
     var isUserInEmergency by mutableStateOf(false)
@@ -62,7 +62,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
 
                     currentViewMode = if (fullUser.role == "BOTH") "PROTECTED" else fullUser.role
                 }
-                
+
 
                 if (fullUser.role == "PROTECTED" || fullUser.role == "BOTH") {
                     try {
@@ -72,7 +72,10 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
                                 val status = doc.getString("systemStatus") ?: "OFFLINE"
                                 if (status == "ACTIVE") {
                                     val context = getApplication<android.app.Application>()
-                                    val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java)
+                                    val intent = android.content.Intent(
+                                        context,
+                                        pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java
+                                    )
                                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                                         context.startForegroundService(intent)
                                     } else {
@@ -131,24 +134,24 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
 
                         tempUserEmail = email
 
-                        
+
                         val mfaResult = repository.sendMfaEmail(email)
 
                         if (mfaResult.isSuccess) {
                             generatedMfaCode = mfaResult.getOrNull()
-                            mfaRequired = true 
+                            mfaRequired = true
                         } else {
-                            
+
                             repository.logout()
                             errorMsg = "Password correta, mas falha ao enviar email de verificação."
                         }
                     } else {
-                        
+
                         user = repository.currentUser
                         loadUserData(uid, email)
                     }
                 } else {
-                     user = repository.currentUser
+                    user = repository.currentUser
                 }
             } else {
                 val exception = result.exceptionOrNull()
@@ -163,24 +166,24 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
         }
     }
 
-    
+
     fun verifyMfaCode(inputCode: String) {
         if (inputCode == generatedMfaCode) {
-            
+
             mfaRequired = false
             generatedMfaCode = null
 
-            
+
             user = repository.currentUser
 
-            
+
             if (user != null) {
                 try {
                     com.google.firebase.firestore.FirebaseFirestore.getInstance()
                         .collection("users").document(user!!.uid)
                         .update("lastUpdate", System.currentTimeMillis())
                 } catch (e: Exception) {
-                    
+
                 }
                 loadUserData(user!!.uid, user!!.email ?: "")
             }
@@ -189,7 +192,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
         }
     }
 
-    
+
     fun cancelMfa() {
         viewModelScope.launch {
             repository.logout()
@@ -212,10 +215,10 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
                 userName = name
                 userEmail = email
 
-                
+
                 currentViewMode = userRole
 
-                
+
                 loadUserData(user!!.uid, email)
             } else {
                 val exception = result.exceptionOrNull()
@@ -256,7 +259,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
         email: String,
         pass: String?,
         pin: String?,
-        mfaEnabled: Boolean = false, 
+        mfaEnabled: Boolean = false,
         currentPass: String? = null,
         onSuccess: () -> Unit = {},
         onError: (String) -> Unit = {}
@@ -265,9 +268,10 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
         isLoading = true
         errorMsg = null
         viewModelScope.launch {
-            val result = repository.updateProfile(u.uid, name, email, pass, pin, mfaEnabled, currentPass)
+            val result =
+                repository.updateProfile(u.uid, name, email, pass, pin, mfaEnabled, currentPass)
             if (result.isSuccess) {
-                
+
                 loadUserData(u.uid, email)
                 onSuccess()
             } else {
@@ -287,10 +291,20 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
         viewModelScope.launch {
             val context = getApplication<android.app.Application>()
             try {
-                context.stopService(android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java))
-                context.stopService(android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.MonitorNotificationService::class.java))
+                context.stopService(
+                    android.content.Intent(
+                        context,
+                        pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java
+                    )
+                )
+                context.stopService(
+                    android.content.Intent(
+                        context,
+                        pt.isec.amov2526.projetoKotlin.services.MonitorNotificationService::class.java
+                    )
+                )
             } catch (e: Exception) {
-                
+
             }
 
             repository.logout()
@@ -299,7 +313,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
             currentViewMode = null
             userName = ""
             currentUserData = null
-            
+
             mfaRequired = false
             generatedMfaCode = null
         }

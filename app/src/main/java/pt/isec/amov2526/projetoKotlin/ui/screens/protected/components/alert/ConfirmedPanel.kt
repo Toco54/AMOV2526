@@ -1,68 +1,78 @@
 package pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.alert
 
 
+import android.graphics.SurfaceTexture
 import android.location.Location
+import android.media.MediaPlayer
+import android.net.Uri
 import android.preference.PreferenceManager
-import android.util.Log
+import android.view.Surface
+import android.view.TextureView
 import android.view.ViewGroup
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.Preview
-import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import pt.isec.amov2526.projetoKotlin.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.ContextCompat
-import androidx.compose.foundation.Canvas
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.ui.geometry.Offset
-
+import kotlinx.coroutines.delay
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Divider
+import org.osmdroid.views.overlay.Polygon
+import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.data.model.InfractionDisplayInfo
-import org.osmdroid.views.overlay.Polygon 
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
-
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import kotlinx.coroutines.delay
-import android.net.Uri
-import android.view.TextureView
-import android.view.Surface
-import android.graphics.SurfaceTexture
-import android.media.MediaPlayer
-import androidx.compose.material.icons.filled.PlayArrow
+import pt.isec.amov2526.projetoKotlin.ui.theme.AlertGreen
+import pt.isec.amov2526.projetoKotlin.ui.theme.AlertRed
+import pt.isec.amov2526.projetoKotlin.ui.theme.AlertYellow
+import pt.isec.amov2526.projetoKotlin.ui.theme.HeaderColor
+import pt.isec.amov2526.projetoKotlin.ui.theme.PinBoxColor
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate200
 import java.io.File
-
-import pt.isec.amov2526.projetoKotlin.ui.theme.*
 
 @Composable
 fun ConfirmedPanel(
@@ -79,7 +89,6 @@ fun ConfirmedPanel(
 ) {
     var remainingSeconds by remember { mutableLongStateOf(12L) }
     val isTimeUp = remainingSeconds <= 0
-
 
 
     val visibleMonitors = remember { mutableStateListOf<String>() }
@@ -187,7 +196,12 @@ fun ConfirmedPanel(
                 .padding(vertical = 12.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = stringResource(id = R.string.evidence_camera_recording), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Text(
+                text = stringResource(id = R.string.evidence_camera_recording),
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
         }
 
 
@@ -211,7 +225,7 @@ fun ConfirmedPanel(
             if (showVideoPlayer && recordedVideoFile != null) {
 
                 val mediaPlayer = remember { MediaPlayer() }
-                
+
                 DisposableEffect(Unit) {
                     onDispose {
                         try {
@@ -224,19 +238,28 @@ fun ConfirmedPanel(
                 }
 
                 LaunchedEffect(isPlaying) {
-                     try {
+                    try {
                         if (isPlaying && !mediaPlayer.isPlaying) mediaPlayer.start()
                         else if (!isPlaying && mediaPlayer.isPlaying) mediaPlayer.pause()
-                     } catch(e: Exception) { e.printStackTrace() }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
 
                 AndroidView(
                     factory = { ctx ->
                         TextureView(ctx).apply {
                             surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-                                override fun onSurfaceTextureAvailable(surface: SurfaceTexture, w: Int, h: Int) {
+                                override fun onSurfaceTextureAvailable(
+                                    surface: SurfaceTexture,
+                                    w: Int,
+                                    h: Int
+                                ) {
                                     try {
-                                        mediaPlayer.setDataSource(ctx, Uri.fromFile(recordedVideoFile))
+                                        mediaPlayer.setDataSource(
+                                            ctx,
+                                            Uri.fromFile(recordedVideoFile)
+                                        )
                                         mediaPlayer.setSurface(Surface(surface))
                                         mediaPlayer.isLooping = true
                                         mediaPlayer.prepare()
@@ -245,8 +268,17 @@ fun ConfirmedPanel(
                                         e.printStackTrace()
                                     }
                                 }
-                                override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, w: Int, h: Int) {}
-                                override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean = true
+
+                                override fun onSurfaceTextureSizeChanged(
+                                    surface: SurfaceTexture,
+                                    w: Int,
+                                    h: Int
+                                ) {
+                                }
+
+                                override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean =
+                                    true
+
                                 override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
                             }
                         }
@@ -268,11 +300,11 @@ fun ConfirmedPanel(
 
             } else {
 
-                 if (previewView != null) {
+                if (previewView != null) {
                     AndroidView(
-                        factory = { 
+                        factory = {
                             (previewView.parent as? ViewGroup)?.removeView(previewView)
-                            previewView 
+                            previewView
                         },
                         modifier = Modifier.fillMaxSize()
                     )
@@ -280,7 +312,7 @@ fun ConfirmedPanel(
             }
 
             if (!isRecordingFinished) {
-                Row (
+                Row(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
@@ -289,17 +321,40 @@ fun ConfirmedPanel(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (!isTimeUp) {
-                        Box(modifier = Modifier.size(8.dp).background(Color.Red, CircleShape))
+                        Box(modifier = Modifier
+                            .size(8.dp)
+                            .background(Color.Red, CircleShape))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = "REC", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text(
+                            text = "REC",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "${remainingSeconds}s", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text(
+                            text = "${remainingSeconds}s",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
                     } else {
-                        val uploadText = if (hasError) "UPLOAD FAILED" else stringResource(id = R.string.evidence_uploading)
+                        val uploadText =
+                            if (hasError) "UPLOAD FAILED" else stringResource(id = R.string.evidence_uploading)
                         val uploadColor = if (hasError) AlertYellow else Color.White
-                        Icon(imageVector = Icons.Default.CloudUpload, contentDescription = null, tint = uploadColor, modifier = Modifier.size(14.dp))
+                        Icon(
+                            imageVector = Icons.Default.CloudUpload,
+                            contentDescription = null,
+                            tint = uploadColor,
+                            modifier = Modifier.size(14.dp)
+                        )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = uploadText, color = uploadColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text(
+                            text = uploadText,
+                            color = uploadColor,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
                     }
                 }
             }
@@ -331,7 +386,7 @@ fun ConfirmedPanel(
                             setTileSource(TileSourceFactory.MAPNIK)
                             setMultiTouchControls(true)
                             controller.setZoom(18.0)
-                            
+
 
                             setOnTouchListener { v, event ->
                                 v.parent.requestDisallowInterceptTouchEvent(true)
@@ -352,22 +407,35 @@ fun ConfirmedPanel(
 
                         activeGeofences.forEach { rule ->
                             val isVisible = visibleMonitors.contains(rule.monitorName)
-                            
+
                             if (isVisible) {
                                 rule.geofenceData?.let { (lat, lng, radius) ->
 
-                                    val hasInfraction = infractions.any { 
-                                        it.monitorName == rule.monitorName && it.ruleType == "GEOFENCING" 
+                                    val hasInfraction = infractions.any {
+                                        it.monitorName == rule.monitorName && it.ruleType == "GEOFENCING"
                                     }
 
 
                                     if (hasInfraction) {
                                         val circle = Polygon(map)
-                                        circle.points = Polygon.pointsAsCircle(GeoPoint(lat, lng), radius.toDouble())
-                                        
+                                        circle.points = Polygon.pointsAsCircle(
+                                            GeoPoint(lat, lng),
+                                            radius.toDouble()
+                                        )
+
                                         val color = AlertRed
-                                        circle.fillPaint.color = android.graphics.Color.argb(70, (color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt())
-                                        circle.outlinePaint.color = android.graphics.Color.argb(255, (color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt())
+                                        circle.fillPaint.color = android.graphics.Color.argb(
+                                            70,
+                                            (color.red * 255).toInt(),
+                                            (color.green * 255).toInt(),
+                                            (color.blue * 255).toInt()
+                                        )
+                                        circle.outlinePaint.color = android.graphics.Color.argb(
+                                            255,
+                                            (color.red * 255).toInt(),
+                                            (color.green * 255).toInt(),
+                                            (color.blue * 255).toInt()
+                                        )
                                         circle.outlinePaint.strokeWidth = 3f
 
                                         map.overlays.add(circle)
@@ -402,7 +470,10 @@ fun ConfirmedPanel(
             ) {
 
                 val locText = if (currentLocation != null) {
-                    "Lat: %.4f\nLng: %.4f".format(currentLocation.latitude, currentLocation.longitude)
+                    "Lat: %.4f\nLng: %.4f".format(
+                        currentLocation.latitude,
+                        currentLocation.longitude
+                    )
                 } else {
                     stringResource(R.string.evidence_acquiring_gps)
                 }
@@ -415,7 +486,7 @@ fun ConfirmedPanel(
                 )
             }
         }
-        
+
 
         if (infractions.isNotEmpty()) {
             Spacer(modifier = Modifier.height(16.dp))
@@ -426,7 +497,7 @@ fun ConfirmedPanel(
                     .align(Alignment.Start)
                     .padding(bottom = 8.dp)
             )
-            
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -462,9 +533,9 @@ fun ConfirmedPanel(
                                 checkmarkColor = Color.White
                             )
                         )
-                        
 
-                         Box(
+
+                        Box(
                             modifier = Modifier
                                 .size(32.dp)
                                 .background(AlertRed.copy(alpha = 0.2f), CircleShape),
@@ -485,9 +556,9 @@ fun ConfirmedPanel(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
                             )
-                            
 
-                            val detailText = when(inf.ruleType) {
+
+                            val detailText = when (inf.ruleType) {
                                 "SPEED" -> "Limit: ${inf.parameter ?: "?"} km/h"
                                 "INACTIVITY" -> "Max Time: ${inf.parameter ?: "?"} min"
                                 "GEOFENCING" -> stringResource(id = R.string.evidence_left_safe_zone)
@@ -495,7 +566,7 @@ fun ConfirmedPanel(
                                 "ACCIDENT" -> "Accident Detected"
                                 else -> inf.description
                             }
-                            
+
                             Text(
                                 text = detailText,
                                 color = Color.Gray,
@@ -511,19 +582,28 @@ fun ConfirmedPanel(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
-        
+
         if (isRecordingFinished) {
             Button(
                 onClick = onClose,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text(text = stringResource(id = R.string.evidence_close_panel), color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(
+                    text = stringResource(id = R.string.evidence_close_panel),
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
             }
         } else {
             Text(
-                text = if (isTimeUp) stringResource(id = R.string.evidence_uploading_wait) else stringResource(id = R.string.evidence_help_coming),
+                text = if (isTimeUp) stringResource(id = R.string.evidence_uploading_wait) else stringResource(
+                    id = R.string.evidence_help_coming
+                ),
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp

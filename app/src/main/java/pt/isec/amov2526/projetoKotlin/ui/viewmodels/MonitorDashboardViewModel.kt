@@ -17,9 +17,20 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import pt.isec.amov2526.projetoKotlin.data.model.*
+import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertStatus
+import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
+import pt.isec.amov2526.projetoKotlin.data.model.ActivityItem
+import pt.isec.amov2526.projetoKotlin.data.model.AlertStat
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorAction
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState
+import pt.isec.amov2526.projetoKotlin.data.model.MonitorRuleType
+import pt.isec.amov2526.projetoKotlin.data.model.ProtectionRule
 import pt.isec.amov2526.projetoKotlin.data.repository.RuleRepository
-import pt.isec.amov2526.projetoKotlin.ui.theme.*
+import pt.isec.amov2526.projetoKotlin.ui.theme.RuleAccident
+import pt.isec.amov2526.projetoKotlin.ui.theme.RuleFall
+import pt.isec.amov2526.projetoKotlin.ui.theme.RuleGeofence
+import pt.isec.amov2526.projetoKotlin.ui.theme.RuleInactivity
+import pt.isec.amov2526.projetoKotlin.ui.theme.RuleSpeed
 import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
 
 data class GlobalScheduleInfo(
@@ -50,9 +61,9 @@ class MonitorDashboardViewModel(
     val activities: StateFlow<List<ActivityItem>> = _activities.asStateFlow()
 
 
-    private val alertListeners = mutableMapOf<String, com.google.firebase.firestore.ListenerRegistration>()
+    private val alertListeners =
+        mutableMapOf<String, com.google.firebase.firestore.ListenerRegistration>()
     private val alertDataMap = mutableMapOf<String, ActivityItem>()
-
 
 
     private val _alertStats = MutableStateFlow<List<AlertStat>>(emptyList())
@@ -72,7 +83,7 @@ class MonitorDashboardViewModel(
 
     private val _pausedUntil = MutableStateFlow(0L)
     val pausedUntil: StateFlow<Long> = _pausedUntil.asStateFlow()
-    
+
     private val _globalSchedule = MutableStateFlow<GlobalScheduleInfo?>(null)
     val globalSchedule: StateFlow<GlobalScheduleInfo?> = _globalSchedule.asStateFlow()
 
@@ -96,318 +107,325 @@ class MonitorDashboardViewModel(
         }
     }
 
-        private fun startListeningConnectionStatus() {
+    private fun startListeningConnectionStatus() {
+
+
+        val docRef = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+
+            .collection("users").document(currentMonitorId)
+
+            .collection("connections").document(protegeUid)
 
 
 
-            val docRef = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        android.util.Log.d(
+            "MonitorVM",
+            "Escutando connection em: users/$currentMonitorId/connections/$protegeUid"
+        )
 
-                .collection("users").document(currentMonitorId)
 
-                .collection("connections").document(protegeUid)
 
-    
+        docRef.addSnapshotListener { snapshot, e ->
 
-            android.util.Log.d("MonitorVM", "Escutando connection em: users/$currentMonitorId/connections/$protegeUid")
+            if (e != null) {
 
-    
+                android.util.Log.e("MonitorVM", "Erro ao escutar connection: ${e.message}")
 
-            docRef.addSnapshotListener { snapshot, e ->
+                return@addSnapshotListener
 
-                if (e != null) {
+            }
 
-                    android.util.Log.e("MonitorVM", "Erro ao escutar connection: ${e.message}")
 
-                    return@addSnapshotListener
+
+            if (snapshot == null || !snapshot.exists()) {
+
+                android.util.Log.w(
+                    "MonitorVM",
+                    "Documento de conexão não encontrado (possível revogação)."
+                )
+
+                _shouldExitDashboard.value = true
+
+                return@addSnapshotListener
+
+            }
+
+
+            val rawMap = snapshot.get("alertRefs") as? Map<String, Any>
+
+            val refsMap = rawMap?.mapValues { it.value.toString() } ?: emptyMap()
+
+
+
+            android.util.Log.d("MonitorVM", "Recebido alertRefs: ${refsMap.size} itens")
+
+            updateAlertListeners(refsMap)
+
+        }
+
+    }
+
+
+    private fun updateAlertListeners(refsMap: Map<String, String>) {
+
+        val currentIds = alertListeners.keys.toSet()
+
+        val newIds = refsMap.keys
+
+
+        val idsToRemove = currentIds - newIds
+
+        idsToRemove.forEach { id ->
+
+            android.util.Log.d("MonitorVM", "Removendo listener do alerta: $id")
+
+            alertListeners[id]?.remove()
+
+            alertListeners.remove(id)
+
+            alertDataMap.remove(id)
+
+        }
+
+
+        val idsToAdd = newIds - currentIds
+
+        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+
+
+
+        idsToAdd.forEach { id ->
+
+            val path = refsMap[id]
+
+            android.util.Log.d(
+                "MonitorVM",
+                "Adicionando listener para novo alerta: $id no caminho: $path"
+            )
+
+            if (!path.isNullOrEmpty()) {
+
+                try {
+
+                    val docRef = db.document(path)
+
+                    val registration = docRef.addSnapshotListener { snapshot, e ->
+
+                        if (e != null) {
+
+                            android.util.Log.e(
+                                "MonitorVM",
+                                "Erro no listener do alerta $id: ${e.message}"
+                            )
+
+                            return@addSnapshotListener
+
+                        }
+
+
+
+                        if (snapshot != null && snapshot.exists()) {
+
+                            val item = parseActivityItem(snapshot)
+
+                            if (item != null) {
+
+                                android.util.Log.d(
+                                    "MonitorVM",
+                                    "Alerta atualizado: ${item.title} ($id)"
+                                )
+
+                                alertDataMap[id] = item
+
+                            }
+
+                        } else {
+
+                            android.util.Log.w("MonitorVM", "Documento de alerta não existe: $id")
+
+                            alertDataMap.remove(id)
+
+                        }
+
+                        emitActivities()
+
+                    }
+
+                    alertListeners[id] = registration
+
+                } catch (e: Exception) {
+
+                    android.util.Log.e("MonitorVM", "Caminho de alerta inválido: $path")
+
+                    e.printStackTrace()
 
                 }
-
-                
-
-                if (snapshot == null || !snapshot.exists()) {
-
-                    android.util.Log.w("MonitorVM", "Documento de conexão não encontrado (possível revogação).")
-
-                    _shouldExitDashboard.value = true
-
-                    return@addSnapshotListener
-
-                }
-
-    
-
-
-
-                val rawMap = snapshot.get("alertRefs") as? Map<String, Any>
-
-                val refsMap = rawMap?.mapValues { it.value.toString() } ?: emptyMap()
-
-                
-
-                android.util.Log.d("MonitorVM", "Recebido alertRefs: ${refsMap.size} itens")
-
-                updateAlertListeners(refsMap)
 
             }
 
         }
 
 
-    
 
-                            private fun updateAlertListeners(refsMap: Map<String, String>) {
 
-                                val currentIds = alertListeners.keys.toSet()
 
-                                val newIds = refsMap.keys
+        if (idsToRemove.isNotEmpty() || (idsToAdd.isEmpty() && alertDataMap.isNotEmpty())) {
 
-                        
+            emitActivities()
 
-                                
+        }
 
-                                val idsToRemove = currentIds - newIds
+    }
 
-                                idsToRemove.forEach { id ->
 
-                                    android.util.Log.d("MonitorVM", "Removendo listener do alerta: $id")
+    private fun parseActivityItem(doc: com.google.firebase.firestore.DocumentSnapshot): ActivityItem? {
 
-                                    alertListeners[id]?.remove()
+        return try {
 
-                                    alertListeners.remove(id)
+            val typeStr = doc.getString("type") ?: return null
 
-                                    alertDataMap.remove(id)
+            val statusStr = doc.getString("status") ?: "PENDING"
 
-                                }
 
-                        
+            val monitorsList = mutableListOf<MonitorAction>()
 
-                                
+            val monitorsRaw = doc.get("notifiedMonitors") as? List<Map<String, Any>>
 
-                                val idsToAdd = newIds - currentIds
+            monitorsRaw?.forEach { m ->
 
-                                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                monitorsList.add(
+                    MonitorAction(
 
-                        
+                        name = m["name"] as? String ?: "Unknown",
 
-                                idsToAdd.forEach { id ->
+                        state = MonitorActionState.valueOf(m["state"] as? String ?: "SENT"),
 
-                                    val path = refsMap[id]
+                        time = m["time"] as? String ?: ""
 
-                                    android.util.Log.d("MonitorVM", "Adicionando listener para novo alerta: $id no caminho: $path")
+                    )
+                )
 
-                                    if (!path.isNullOrEmpty()) {
+            }
 
-                                        try {
 
-                                            val docRef = db.document(path)
 
-                                            val registration = docRef.addSnapshotListener { snapshot, e ->
+            ActivityItem(
 
-                                                if (e != null) {
+                id = doc.id,
 
-                                                    android.util.Log.e("MonitorVM", "Erro no listener do alerta $id: ${e.message}")
+                type = ActivityAlertType.valueOf(typeStr),
 
-                                                    return@addSnapshotListener
+                title = doc.getString("title") ?: "Alert",
 
-                                                }
+                date = doc.getString("date") ?: "",
 
-                        
+                time = doc.getString("time") ?: "",
 
-                                                if (snapshot != null && snapshot.exists()) {
+                status = ActivityAlertStatus.valueOf(statusStr),
 
-                                                    val item = parseActivityItem(snapshot)
+                notifiedMonitors = monitorsList,
 
-                                                    if (item != null) {
 
-                                                        android.util.Log.d("MonitorVM", "Alerta atualizado: ${item.title} ($id)")
+                latitude = doc.getDouble("latitude"),
+                longitude = doc.getDouble("longitude"),
+                videoUrl = doc.getString("videoUrl")
 
-                                                        alertDataMap[id] = item
+            )
 
-                                                    }
+        } catch (ex: Exception) {
 
-                                                } else {
+            android.util.Log.e("MonitorVM", "Erro ao processar ActivityItem: ${ex.message}")
 
-                                                    android.util.Log.w("MonitorVM", "Documento de alerta não existe: $id")
+            null
 
-                                                    alertDataMap.remove(id)
+        }
 
-                                                }
+    }
 
-                                                emitActivities()
 
-                                            }
+    private fun emitActivities() {
 
-                                            alertListeners[id] = registration
+        val sortedList = alertDataMap.values.sortedByDescending { "${it.date} ${it.time}" }
 
-                                        } catch (e: Exception) {
+        android.util.Log.d("MonitorVM", "Emitindo ${sortedList.size} atividades para a UI")
 
-                                            android.util.Log.e("MonitorVM", "Caminho de alerta inválido: $path")
+        _activities.value = sortedList
 
-                                            e.printStackTrace()
+        calculateStats(sortedList)
 
-                                        }
-
-                                    }
-
-                                }
-
-                        
-
-                                
-
-                                if (idsToRemove.isNotEmpty() || (idsToAdd.isEmpty() && alertDataMap.isNotEmpty())) {
-
-                                    emitActivities()
-
-                                }
-
-                            }
-
-                        
-
-                            private fun parseActivityItem(doc: com.google.firebase.firestore.DocumentSnapshot): ActivityItem? {
-
-                                return try {
-
-                                    val typeStr = doc.getString("type") ?: return null
-
-                                    val statusStr = doc.getString("status") ?: "PENDING"
-
-                        
-
-                                    val monitorsList = mutableListOf<MonitorAction>()
-
-                                    val monitorsRaw = doc.get("notifiedMonitors") as? List<Map<String, Any>>
-
-                                    monitorsRaw?.forEach { m ->
-
-                                        monitorsList.add(MonitorAction(
-
-                                            name = m["name"] as? String ?: "Unknown",
-
-                                            state = MonitorActionState.valueOf(m["state"] as? String ?: "SENT"),
-
-                                            time = m["time"] as? String ?: ""
-
-                                        ))
-
-                                    }
-
-                        
-
-                                    ActivityItem(
-
-                                        id = doc.id,
-
-                                        type = ActivityAlertType.valueOf(typeStr),
-
-                                        title = doc.getString("title") ?: "Alert",
-
-                                        date = doc.getString("date") ?: "",
-
-                                        time = doc.getString("time") ?: "",
-
-                                        status = ActivityAlertStatus.valueOf(statusStr),
-
-                                        notifiedMonitors = monitorsList,
-                                        
-                                        
-                                        
-                                        latitude = doc.getDouble("latitude"),
-                                        longitude = doc.getDouble("longitude"),
-                                        videoUrl = doc.getString("videoUrl")
-
-                                    )
-
-                                } catch (ex: Exception) {
-
-                                    android.util.Log.e("MonitorVM", "Erro ao processar ActivityItem: ${ex.message}")
-
-                                    null
-
-                                }
-
-                            }
-
-                        
-
-                            private fun emitActivities() {
-
-                                val sortedList = alertDataMap.values.sortedByDescending { "${it.date} ${it.time}" }
-
-                                android.util.Log.d("MonitorVM", "Emitindo ${sortedList.size} atividades para a UI")
-
-                                _activities.value = sortedList
-
-                                calculateStats(sortedList)
-
-                            }
+    }
 
     private fun calculateStats(items: List<ActivityItem>) {
-        
-        
+
+
         val stats = listOf(
             AlertStat("Fall", items.count { it.type == ActivityAlertType.FALL }),
             AlertStat("Crash", items.count { it.type == ActivityAlertType.ACCIDENT }),
             AlertStat("Geo", items.count { it.type == ActivityAlertType.GEOFENCE }),
             AlertStat("Speed", items.count { it.type == ActivityAlertType.SPEED }),
-            
+
             AlertStat("SOS", items.count { it.type == ActivityAlertType.PANIC })
         )
         _alertStats.value = stats
     }
+
     private fun startListeningUserStatus() {
         val docRef = com.google.firebase.firestore.FirebaseFirestore.getInstance()
             .collection("users").document(protegeUid)
-            
+
         docRef.addSnapshotListener { snapshot, e ->
             if (e != null) return@addSnapshotListener
-            
+
             if (snapshot != null && snapshot.exists()) {
-                
+
                 _protegeEmail.value = snapshot.getString("email") ?: ""
 
-                
+
                 val lat = snapshot.getDouble("lastLat")
                 val lng = snapshot.getDouble("lastLng")
                 if (lat != null && lng != null) {
                     _userLocation.value = org.osmdroid.util.GeoPoint(lat, lng)
                 }
 
-                
-                val activeProtectionsMap = snapshot.get("activeProtections") as? Map<String, Map<String, Any>> ?: emptyMap()
+
+                val activeProtectionsMap =
+                    snapshot.get("activeProtections") as? Map<String, Map<String, Any>>
+                        ?: emptyMap()
                 val parsedStatuses = activeProtectionsMap.mapValues { (_, value) ->
                     val enabled = value["enabled"] as? Boolean ?: true
                     val paused = (value["pausedUntil"] as? Number)?.toLong() ?: 0L
                     val schedEnabled = value["isScheduleEnabled"] as? Boolean ?: false
-                    val schedDays = (value["scheduleDays"] as? List<Number>)?.map { it.toInt() } ?: emptyList()
+                    val schedDays =
+                        (value["scheduleDays"] as? List<Number>)?.map { it.toInt() } ?: emptyList()
                     val schedStart = value["scheduleStart"] as? String ?: ""
                     val schedEnd = value["scheduleEnd"] as? String ?: ""
                     CategoryStatus(enabled, paused, schedEnabled, schedDays, schedStart, schedEnd)
                 }
                 _categoryStatuses.value = parsedStatuses
 
-                
+
                 val dbStatus = snapshot.getString("systemStatus") ?: "OFFLINE"
                 val lastUpdate = snapshot.getLong("lastUpdate") ?: 0L
                 val now = System.currentTimeMillis()
-                
-                
+
+
                 val globalPausedUntil = snapshot.getLong("globalPausedUntil") ?: 0L
-                val gDays = (snapshot.get("globalScheduleDays") as? List<Number>)?.map { it.toInt() } ?: listOf(1, 2, 3, 4, 5)
+                val gDays =
+                    (snapshot.get("globalScheduleDays") as? List<Number>)?.map { it.toInt() }
+                        ?: listOf(1, 2, 3, 4, 5)
                 val gStart = snapshot.getString("globalScheduleStart") ?: "09:00"
                 val gEnd = snapshot.getString("globalScheduleEnd") ?: "18:00"
                 val gEnabled = snapshot.getBoolean("isGlobalScheduleEnabled") ?: false
-                
+
                 _globalSchedule.value = GlobalScheduleInfo(gEnabled, gDays, gStart, gEnd)
 
-                
+
                 var finalStatus = dbStatus
                 var detail: String? = null
-                
+
                 if (dbStatus != "OFFLINE") {
                     val calculated = TimeUtils.calculateStatus(
-                        isEnabled = (dbStatus == "ACTIVE" || dbStatus == "PAUSED"), 
+                        isEnabled = (dbStatus == "ACTIVE" || dbStatus == "PAUSED"),
                         pausedUntil = globalPausedUntil,
                         isScheduleEnabled = gEnabled,
                         days = gDays,
@@ -418,12 +436,12 @@ class MonitorDashboardViewModel(
                     finalStatus = calculated.label
                     detail = calculated.subLabel
                 }
-                
+
                 _systemStatus.value = finalStatus
                 _statusDetail.value = detail
                 _pausedUntil.value = globalPausedUntil
-                
-                
+
+
                 val isActuallyDisconnected = dbStatus != "OFFLINE" && (now - lastUpdate > 120000L)
                 _isDisconnected.value = isActuallyDisconnected
             }
@@ -489,40 +507,29 @@ class MonitorDashboardViewModel(
 
 
         activity.notifiedMonitors.find {
-             
-             
-             
-             
-             
-             
-             
-             true 
+
+
+            true
         }
 
         viewModelScope.launch {
-            
-            
-            
-            
-            
-            
-             
-             
-             
-            
+
+
             val path = "users/$protegeUid/alerts/$activityId"
             val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
             val docRef = db.document(path)
-            
+
             try {
                 db.runTransaction { transaction ->
                     val snapshot = transaction.get(docRef)
                     if (snapshot.exists()) {
-                        val monitorsRaw = snapshot.get("notifiedMonitors") as? List<Map<String, Any>> ?: emptyList()
+                        val monitorsRaw =
+                            snapshot.get("notifiedMonitors") as? List<Map<String, Any>>
+                                ?: emptyList()
                         val updatedMonitors = monitorsRaw.map { m ->
                             val uid = m["uid"] as? String
-                            
-                            
+
+
                             if (uid == currentMonitorId && m["state"] != "VIEWED") {
                                 m.toMutableMap().apply {
                                     put("state", "VIEWED")

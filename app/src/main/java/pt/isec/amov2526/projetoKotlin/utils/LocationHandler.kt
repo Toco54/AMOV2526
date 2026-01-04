@@ -24,15 +24,15 @@ class LocationHandler(
     private val _infractions = MutableSharedFlow<ProtectionCheckResult>()
     val infractions = _infractions.asSharedFlow()
 
-    
+
     private val triggeredMonitors = mutableSetOf<String>()
-    
-    
+
+
     private var lastSpeedCheckTime = 0L
 
     private var monitoringJob: Job? = null
 
-    
+
     fun resetAlertStates() {
         synchronized(triggeredMonitors) {
             triggeredMonitors.clear()
@@ -48,12 +48,14 @@ class LocationHandler(
                     speedRules.add(rule)
                 }
             }
+
             RuleType.GEOFENCING -> {
                 synchronized(geofenceRules) {
                     geofenceRules.removeAll { it.id == rule.id }
                     geofenceRules.add(rule)
                 }
             }
+
             else -> {}
         }
     }
@@ -82,13 +84,13 @@ class LocationHandler(
         val detectedInfractions = mutableListOf<RuleInfraction>()
         val monitorsToNotify = mutableSetOf<String>()
 
-        
+
         if (location.hasSpeed()) {
             val now = System.currentTimeMillis()
-            if (now - lastSpeedCheckTime >= 30000L) { 
+            if (now - lastSpeedCheckTime >= 30000L) {
                 lastSpeedCheckTime = now
                 val currentSpeedKmh = location.speed * 3.6f
-                
+
                 val rules = synchronized(speedRules) { speedRules.toList() }
                 val rulesByMonitor = rules.groupBy { it.monitorId }
 
@@ -96,15 +98,18 @@ class LocationHandler(
                     val brokenRules = monitorRules.filter { rule ->
                         val active = isActiveChecker(rule)
                         val limit = rule.parameter.toFloatOrNull() ?: Float.MAX_VALUE
-                        
-                        Log.d("LocationHandler", "Rule Check -> Speed: $currentSpeedKmh | Limit: $limit | Active: $active | Monitor: ${rule.monitorName}")
+
+                        Log.d(
+                            "LocationHandler",
+                            "Rule Check -> Speed: $currentSpeedKmh | Limit: $limit | Active: $active | Monitor: ${rule.monitorName}"
+                        )
 
                         active && currentSpeedKmh > limit
                     }
 
                     if (brokenRules.isNotEmpty()) {
-                        val highestLimitRule = brokenRules.maxByOrNull { 
-                            it.parameter.toFloatOrNull() ?: 0f 
+                        val highestLimitRule = brokenRules.maxByOrNull {
+                            it.parameter.toFloatOrNull() ?: 0f
                         }
                         if (highestLimitRule != null) {
                             highestLimitRule.parameter.toFloat()
@@ -126,51 +131,60 @@ class LocationHandler(
             }
         }
 
-        
+
         val geoRules = synchronized(geofenceRules) { geofenceRules.toList() }
-        
+
         if (geoRules.isNotEmpty()) {
             Log.d("LocationHandler", "--- CHECKING GEOFENCES (Total Rules: ${geoRules.size}) ---")
-            Log.d("LocationHandler", "Current Loc: ${location.latitude}, ${location.longitude} (Acc: ${location.accuracy}m)")
+            Log.d(
+                "LocationHandler",
+                "Current Loc: ${location.latitude}, ${location.longitude} (Acc: ${location.accuracy}m)"
+            )
         }
 
         val geoRulesByMonitor = geoRules.groupBy { it.monitorId }
-        
+
         geoRulesByMonitor.forEach { (monitorId, rules) ->
             var isSafeInThisMonitor = false
             var minDistanceToAnyZone = Float.MAX_VALUE
             var referenceRule: MonitorRule? = null
-            
-            Log.d("LocationHandler", "  > Analyzing Monitor: ${rules.firstOrNull()?.monitorName ?: monitorId}")
+
+            Log.d(
+                "LocationHandler",
+                "  > Analyzing Monitor: ${rules.firstOrNull()?.monitorName ?: monitorId}"
+            )
 
             for (rule in rules) {
                 val isActive = isActiveChecker(rule)
-                
+
                 val geoData = rule.geofenceData
                 if (geoData == null) {
-                     Log.d("LocationHandler", "    - Rule ${rule.id}: NO GEO DATA")
-                     continue
+                    Log.d("LocationHandler", "    - Rule ${rule.id}: NO GEO DATA")
+                    continue
                 }
-                
+
                 val (lat, lng, radius) = geoData
-                
+
                 val results = FloatArray(1)
                 Location.distanceBetween(location.latitude, location.longitude, lat, lng, results)
                 val distanceMeters = results[0]
-                
-                Log.d("LocationHandler", "    - Rule (${rule.parameter}): Active=$isActive | Dist=$distanceMeters / Rad=$radius | Inside=${distanceMeters <= radius}")
+
+                Log.d(
+                    "LocationHandler",
+                    "    - Rule (${rule.parameter}): Active=$isActive | Dist=$distanceMeters / Rad=$radius | Inside=${distanceMeters <= radius}"
+                )
 
                 if (!isActive) continue
 
                 if (distanceMeters <= radius) {
                     isSafeInThisMonitor = true
-                    
-                    
-                    
-                    
+
+
+
+
                     isSafeInThisMonitor = true
                 }
-                
+
                 if (distanceMeters - radius < minDistanceToAnyZone) {
                     minDistanceToAnyZone = distanceMeters - radius
                     referenceRule = rule
@@ -180,20 +194,26 @@ class LocationHandler(
             Log.d("LocationHandler", "  => Result for Monitor: isSafe=$isSafeInThisMonitor")
 
             if (isSafeInThisMonitor) {
-                
+
                 if (triggeredMonitors.contains(monitorId)) {
-                    Log.d("LocationHandler", "     [INFO] Monitor $monitorId: User re-entered safe zone. Resetting alert trigger.")
+                    Log.d(
+                        "LocationHandler",
+                        "     [INFO] Monitor $monitorId: User re-entered safe zone. Resetting alert trigger."
+                    )
                     synchronized(triggeredMonitors) { triggeredMonitors.remove(monitorId) }
                 }
             } else if (referenceRule != null) {
-                
+
                 if (triggeredMonitors.contains(monitorId)) {
-                    Log.d("LocationHandler", "     [INFO] Monitor $monitorId: Already alerted. Suppressing spam.")
+                    Log.d(
+                        "LocationHandler",
+                        "     [INFO] Monitor $monitorId: Already alerted. Suppressing spam."
+                    )
                 } else {
                     Log.d("LocationHandler", "     [!] INFRACTION TRIGGERED (First Time)")
-                    
+
                     synchronized(triggeredMonitors) { triggeredMonitors.add(monitorId) }
-                    
+
                     monitorsToNotify.add(monitorId)
                     detectedInfractions.add(
                         RuleInfraction(

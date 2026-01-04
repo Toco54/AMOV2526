@@ -4,8 +4,23 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -14,12 +29,15 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.*
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
+import pt.isec.amov2526.projetoKotlin.data.model.InfractionDisplayInfo
 import pt.isec.amov2526.projetoKotlin.ui.components.EditProfileView
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.ProtectedBottomBar
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.ProtectedTopBar
@@ -28,7 +46,6 @@ import pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModelFactory
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
 import pt.isec.amov2526.projetoKotlin.utils.LocationHelper
-import pt.isec.amov2526.projetoKotlin.data.model.InfractionDisplayInfo
 
 data class PendingAlert(
     val type: ActivityAlertType,
@@ -47,12 +64,13 @@ fun ProtectedMainScreen(
     protectedViewModel: ProtectedMainViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    val keyguardManager = context.getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+    val keyguardManager =
+        context.getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
 
     val guardViewModel: GuardViewModel = viewModel(factory = GuardViewModelFactory())
 
     var showAlertScreen by remember { mutableStateOf(false) }
-    
+
 
     LaunchedEffect(showAlertScreen) {
         viewModel.isUserInEmergency = showAlertScreen
@@ -106,8 +124,12 @@ fun ProtectedMainScreen(
             showAlertScreen = false
             alertId = null
 
-            val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
-                action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_FINISH_ALERT
+            val intent = android.content.Intent(
+                context,
+                pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java
+            ).apply {
+                action =
+                    pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_FINISH_ALERT
             }
             context.startService(intent)
 
@@ -129,8 +151,8 @@ fun ProtectedMainScreen(
                         infractionsStr.split(";").mapNotNull {
                             val parts = it.split("|")
                             if (parts.size >= 3) {
-                                val param = if(parts.size >= 4) parts[3].ifEmpty { null } else null
-                                val monId = if(parts.size >= 5) parts[4].ifEmpty { null } else null
+                                val param = if (parts.size >= 4) parts[3].ifEmpty { null } else null
+                                val monId = if (parts.size >= 5) parts[4].ifEmpty { null } else null
                                 InfractionDisplayInfo(parts[0], parts[1], parts[2], param, monId)
                             } else null
                         }
@@ -139,16 +161,32 @@ fun ProtectedMainScreen(
                     }
 
                     val type = if (typeStr != null) {
-                        try { ActivityAlertType.valueOf(typeStr) }
-                        catch (e: Exception) { ActivityAlertType.PANIC }
-                    } else { ActivityAlertType.PANIC }
+                        try {
+                            ActivityAlertType.valueOf(typeStr)
+                        } catch (e: Exception) {
+                            ActivityAlertType.PANIC
+                        }
+                    } else {
+                        ActivityAlertType.PANIC
+                    }
 
                     val safeId = incomingId ?: java.util.UUID.randomUUID().toString()
 
                     if (showAlertScreen) {
-                        alertQueue.add(PendingAlert(type, details, safeId, infractionsList, timestamp))
-                        android.util.Log.d("ProtectedMainScreen", "Alert enqueued. Queue size: ${alertQueue.size}")
-                        
+                        alertQueue.add(
+                            PendingAlert(
+                                type,
+                                details,
+                                safeId,
+                                infractionsList,
+                                timestamp
+                            )
+                        )
+                        android.util.Log.d(
+                            "ProtectedMainScreen",
+                            "Alert enqueued. Queue size: ${alertQueue.size}"
+                        )
+
 
 
                         if (isAlertConfirmed) {
@@ -181,7 +219,10 @@ fun ProtectedMainScreen(
     }
 
     if (showAlertScreen) {
-        android.util.Log.d("ProtectedMainScreen", "Showing AlertScreen. Active Geofences Count: ${activeGeofences.size}")
+        android.util.Log.d(
+            "ProtectedMainScreen",
+            "Showing AlertScreen. Active Geofences Count: ${activeGeofences.size}"
+        )
         Dialog(
             onDismissRequest = { },
             properties = DialogProperties(
@@ -206,10 +247,16 @@ fun ProtectedMainScreen(
                         onCancel = { processNextAlert() },
                         onConfirm = {
                             isAlertConfirmed = true
-                            val targetMonitors = alertInfractions.mapNotNull { it.monitorId }.distinct().ifEmpty { null }
+                            val targetMonitors =
+                                alertInfractions.mapNotNull { it.monitorId }.distinct()
+                                    .ifEmpty { null }
                             guardViewModel.sendAlert(pendingAlertType, alertId, targetMonitors) { }
-                            val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
-                                action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_STOP_TIMER
+                            val intent = android.content.Intent(
+                                context,
+                                pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java
+                            ).apply {
+                                action =
+                                    pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_STOP_TIMER
                             }
                             context.startService(intent)
                         },
@@ -217,14 +264,19 @@ fun ProtectedMainScreen(
                             scope.launch {
                                 val isValid = guardViewModel.verifyPin(pin)
                                 if (isValid) {
-                                    val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
-                                        action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_FINISH_ALERT
+                                    val intent = android.content.Intent(
+                                        context,
+                                        pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java
+                                    ).apply {
+                                        action =
+                                            pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_FINISH_ALERT
                                     }
                                     context.startService(intent)
                                     if (keyguardManager.isDeviceLocked) activity?.finish()
                                     processNextAlert()
                                 } else {
-                                    Toast.makeText(context, invalidPinError, Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, invalidPinError, Toast.LENGTH_SHORT)
+                                        .show()
                                 }
                             }
                             false
@@ -242,7 +294,8 @@ fun ProtectedMainScreen(
 
     LaunchedEffect(Unit) {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M &&
-            !android.provider.Settings.canDrawOverlays(context)) {
+            !android.provider.Settings.canDrawOverlays(context)
+        ) {
             showOverlayPermissionDialog = true
         }
     }
@@ -256,7 +309,7 @@ fun ProtectedMainScreen(
                 Button(onClick = {
                     showEnableMonitorDialog = false
                     viewModel.enableDualRole {
-                         viewModel.switchViewMode()
+                        viewModel.switchViewMode()
                     }
                 }) {
                     Text(stringResource(id = R.string.dual_role_confirm))
@@ -304,7 +357,8 @@ fun ProtectedMainScreen(
             currentMfaEnabled = currentUserData?.mfaEnabled ?: false,
             onDismiss = { isEditingProfile = false },
             onSave = { name, email, pass, pin, mfa, currentPass ->
-                viewModel.updateProfile(name, email, pass, pin, mfa, currentPass,
+                viewModel.updateProfile(
+                    name, email, pass, pin, mfa, currentPass,
                     onSuccess = { isEditingProfile = false },
                     onError = { }
                 )
@@ -312,10 +366,20 @@ fun ProtectedMainScreen(
         )
     } else {
         Scaffold(
-            topBar = { ProtectedTopBar(onProfileClick = { navController.navigate("profile") { launchSingleTop = true } }) },
+            topBar = {
+                ProtectedTopBar(onProfileClick = {
+                    navController.navigate("profile") {
+                        launchSingleTop = true
+                    }
+                })
+            },
             bottomBar = { ProtectedBottomBar(navController = navController) }
         ) { innerPadding ->
-            NavHost(navController = navController, startDestination = "guard", modifier = Modifier.padding(innerPadding)) {
+            NavHost(
+                navController = navController,
+                startDestination = "guard",
+                modifier = Modifier.padding(innerPadding)
+            ) {
                 composable("guard") {
                     GuardScreen(
                         viewModel = guardViewModel,
@@ -329,8 +393,12 @@ fun ProtectedMainScreen(
                             isAlertConfirmed = false
                             showAlertScreen = true
 
-                            val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
-                                action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_START_ALERT
+                            val intent = android.content.Intent(
+                                context,
+                                pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java
+                            ).apply {
+                                action =
+                                    pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_START_ALERT
                             }
                             context.startService(intent)
                         }
@@ -349,7 +417,12 @@ fun ProtectedMainScreen(
                         onLogout = {
                             val uid = viewModel.user?.uid
                             viewModel.viewModelScope.launch {
-                                try { if (uid != null) FirebaseFirestore.getInstance().collection("users").document(uid).update("systemStatus", "OFFLINE").await() } catch (_: Exception) {}
+                                try {
+                                    if (uid != null) FirebaseFirestore.getInstance()
+                                        .collection("users").document(uid)
+                                        .update("systemStatus", "OFFLINE").await()
+                                } catch (_: Exception) {
+                                }
                                 if (protectedViewModel.isProtectionActive) protectedViewModel.toggleProtection()
                                 viewModel.logout()
                             }

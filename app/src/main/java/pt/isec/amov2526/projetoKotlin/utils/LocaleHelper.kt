@@ -23,7 +23,7 @@ object LocaleHelper {
     fun applyInitialLocale(context: Context) {
         val sharedPrefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
         val savedLang = sharedPrefs.getString("language", null)
-        
+
         if (savedLang != null) {
             setLocale(savedLang)
         } else {

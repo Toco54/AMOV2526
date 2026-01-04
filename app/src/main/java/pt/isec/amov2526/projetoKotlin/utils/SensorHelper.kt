@@ -17,8 +17,6 @@ class SensorHelper(private val context: Context) : SensorEventListener {
     private val prefs = context.getSharedPreferences("SafetySecPrefs", Context.MODE_PRIVATE)
 
 
-    
-
     private val _accelerometerData = MutableStateFlow(Triple(0f, 0f, 0f))
     val accelerometerData = _accelerometerData.asStateFlow()
 
@@ -32,11 +30,10 @@ class SensorHelper(private val context: Context) : SensorEventListener {
     private var isRawAccelerometerForMotion = false
     private var lastMotionMagnitude: Double? = null
     private val motionThreshold = 1.5
-    
+
 
     private var lastEmissionTime = 0L
     private val EMISSION_COOLDOWN = 1000L
-
 
 
     fun startAccelerometer() {
@@ -52,20 +49,17 @@ class SensorHelper(private val context: Context) : SensorEventListener {
     fun stopAccelerometer() {
 
 
-
-        
-        
         sensorManager.unregisterListener(this)
         Log.d("SensorHelper", "All Sensors Stopped")
     }
 
     fun startMotionDetection() {
-        
+
         var sensor = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
         isRawAccelerometerForMotion = false
 
         if (sensor == null) {
-            
+
             sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
             isRawAccelerometerForMotion = true
         }
@@ -82,7 +76,6 @@ class SensorHelper(private val context: Context) : SensorEventListener {
         sensorManager.unregisterListener(this)
     }
 
-    
 
     override fun onSensorChanged(event: SensorEvent?) {
         if (event == null) return
@@ -91,10 +84,10 @@ class SensorHelper(private val context: Context) : SensorEventListener {
 
         when (event.sensor.type) {
             Sensor.TYPE_ACCELEROMETER -> {
-                
+
                 _accelerometerData.value = Triple(event.values[0], event.values[1], event.values[2])
 
-                
+
                 if (isRawAccelerometerForMotion) {
                     val x = event.values[0]
                     val y = event.values[1]
@@ -104,13 +97,14 @@ class SensorHelper(private val context: Context) : SensorEventListener {
                     if (lastMotionMagnitude != null) {
                         val delta = abs(magnitude - lastMotionMagnitude!!)
                         if (delta > motionThreshold && (currentTime - lastEmissionTime > EMISSION_COOLDOWN)) {
-                            
+
                             updateMotionTimestamp(currentTime)
                         }
                     }
                     lastMotionMagnitude = magnitude
                 }
             }
+
             Sensor.TYPE_LINEAR_ACCELERATION -> {
                 val x = event.values[0]
                 val y = event.values[1]
@@ -131,6 +125,6 @@ class SensorHelper(private val context: Context) : SensorEventListener {
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
-        
+
     }
 }

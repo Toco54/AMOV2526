@@ -1,12 +1,19 @@
 package pt.isec.amov2526.projetoKotlin.data.model
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CarCrash
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MonitorHeart
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import pt.isec.amov2526.projetoKotlin.R
-
-import pt.isec.amov2526.projetoKotlin.ui.theme.*
+import pt.isec.amov2526.projetoKotlin.ui.theme.RuleAccident
+import pt.isec.amov2526.projetoKotlin.ui.theme.RuleFall
+import pt.isec.amov2526.projetoKotlin.ui.theme.RuleGeofence
+import pt.isec.amov2526.projetoKotlin.ui.theme.RuleSpeed
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate400
 
 enum class RuleType(val titleRes: Int, val icon: ImageVector, val color: Color) {
     FALL(R.string.rule_fall, Icons.Default.MonitorHeart, RuleFall),

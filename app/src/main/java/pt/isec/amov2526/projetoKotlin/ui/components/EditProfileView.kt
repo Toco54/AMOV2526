@@ -2,18 +2,40 @@ package pt.isec.amov2526.projetoKotlin.ui.components
 
 import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,8 +49,13 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import pt.isec.amov2526.projetoKotlin.R
-
-import pt.isec.amov2526.projetoKotlin.ui.theme.*
+import pt.isec.amov2526.projetoKotlin.ui.theme.Indigo600
+import pt.isec.amov2526.projetoKotlin.ui.theme.Red600
+import pt.isec.amov2526.projetoKotlin.ui.theme.SafeGreen
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate200
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate50
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate500
+import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 
 @Composable
 fun EditProfileView(
@@ -282,14 +309,14 @@ fun EditProfileView(
             )
             Spacer(modifier = Modifier.height(24.dp))
 
-            
+
             Text(
                 text = stringResource(id = R.string.profile_new_password).uppercase(),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = Slate500
             )
-            
+
             TextField(
                 value = newPassword,
                 onValueChange = { newPassword = it },
@@ -343,12 +370,12 @@ fun EditProfileView(
             )
             Spacer(modifier = Modifier.height(24.dp))
 
-            
+
             Text(
                 text = stringResource(id = R.string.profile_current_password_req),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                color = Red600 
+                color = Red600
             )
             TextField(
                 value = currentPassword,
@@ -369,25 +396,26 @@ fun EditProfileView(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
                     .background(
-                        if (canSave) Indigo600 else Slate200, 
+                        if (canSave) Indigo600 else Slate200,
                         RoundedCornerShape(16.dp)
                     )
                     .clip(RoundedCornerShape(16.dp))
                     .clickable(enabled = canSave) {
-                        val finalPin = if (isPinVerified && newPinInput.length == 4) newPinInput else null
-                        
-                        
+                        val finalPin =
+                            if (isPinVerified && newPinInput.length == 4) newPinInput else null
+
+
                         val finalPass = if (newPassword.isNotEmpty()) {
                             if (newPassword == confirmPassword) newPassword else null
                         } else null
-                        
-                        
+
+
                         if (newPassword.isNotEmpty() && newPassword != confirmPassword) {
                             Toast.makeText(context, confirmPasswordError, Toast.LENGTH_SHORT).show()
                             return@clickable
