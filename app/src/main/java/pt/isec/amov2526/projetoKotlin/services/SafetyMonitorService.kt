@@ -38,10 +38,11 @@ class SafetyMonitorService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
-    private var isProtectionActive = true
+    // [CORREÇÃO] Inicia como false/OFFLINE para forçar a deteção da transição quando o Firestore carregar "ACTIVE"
+    private var isProtectionActive = false
+    private var systemStatus = "OFFLINE" 
 
     // System State Variables
-    private var systemStatus = "ACTIVE"
     private var globalScheduleDays: List<Int> = listOf(1, 2, 3, 4, 5)
     private var globalScheduleStart: String = "09:00"
     private var globalScheduleEnd: String = "18:00"
@@ -440,11 +441,20 @@ class SafetyMonitorService : Service() {
 
     private fun evaluateProtectionStatus() {
         val now = System.currentTimeMillis()
+        val previouslyActive = isProtectionActive
+
         if (systemStatus == "PAUSED" && pausedUntil > 0 && pausedUntil < now) {
             systemStatus = "ACTIVE"; pausedUntil = 0L
             auth.currentUser?.uid?.let { db.collection("users").document(it).update(mapOf("systemStatus" to "ACTIVE", "globalPausedUntil" to 0L)) }
         }
+        
         isProtectionActive = systemStatus == "ACTIVE"
+        
+        // Se ativou agora, reinicia o temporizador para não disparar falsos positivos de inatividade acumulada
+        if (!previouslyActive && isProtectionActive) {
+            inactivityHandler.resetTimer()
+        }
+        
         updateNotification(!isProtectionActive)
     }
 
