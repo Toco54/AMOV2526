@@ -28,6 +28,15 @@ import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
 import pt.isec.amov2526.projetoKotlin.utils.LocationHelper
 import pt.isec.amov2526.projetoKotlin.data.model.InfractionDisplayInfo
 
+// [NOVO] Estrutura para fila de alertas
+data class PendingAlert(
+    val type: ActivityAlertType,
+    val details: String?,
+    val id: String,
+    val infractions: List<InfractionDisplayInfo>,
+    val timestamp: Long
+)
+
 @Composable
 fun ProtectedMainScreen(
     navController: NavHostController = rememberNavController(),
@@ -48,6 +57,9 @@ fun ProtectedMainScreen(
     var isAlertConfirmed by remember { mutableStateOf(false) } // [NOVO] Estado "Lifted"
     var pendingAlertType by remember { mutableStateOf(ActivityAlertType.PANIC) }
     val scope = rememberCoroutineScope()
+    
+    // [NOVO] Fila de Alertas
+    val alertQueue = remember { mutableStateListOf<PendingAlert>() }
 
     // Location Helper Global
     val locationHelper = remember { LocationHelper(context) }
@@ -75,18 +87,48 @@ fun ProtectedMainScreen(
     var alertId by remember { mutableStateOf<String?>(null) } // [NOVO] Renomeado de alertIdFromIntent
     var alertInfractions by remember { mutableStateOf<List<InfractionDisplayInfo>>(emptyList()) } // [NOVO]
 
+    // Função auxiliar para processar o próximo alerta da fila
+    fun processNextAlert() {
+        if (alertQueue.isNotEmpty()) {
+            val next = alertQueue.removeAt(0)
+            pendingAlertType = next.type
+            alertDetails = next.details
+            alertId = next.id
+            alertInfractions = next.infractions
+            
+            val elapsed = (System.currentTimeMillis() - next.timestamp) / 1000
+            val remaining = (10 - elapsed).toInt()
+            alertInitialSeconds = if (remaining > 0) remaining else 0
+            
+            isAlertConfirmed = false
+            showAlertScreen = true
+        } else {
+            showAlertScreen = false
+            alertId = null
+            
+            // [NOVO] Avisar o serviço que terminámos tudo para processar a fila dele
+            val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
+                action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_FINISH_ALERT
+            }
+            context.startService(intent)
+
+            (context as? pt.isec.amov2526.projetoKotlin.ui.MainActivity)?.setShowOnLockScreen(false)
+        }
+    }
+
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 if (activity?.intent?.action == "ACTION_SHOW_ALERT") {
                     val typeStr = activity.intent.getStringExtra("ALERT_TYPE")
-                    alertDetails = activity.intent.getStringExtra("ALERT_DETAILS") // [NOVO]
+                    val details = activity.intent.getStringExtra("ALERT_DETAILS") // [NOVO]
                     val incomingId = activity.intent.getStringExtra("ALERT_ID") // [NOVO] ID do Serviço
+                    val timestamp = activity.intent.getLongExtra("ALERT_TIMESTAMP", -1L)
 
                     // [NOVO] Extração das infrações
                     val infractionsStr = activity.intent.getStringExtra("ALERT_INFRACTIONS")
-                    if (infractionsStr != null) {
-                         alertInfractions = infractionsStr.split(";").mapNotNull { 
+                    val infractionsList = if (infractionsStr != null) {
+                         infractionsStr.split(";").mapNotNull { 
                              val parts = it.split("|")
                              if (parts.size >= 3) {
                                  val param = if(parts.size >= 4) parts[3].ifEmpty { null } else null
@@ -94,27 +136,40 @@ fun ProtectedMainScreen(
                              } else null
                          }
                     } else {
-                        alertInfractions = emptyList()
+                        emptyList()
                     }
 
-                    pendingAlertType = if (typeStr != null) {
+                    val type = if (typeStr != null) {
                         try { ActivityAlertType.valueOf(typeStr) }
                         catch (e: Exception) { ActivityAlertType.PANIC }
                     } else { ActivityAlertType.PANIC }
+                    
+                    val safeId = incomingId ?: java.util.UUID.randomUUID().toString()
 
-                    // [NOVO] Sincronização de Tempo
-                    val timestamp = activity.intent.getLongExtra("ALERT_TIMESTAMP", -1L)
-                    if (timestamp != -1L) {
-                        val elapsed = (System.currentTimeMillis() - timestamp) / 1000
-                        val remaining = (10 - elapsed).toInt()
-                        alertInitialSeconds = if (remaining > 0) remaining else 0
+                    // [LÓGICA DE FILA]
+                    if (showAlertScreen) {
+                        // Se já estamos num alerta, adiciona à fila
+                        alertQueue.add(PendingAlert(type, details, safeId, infractionsList, timestamp))
+                        android.util.Log.d("ProtectedMainScreen", "Alert enqueued. Queue size: ${alertQueue.size}")
                     } else {
-                        alertInitialSeconds = 10
+                        // Processa imediatamente
+                        pendingAlertType = type
+                        alertDetails = details
+                        alertId = safeId
+                        alertInfractions = infractionsList
+
+                        if (timestamp != -1L) {
+                            val elapsed = (System.currentTimeMillis() - timestamp) / 1000
+                            val remaining = (10 - elapsed).toInt()
+                            alertInitialSeconds = if (remaining > 0) remaining else 0
+                        } else {
+                            alertInitialSeconds = 10
+                        }
+
+                        isAlertConfirmed = false
+                        showAlertScreen = true
                     }
 
-                    alertId = incomingId ?: java.util.UUID.randomUUID().toString() // Fallback seguro
-                    isAlertConfirmed = false // [CORREÇÃO] Resetar confirmação ao receber novo alerta
-                    showAlertScreen = true
                     activity.intent.action = null
                 }
             }
@@ -145,11 +200,8 @@ fun ProtectedMainScreen(
                     initialSeconds = alertInitialSeconds,
                     isConfirmedState = isAlertConfirmed, // [NOVO] Passar estado
                     onCancel = {
-                        // Cancelar ANTES de confirmar: Fecha tudo
-                        showAlertScreen = false
-                        isAlertConfirmed = false // [CORREÇÃO] Reset
-                        alertId = null // [CORREÇÃO] Limpar ID
-                        (context as? pt.isec.amov2526.projetoKotlin.ui.MainActivity)?.setShowOnLockScreen(false)
+                        // Cancelar ANTES de confirmar: Tenta processar o próximo
+                        processNextAlert()
                     },
                     onConfirm = {
                         isAlertConfirmed = true // [CORREÇÃO] Confirmar (UI Only)
@@ -161,11 +213,9 @@ fun ProtectedMainScreen(
                             // Callback opcional, ID manteve-se
                         }
 
-                        // 2. Avisa o Serviço para parar a contagem
+                        // 2. Avisa o Serviço para parar o timer de contagem, mas manter bloqueado
                         val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
-                            action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_CONFIRM_ALERT
-                            // Se for para parar a notificação de contagem:
-                            action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_CANCEL_ALERT 
+                            action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_STOP_TIMER
                         }
                         context.startService(intent)
                     },
@@ -173,19 +223,16 @@ fun ProtectedMainScreen(
                         scope.launch {
                             val isValid = guardViewModel.verifyPin(pin)
                             if (isValid) {
-                                // PIN Válido: Cancela e fecha tudo
-                                showAlertScreen = false
-                                isAlertConfirmed = false // [CORREÇÃO] Reset
-                                alertId = null // [CORREÇÃO] Limpar ID
-
+                                // PIN Válido: Para o alerta no serviço
                                 val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
-                                    action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_CANCEL_ALERT
+                                    action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_FINISH_ALERT
                                 }
                                 context.startService(intent)
 
-                                (context as? pt.isec.amov2526.projetoKotlin.ui.MainActivity)?.setShowOnLockScreen(false)
-
                                 if (keyguardManager.isDeviceLocked) activity?.finish()
+                                
+                                // Verifica a fila local
+                                processNextAlert()
                             } else {
                                 Toast.makeText(context, "Invalid PIN", Toast.LENGTH_SHORT).show()
                             }
@@ -288,6 +335,12 @@ fun ProtectedMainScreen(
                             alertInfractions = emptyList() // [CORREÇÃO] Limpar infrações anteriores
                             isAlertConfirmed = false
                             showAlertScreen = true
+
+                            // [NOVO] Avisar serviço que começou alerta manual
+                            val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
+                                action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_START_ALERT
+                            }
+                            context.startService(intent)
                         }
                     )
                 }
