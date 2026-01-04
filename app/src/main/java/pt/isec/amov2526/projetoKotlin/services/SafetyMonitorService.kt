@@ -235,7 +235,8 @@ class SafetyMonitorService : Service() {
             putExtra("ALERT_ID", alertId)
             if (details != null) putExtra("ALERT_DETAILS", details)
             if (infractions != null) {
-                val serialized = infractions.joinToString(";") { "${it.monitorName}|${it.ruleType.name}|${it.description}|${it.ruleParameter ?: ""}" }
+                // Serialização atualizada com monitorId no final
+                val serialized = infractions.joinToString(";") { "${it.monitorName}|${it.ruleType.name}|${it.description}|${it.ruleParameter ?: ""}|${it.monitorId}" }
                 putExtra("ALERT_INFRACTIONS", serialized)
             }
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -269,11 +270,15 @@ class SafetyMonitorService : Service() {
         if (!isProtectionActive) return
         val loc = locationHelper.currentLocation.value
         var initialActions: List<MonitorAction>? = null
+        // [CORREÇÃO] Garante que a lista de UIDs a notificar é preenchida com base nas infrações
+        var targetMonitors: List<String>? = monitors
         
         if (infractions != null && infractions.isNotEmpty()) {
             initialActions = infractions.map { inf ->
                 MonitorAction(inf.monitorName, MonitorActionState.SENT, java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date()))
             }
+            // Preenche targetMonitors com os IDs únicos das infrações
+            targetMonitors = infractions.map { it.monitorId }.distinct()
         } else if (monitors != null && monitors.isNotEmpty()) {
              try {
                 val uid = auth.currentUser?.uid
@@ -292,12 +297,13 @@ class SafetyMonitorService : Service() {
             }
         }
         
-        // Fallback
+        // Fallback: Se não temos initialActions (ou monitors UIDs), buscamos TODOS os monitores
         if (initialActions == null) {
              try {
                 val uid = auth.currentUser?.uid
                 if (uid != null) {
                     val snapshot = db.collection("users").document(uid).collection("connections").whereEqualTo("role", "Monitor").get().await()
+                    targetMonitors = snapshot.documents.mapNotNull { it.getString("uid") }
                     initialActions = snapshot.documents.map { doc ->
                         MonitorAction(doc.getString("name") ?: "Monitor", MonitorActionState.SENT, java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date()))
                     }
@@ -305,7 +311,7 @@ class SafetyMonitorService : Service() {
             } catch (e: Exception) {}
         }
 
-        alertRepository.createAlert(type, title, loc?.latitude, loc?.longitude, monitors, initialActions, alertId)
+        alertRepository.createAlert(type, title, loc?.latitude, loc?.longitude, targetMonitors, initialActions, alertId)
     }
 
     private fun startForegroundService() {

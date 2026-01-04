@@ -123,32 +123,56 @@ class GuardViewModel(
         }
     }
 
-    fun sendAlert(type: ActivityAlertType, forcedId: String? = null, onSuccess: ((String) -> Unit)? = null) {
+    fun sendAlert(type: ActivityAlertType, forcedId: String? = null, targetMonitorIds: List<String>? = null, onSuccess: ((String) -> Unit)? = null) {
         viewModelScope.launch {
             val lat = lastLocation?.latitude
             val lng = lastLocation?.longitude
 
-            // [NOVO] Obter lista inicial de monitores para o Pânico
+            // [NOVO] Obter lista inicial de monitores
             var initialActions: List<pt.isec.amov2526.projetoKotlin.data.model.MonitorAction>? = null
-            var monitorIds: List<String>? = null 
+            var monitorIds: List<String>? = targetMonitorIds 
 
-            try {
-                val snapshot = db.collection("users").document(currentUserUid)
-                    .collection("connections")
-                    .whereEqualTo("role", "Monitor")
-                    .get().await()
-                
-                monitorIds = snapshot.documents.mapNotNull { it.getString("uid") }
+            // Se não foram passados alvos específicos (ex: SOS manual), buscar TODOS os monitores
+            if (monitorIds == null || monitorIds.isEmpty()) {
+                try {
+                    val snapshot = db.collection("users").document(currentUserUid)
+                        .collection("connections")
+                        .whereEqualTo("role", "Monitor")
+                        .get().await()
+                    
+                    monitorIds = snapshot.documents.mapNotNull { it.getString("uid") }
 
-                initialActions = snapshot.documents.map { doc ->
-                    pt.isec.amov2526.projetoKotlin.data.model.MonitorAction(
-                        name = doc.getString("name") ?: "Monitor",
-                        state = pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState.SENT,
-                        time = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
-                    )
+                    initialActions = snapshot.documents.map { doc ->
+                        pt.isec.amov2526.projetoKotlin.data.model.MonitorAction(
+                            name = doc.getString("name") ?: "Monitor",
+                            state = pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState.SENT,
+                            time = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+                        )
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("GuardViewModel", "Error fetching monitors for manual SOS", e)
                 }
-            } catch (e: Exception) {
-                android.util.Log.e("GuardViewModel", "Error fetching monitors for manual SOS", e)
+            } else {
+                // Se temos alvos específicos, tentar obter os nomes para o initialActions
+                try {
+                    val snapshot = db.collection("users").document(currentUserUid)
+                        .collection("connections")
+                        .whereIn("uid", monitorIds)
+                        .get().await()
+                        
+                    initialActions = snapshot.documents.map { doc ->
+                        pt.isec.amov2526.projetoKotlin.data.model.MonitorAction(
+                            name = doc.getString("name") ?: "Monitor",
+                            state = pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState.SENT,
+                            time = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+                        )
+                    }
+                } catch (e: Exception) {
+                    // Fallback se query falhar
+                    initialActions = monitorIds.map { 
+                        pt.isec.amov2526.projetoKotlin.data.model.MonitorAction("Monitor", pt.isec.amov2526.projetoKotlin.data.model.MonitorActionState.SENT, "")
+                    }
+                }
             }
 
             val alertTitle = when(type) {

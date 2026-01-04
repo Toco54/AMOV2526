@@ -132,7 +132,8 @@ fun ProtectedMainScreen(
                              val parts = it.split("|")
                              if (parts.size >= 3) {
                                  val param = if(parts.size >= 4) parts[3].ifEmpty { null } else null
-                                 InfractionDisplayInfo(parts[0], parts[1], parts[2], param)
+                                 val monId = if(parts.size >= 5) parts[4].ifEmpty { null } else null
+                                 InfractionDisplayInfo(parts[0], parts[1], parts[2], param, monId)
                              } else null
                          }
                     } else {
@@ -206,10 +207,13 @@ fun ProtectedMainScreen(
                     onConfirm = {
                         isAlertConfirmed = true // [CORREÇÃO] Confirmar (UI Only)
                         
+                        // [NOVO] Extrair UIDs alvo das infrações (se houver)
+                        val targetMonitors = alertInfractions.mapNotNull { it.monitorId }.distinct().ifEmpty { null }
+
                         // Confirmar (SOS enviado):
                         // 1. Envia para a Firebase usando o ID QUE JÁ EXISTE (alertId)
-                        // Assim o ID não muda e o ecrã não pisca.
-                        guardViewModel.sendAlert(pendingAlertType, alertId) { 
+                        // Passamos os monitores alvo para evitar enviar a todos
+                        guardViewModel.sendAlert(pendingAlertType, alertId, targetMonitors) { 
                             // Callback opcional, ID manteve-se
                         }
 

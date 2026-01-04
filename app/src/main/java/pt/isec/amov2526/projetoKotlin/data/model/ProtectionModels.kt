@@ -68,5 +68,6 @@ data class InfractionDisplayInfo(
     val monitorName: String,
     val ruleType: String,
     val description: String,
-    val parameter: String? = null
+    val parameter: String? = null,
+    val monitorId: String? = null // [NOVO] Adicionado para targeting
 )
