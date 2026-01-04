@@ -1,5 +1,6 @@
 package pt.isec.amov2526.projetoKotlin.ui.viewmodels
 
+import android.util.Log
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CarCrash
 import androidx.compose.material.icons.filled.LocationOn
@@ -12,11 +13,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import org.osmdroid.util.GeoPoint
 import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertStatus
 import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
 import pt.isec.amov2526.projetoKotlin.data.model.ActivityItem
@@ -62,7 +67,7 @@ class MonitorDashboardViewModel(
 
 
     private val alertListeners =
-        mutableMapOf<String, com.google.firebase.firestore.ListenerRegistration>()
+        mutableMapOf<String, ListenerRegistration>()
     private val alertDataMap = mutableMapOf<String, ActivityItem>()
 
 
@@ -72,8 +77,8 @@ class MonitorDashboardViewModel(
     private val _rules = MutableStateFlow<List<ProtectionRule>>(emptyList())
     val rules: StateFlow<List<ProtectionRule>> = _rules.asStateFlow()
 
-    private val _userLocation = MutableStateFlow<org.osmdroid.util.GeoPoint?>(null)
-    val userLocation: StateFlow<org.osmdroid.util.GeoPoint?> = _userLocation.asStateFlow()
+    private val _userLocation = MutableStateFlow<GeoPoint?>(null)
+    val userLocation: StateFlow<GeoPoint?> = _userLocation.asStateFlow()
 
     private val _systemStatus = MutableStateFlow("OFFLINE")
     val systemStatus: StateFlow<String> = _systemStatus.asStateFlow()
@@ -110,7 +115,7 @@ class MonitorDashboardViewModel(
     private fun startListeningConnectionStatus() {
 
 
-        val docRef = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val docRef = FirebaseFirestore.getInstance()
 
             .collection("users").document(currentMonitorId)
 
@@ -118,7 +123,7 @@ class MonitorDashboardViewModel(
 
 
 
-        android.util.Log.d(
+        Log.d(
             "MonitorVM",
             "Escutando connection em: users/$currentMonitorId/connections/$protegeUid"
         )
@@ -129,7 +134,7 @@ class MonitorDashboardViewModel(
 
             if (e != null) {
 
-                android.util.Log.e("MonitorVM", "Erro ao escutar connection: ${e.message}")
+                Log.e("MonitorVM", "Erro ao escutar connection: ${e.message}")
 
                 return@addSnapshotListener
 
@@ -139,7 +144,7 @@ class MonitorDashboardViewModel(
 
             if (snapshot == null || !snapshot.exists()) {
 
-                android.util.Log.w(
+                Log.w(
                     "MonitorVM",
                     "Documento de conexão não encontrado (possível revogação)."
                 )
@@ -157,7 +162,7 @@ class MonitorDashboardViewModel(
 
 
 
-            android.util.Log.d("MonitorVM", "Recebido alertRefs: ${refsMap.size} itens")
+            Log.d("MonitorVM", "Recebido alertRefs: ${refsMap.size} itens")
 
             updateAlertListeners(refsMap)
 
@@ -177,7 +182,7 @@ class MonitorDashboardViewModel(
 
         idsToRemove.forEach { id ->
 
-            android.util.Log.d("MonitorVM", "Removendo listener do alerta: $id")
+            Log.d("MonitorVM", "Removendo listener do alerta: $id")
 
             alertListeners[id]?.remove()
 
@@ -190,7 +195,7 @@ class MonitorDashboardViewModel(
 
         val idsToAdd = newIds - currentIds
 
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val db = FirebaseFirestore.getInstance()
 
 
 
@@ -198,7 +203,7 @@ class MonitorDashboardViewModel(
 
             val path = refsMap[id]
 
-            android.util.Log.d(
+            Log.d(
                 "MonitorVM",
                 "Adicionando listener para novo alerta: $id no caminho: $path"
             )
@@ -213,7 +218,7 @@ class MonitorDashboardViewModel(
 
                         if (e != null) {
 
-                            android.util.Log.e(
+                            Log.e(
                                 "MonitorVM",
                                 "Erro no listener do alerta $id: ${e.message}"
                             )
@@ -230,7 +235,7 @@ class MonitorDashboardViewModel(
 
                             if (item != null) {
 
-                                android.util.Log.d(
+                                Log.d(
                                     "MonitorVM",
                                     "Alerta atualizado: ${item.title} ($id)"
                                 )
@@ -241,7 +246,7 @@ class MonitorDashboardViewModel(
 
                         } else {
 
-                            android.util.Log.w("MonitorVM", "Documento de alerta não existe: $id")
+                            Log.w("MonitorVM", "Documento de alerta não existe: $id")
 
                             alertDataMap.remove(id)
 
@@ -255,7 +260,7 @@ class MonitorDashboardViewModel(
 
                 } catch (e: Exception) {
 
-                    android.util.Log.e("MonitorVM", "Caminho de alerta inválido: $path")
+                    Log.e("MonitorVM", "Caminho de alerta inválido: $path")
 
                     e.printStackTrace()
 
@@ -278,7 +283,7 @@ class MonitorDashboardViewModel(
     }
 
 
-    private fun parseActivityItem(doc: com.google.firebase.firestore.DocumentSnapshot): ActivityItem? {
+    private fun parseActivityItem(doc: DocumentSnapshot): ActivityItem? {
 
         return try {
 
@@ -334,7 +339,7 @@ class MonitorDashboardViewModel(
 
         } catch (ex: Exception) {
 
-            android.util.Log.e("MonitorVM", "Erro ao processar ActivityItem: ${ex.message}")
+            Log.e("MonitorVM", "Erro ao processar ActivityItem: ${ex.message}")
 
             null
 
@@ -347,7 +352,7 @@ class MonitorDashboardViewModel(
 
         val sortedList = alertDataMap.values.sortedByDescending { "${it.date} ${it.time}" }
 
-        android.util.Log.d("MonitorVM", "Emitindo ${sortedList.size} atividades para a UI")
+        Log.d("MonitorVM", "Emitindo ${sortedList.size} atividades para a UI")
 
         _activities.value = sortedList
 
@@ -370,7 +375,7 @@ class MonitorDashboardViewModel(
     }
 
     private fun startListeningUserStatus() {
-        val docRef = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val docRef = FirebaseFirestore.getInstance()
             .collection("users").document(protegeUid)
 
         docRef.addSnapshotListener { snapshot, e ->
@@ -384,7 +389,7 @@ class MonitorDashboardViewModel(
                 val lat = snapshot.getDouble("lastLat")
                 val lng = snapshot.getDouble("lastLng")
                 if (lat != null && lng != null) {
-                    _userLocation.value = org.osmdroid.util.GeoPoint(lat, lng)
+                    _userLocation.value = GeoPoint(lat, lng)
                 }
 
 
@@ -516,7 +521,7 @@ class MonitorDashboardViewModel(
 
 
             val path = "users/$protegeUid/alerts/$activityId"
-            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val db = FirebaseFirestore.getInstance()
             val docRef = db.document(path)
 
             try {
@@ -542,9 +547,9 @@ class MonitorDashboardViewModel(
                         transaction.update(docRef, "notifiedMonitors", updatedMonitors)
                     }
                 }.await()
-                android.util.Log.i("MonitorVM", "Alerta $activityId marcado como VIEWED")
+                Log.i("MonitorVM", "Alerta $activityId marcado como VIEWED")
             } catch (e: Exception) {
-                android.util.Log.e("MonitorVM", "Erro ao marcar viewed: ${e.message}")
+                Log.e("MonitorVM", "Erro ao marcar viewed: ${e.message}")
             }
         }
     }

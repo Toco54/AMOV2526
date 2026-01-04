@@ -505,6 +505,7 @@ class GuardViewModel(
                             MonitorRuleType.GEOFENCING -> RuleType.GEOFENCING
                             MonitorRuleType.SPEED -> RuleType.SPEED
                             MonitorRuleType.INACTIVITY -> RuleType.INACTIVITY
+                            else -> RuleType.FALL // Should not happen
                         }
 
                         val param1 = doc.getString("param1") ?: ""

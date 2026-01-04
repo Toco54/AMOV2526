@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import pt.isec.amov2526.projetoKotlin.data.local.AppDatabase
+import pt.isec.amov2526.projetoKotlin.utils.LocaleHelper
 
 class SafetySecApp : Application() {
 
@@ -17,7 +18,7 @@ class SafetySecApp : Application() {
         super.onCreate()
 
 
-        pt.isec.amov2526.projetoKotlin.utils.LocaleHelper.applyInitialLocale(this)
+        LocaleHelper.applyInitialLocale(this)
 
 
 

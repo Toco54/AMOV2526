@@ -1,5 +1,6 @@
 package pt.isec.amov2526.projetoKotlin.ui.screens.monitor
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -98,6 +99,7 @@ import pt.isec.amov2526.projetoKotlin.ui.theme.Slate500
 import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.MonitorDashboardViewModel
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.MonitorDashboardViewModelFactory
+import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -175,7 +177,7 @@ fun MonitorDashboardScreen(
                             Surface(
                                 color = displayStatusColor.copy(alpha = 0.1f),
                                 shape = RoundedCornerShape(8.dp),
-                                border = androidx.compose.foundation.BorderStroke(
+                                border = BorderStroke(
                                     1.dp,
                                     displayStatusColor.copy(alpha = 0.2f)
                                 )
@@ -207,7 +209,7 @@ fun MonitorDashboardScreen(
                                     if (systemStatus == "PAUSED" && pausedUntil > currentTime) {
                                         stringResource(
                                             R.string.guard_resumes_in,
-                                            pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration(
+                                            TimeUtils.formatDuration(
                                                 pausedUntil - currentTime
                                             )
                                         )
@@ -356,7 +358,7 @@ fun MonitorDashboardScreen(
 
                                     val catStatus = categoryStatuses[type.name]
                                     val catStatusResult =
-                                        pt.isec.amov2526.projetoKotlin.utils.TimeUtils.calculateStatus(
+                                        TimeUtils.calculateStatus(
                                             isEnabled = catStatus?.isEnabled ?: true,
                                             pausedUntil = catStatus?.pausedUntil ?: 0L,
                                             isScheduleEnabled = catStatus?.isScheduleEnabled
@@ -373,7 +375,7 @@ fun MonitorDashboardScreen(
                                             R.string.guard_pause_type,
                                             stringResource(type.titleRes)
                                         ) + " Paused (${
-                                            pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration(
+                                            TimeUtils.formatDuration(
                                                 (catStatus?.pausedUntil ?: 0L) - currentTime
                                             )
                                         })"
@@ -394,7 +396,7 @@ fun MonitorDashboardScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         colors = CardDefaults.cardColors(containerColor = Slate50),
                                         shape = RoundedCornerShape(16.dp),
-                                        border = androidx.compose.foundation.BorderStroke(
+                                        border = BorderStroke(
                                             1.dp,
                                             Slate100
                                         )
@@ -425,7 +427,7 @@ fun MonitorDashboardScreen(
 
                                                 val effectiveRuleActive =
                                                     isGlobalActive && rule.isEnabled && !rule.deletedByProtege && !rule.isDisabledByProtege &&
-                                                            (pt.isec.amov2526.projetoKotlin.utils.TimeUtils.calculateStatus(
+                                                            (TimeUtils.calculateStatus(
                                                                 isEnabled = true,
                                                                 pausedUntil = rule.pausedUntil,
                                                                 isScheduleEnabled = rule.isScheduleEnabled,
@@ -476,7 +478,7 @@ fun MonitorDashboardScreen(
 
 
                                                 val ruleStatus =
-                                                    pt.isec.amov2526.projetoKotlin.utils.TimeUtils.calculateStatus(
+                                                    TimeUtils.calculateStatus(
                                                         isEnabled = true,
                                                         pausedUntil = rule.pausedUntil,
                                                         isScheduleEnabled = rule.isScheduleEnabled,
@@ -491,7 +493,7 @@ fun MonitorDashboardScreen(
                                                     rule.deletedByProtege -> stringResource(id = R.string.monitor_rule_marked_delete)
                                                     rule.isDisabledByProtege -> stringResource(id = R.string.monitor_rule_marked_delete)
                                                     rule.pausedUntil > currentTime -> "Paused (${
-                                                        pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration(
+                                                        TimeUtils.formatDuration(
                                                             rule.pausedUntil - currentTime
                                                         )
                                                     })"
@@ -513,7 +515,7 @@ fun MonitorDashboardScreen(
 
 
                                                 val schedText =
-                                                    pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatSchedule(
+                                                    TimeUtils.formatSchedule(
                                                         rule.scheduleDays,
                                                         rule.scheduleStart,
                                                         rule.scheduleEnd
@@ -752,7 +754,7 @@ fun MonitorDashboardScreen(
                         Text(
                             text = stringResource(
                                 R.string.guard_resumes_in,
-                                pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration(
+                                TimeUtils.formatDuration(
                                     remaining
                                 )
                             ),
@@ -843,7 +845,7 @@ fun MonitorDashboardScreen(
                     Surface(
                         color = Red600.copy(alpha = 0.1f),
                         shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(
+                        border = BorderStroke(
                             1.dp,
                             Red600.copy(alpha = 0.2f)
                         ),

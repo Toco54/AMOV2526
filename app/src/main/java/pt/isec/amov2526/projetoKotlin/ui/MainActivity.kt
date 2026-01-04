@@ -25,6 +25,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.ui.screens.MainScreen
+import pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService
+import com.google.firebase.auth.FirebaseAuth
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,12 +47,12 @@ class MainActivity : AppCompatActivity() {
 
 
 
-        if (intent.action != "ACTION_SHOW_ALERT" && com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null) {
+        if (intent.action != "ACTION_SHOW_ALERT" && FirebaseAuth.getInstance().currentUser != null) {
             val resetIntent = Intent(
                 this,
-                pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java
+                SafetyMonitorService::class.java
             ).apply {
-                action = "pt.isec.amov2526.projetoKotlin.services.ACTION_UI_RESET"
+                action = SafetyMonitorService.ACTION_UI_RESET
             }
             startService(resetIntent)
         }
