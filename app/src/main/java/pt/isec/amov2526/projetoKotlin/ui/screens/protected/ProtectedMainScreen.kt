@@ -45,6 +45,7 @@ fun ProtectedMainScreen(
 
     // --- ESTADOS GLOBAIS DE ALERTA ---
     var showAlertScreen by remember { mutableStateOf(false) }
+    var isAlertConfirmed by remember { mutableStateOf(false) } // [NOVO] Estado "Lifted"
     var pendingAlertType by remember { mutableStateOf(ActivityAlertType.PANIC) }
     val scope = rememberCoroutineScope()
 
@@ -71,7 +72,7 @@ fun ProtectedMainScreen(
     val activity = LocalContext.current as? android.app.Activity
     var alertInitialSeconds by remember { mutableIntStateOf(10) } // [NOVO]
     var alertDetails by remember { mutableStateOf<String?>(null) } // [NOVO]
-    var alertIdFromIntent by remember { mutableStateOf<String?>(null) } // [NOVO]
+    var alertId by remember { mutableStateOf<String?>(null) } // [NOVO] Renomeado de alertIdFromIntent
     var alertInfractions by remember { mutableStateOf<List<InfractionDisplayInfo>>(emptyList()) } // [NOVO]
 
     DisposableEffect(lifecycleOwner) {
@@ -80,6 +81,7 @@ fun ProtectedMainScreen(
                 if (activity?.intent?.action == "ACTION_SHOW_ALERT") {
                     val typeStr = activity.intent.getStringExtra("ALERT_TYPE")
                     alertDetails = activity.intent.getStringExtra("ALERT_DETAILS") // [NOVO]
+                    val incomingId = activity.intent.getStringExtra("ALERT_ID") // [NOVO] ID do Serviço
 
                     // [NOVO] Extração das infrações
                     val infractionsStr = activity.intent.getStringExtra("ALERT_INFRACTIONS")
@@ -110,6 +112,8 @@ fun ProtectedMainScreen(
                         alertInitialSeconds = 10
                     }
 
+                    alertId = incomingId ?: java.util.UUID.randomUUID().toString() // Fallback seguro
+                    isAlertConfirmed = false // [CORREÇÃO] Resetar confirmação ao receber novo alerta
                     showAlertScreen = true
                     activity.intent.action = null
                 }
@@ -134,32 +138,36 @@ fun ProtectedMainScreen(
                 AlertScreen(
                     alertType = pendingAlertType.name, 
                     alertDetails = alertDetails, 
-                    alertIdFromIntent = alertIdFromIntent, // [NOVO]
+                    alertIdFromIntent = alertId, // [NOVO]
                     currentLocation = currentLocation,
                     activeGeofences = activeGeofences, // [NOVO]
                     infractions = alertInfractions, // [NOVO]
-                    initialSeconds = alertInitialSeconds, 
+                    initialSeconds = alertInitialSeconds,
+                    isConfirmedState = isAlertConfirmed, // [NOVO] Passar estado
                     onCancel = {
                         // Cancelar ANTES de confirmar: Fecha tudo
                         showAlertScreen = false
+                        isAlertConfirmed = false // [CORREÇÃO] Reset
+                        alertId = null // [CORREÇÃO] Limpar ID
                         (context as? pt.isec.amov2526.projetoKotlin.ui.MainActivity)?.setShowOnLockScreen(false)
                     },
                     onConfirm = {
+                        isAlertConfirmed = true // [CORREÇÃO] Confirmar (UI Only)
+                        
                         // Confirmar (SOS enviado):
-                        // 1. Envia para a Firebase usando o ID gerado pelo serviço se existir
-                        guardViewModel.sendAlert(pendingAlertType, alertIdFromIntent) { newId ->
-                            alertIdFromIntent = newId
+                        // 1. Envia para a Firebase usando o ID QUE JÁ EXISTE (alertId)
+                        // Assim o ID não muda e o ecrã não pisca.
+                        guardViewModel.sendAlert(pendingAlertType, alertId) { 
+                            // Callback opcional, ID manteve-se
                         }
 
                         // 2. Avisa o Serviço para parar a contagem
                         val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
-                            action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_CANCEL_ALERT
+                            action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_CONFIRM_ALERT
+                            // Se for para parar a notificação de contagem:
+                            action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_CANCEL_ALERT 
                         }
                         context.startService(intent)
-
-                        // [CORREÇÃO] NÃO FECHAMOS A JANELA AQUI!
-                        // Mantemos 'showAlertScreen = true' para mostrar o Mapa e Câmaras (ConfirmedPanel).
-                        // Também NÃO desligamos o 'setShowOnLockScreen' para manter o ecrã acordado na emergência.
                     },
                     onValidatePin = { pin ->
                         scope.launch {
@@ -167,6 +175,8 @@ fun ProtectedMainScreen(
                             if (isValid) {
                                 // PIN Válido: Cancela e fecha tudo
                                 showAlertScreen = false
+                                isAlertConfirmed = false // [CORREÇÃO] Reset
+                                alertId = null // [CORREÇÃO] Limpar ID
 
                                 val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
                                     action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_CANCEL_ALERT
@@ -272,6 +282,8 @@ fun ProtectedMainScreen(
                         protectedViewModel = protectedViewModel,
                         onPanic = {
                             pendingAlertType = ActivityAlertType.PANIC
+                            alertId = java.util.UUID.randomUUID().toString() // [CORREÇÃO] ID Gerado logo aqui
+                            isAlertConfirmed = false
                             showAlertScreen = true
                         }
                     )

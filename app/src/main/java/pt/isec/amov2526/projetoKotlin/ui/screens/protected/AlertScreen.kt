@@ -32,7 +32,8 @@ fun AlertScreen(
     currentLocation: Location? = null,
     activeGeofences: List<MonitorRule> = emptyList(),
     infractions: List<InfractionDisplayInfo> = emptyList(),
-    initialSeconds: Int = 10
+    initialSeconds: Int = 10,
+    isConfirmedState: Boolean = false // [NOVO] Estado recebido do pai
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -42,9 +43,10 @@ fun AlertScreen(
     val alertRepository = remember { AlertRepository() }
     val auth = remember { FirebaseAuth.getInstance() }
 
-    var isConfirmed by remember { mutableStateOf(false) }
+    // [CORREÇÃO] Usar estado do pai
     var pinInput by remember { mutableStateOf("") }
-    var alertId by remember(alertIdFromIntent) { mutableStateOf<String?>(alertIdFromIntent) }
+    // var alertId não é necessário, usamos alertIdFromIntent diretamente
+    
     var isRecordingFinished by remember { mutableStateOf(false) }
     var recordingStartTime by remember { mutableLongStateOf(0L) }
     
@@ -84,14 +86,15 @@ fun AlertScreen(
         }
     }
 
-    LaunchedEffect(finalizedFile, alertId) {
-        if (finalizedFile != null && alertId != null && isConfirmed) {
-            performUpload(finalizedFile!!, alertId!!)
+    LaunchedEffect(finalizedFile, alertIdFromIntent) {
+        if (finalizedFile != null && alertIdFromIntent != null && isConfirmedState) {
+            performUpload(finalizedFile!!, alertIdFromIntent)
         }
     }
 
     // Iniciar gravação assim que o ecrã aparece (mesmo em countdown)
-    DisposableEffect(lifecycleOwner) {
+    // [CORREÇÃO] Reiniciar gravação se o alertId mudar
+    DisposableEffect(lifecycleOwner, alertIdFromIntent) {
         evidenceManager.startVideoRecording(
             lifecycleOwner = lifecycleOwner,
             surfaceProvider = previewView.surfaceProvider,
@@ -105,8 +108,8 @@ fun AlertScreen(
     }
 
     // Sincronizar o timer visual com o início real da gravação
-    LaunchedEffect(isConfirmed) {
-        if (isConfirmed) {
+    LaunchedEffect(isConfirmedState) {
+        if (isConfirmedState) {
              while (recordingStartTime == 0L) {
                  recordingStartTime = evidenceManager.getRecordingStartTime()
                  delay(100)
@@ -125,14 +128,14 @@ fun AlertScreen(
     }
 
     LaunchedEffect(pinInput) {
-        if (!isConfirmed && pinInput.length == 4) {
+        if (!isConfirmedState && pinInput.length == 4) {
             if (onValidatePin(pinInput)) handleCancel()
             else { delay(500); pinInput = "" }
         }
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0F172A))) {
-        if (!isConfirmed) {
+        if (!isConfirmedState) {
             CountdownPanel(
                 alertType = alertType,
                 alertDetails = alertDetails,
@@ -141,11 +144,9 @@ fun AlertScreen(
                 onPinDigit = { if (pinInput.length < 4) pinInput += it },
                 onPinDelete = { if (pinInput.isNotEmpty()) pinInput = pinInput.dropLast(1) },
                 onTimerFinished = { 
-                    isConfirmed = true
                     onConfirm() 
                 },
                 onHelpNow = { 
-                    isConfirmed = true
                     onConfirm() 
                 }
             )
