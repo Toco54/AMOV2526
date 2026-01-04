@@ -26,6 +26,9 @@ class LocationHandler(
 
     // [NOVO] Anti-Spam: Guarda IDs dos monitores que já receberam alerta de saída
     private val triggeredMonitors = mutableSetOf<String>()
+    
+    // [NOVO] Throttle para verificação de velocidade
+    private var lastSpeedCheckTime = 0L
 
     private var monitoringJob: Job? = null
 
@@ -81,40 +84,43 @@ class LocationHandler(
 
         // 1. Verificar Velocidade
         if (location.hasSpeed()) {
-            val currentSpeedKmh = location.speed * 3.6f
-            
-            val rules = synchronized(speedRules) { speedRules.toList() }
-            val rulesByMonitor = rules.groupBy { it.monitorId }
+            val now = System.currentTimeMillis()
+            if (now - lastSpeedCheckTime >= 30000L) { // 30 segundos throttle
+                lastSpeedCheckTime = now
+                val currentSpeedKmh = location.speed * 3.6f
+                
+                val rules = synchronized(speedRules) { speedRules.toList() }
+                val rulesByMonitor = rules.groupBy { it.monitorId }
 
-            rulesByMonitor.forEach { (monitorId, monitorRules) ->
-                val brokenRules = monitorRules.filter { rule ->
-                    // [ATUALIZADO] Verificação Dinâmica (AND: Global && Group && Rule)
-                    val active = isActiveChecker(rule)
-                    val limit = rule.parameter.toFloatOrNull() ?: Float.MAX_VALUE
-                    
-                    Log.d("LocationHandler", "Rule Check -> Speed: $currentSpeedKmh | Limit: $limit | Active: $active | Monitor: ${rule.monitorName}")
+                rulesByMonitor.forEach { (monitorId, monitorRules) ->
+                    val brokenRules = monitorRules.filter { rule ->
+                        val active = isActiveChecker(rule)
+                        val limit = rule.parameter.toFloatOrNull() ?: Float.MAX_VALUE
+                        
+                        Log.d("LocationHandler", "Rule Check -> Speed: $currentSpeedKmh | Limit: $limit | Active: $active | Monitor: ${rule.monitorName}")
 
-                    active && currentSpeedKmh > limit
-                }
-
-                if (brokenRules.isNotEmpty()) {
-                    val highestLimitRule = brokenRules.maxByOrNull { 
-                        it.parameter.toFloatOrNull() ?: 0f 
+                        active && currentSpeedKmh > limit
                     }
-                    if (highestLimitRule != null) {
-                        val limit = highestLimitRule.parameter.toFloat()
-                        monitorsToNotify.add(monitorId)
-                        detectedInfractions.add(
-                            RuleInfraction(
-                                ruleId = highestLimitRule.id,
-                                monitorId = monitorId,
-                                monitorName = highestLimitRule.monitorName,
-                                ruleType = RuleType.SPEED,
-                                description = "${currentSpeedKmh.toInt()} km/h (Limit: ${limit.toInt()})",
-                                valueDetected = currentSpeedKmh,
-                                ruleParameter = highestLimitRule.parameter
+
+                    if (brokenRules.isNotEmpty()) {
+                        val highestLimitRule = brokenRules.maxByOrNull { 
+                            it.parameter.toFloatOrNull() ?: 0f 
+                        }
+                        if (highestLimitRule != null) {
+                            val limit = highestLimitRule.parameter.toFloat()
+                            monitorsToNotify.add(monitorId)
+                            detectedInfractions.add(
+                                RuleInfraction(
+                                    ruleId = highestLimitRule.id,
+                                    monitorId = monitorId,
+                                    monitorName = highestLimitRule.monitorName,
+                                    ruleType = RuleType.SPEED,
+                                    description = "${currentSpeedKmh.toInt()} km/h",
+                                    valueDetected = currentSpeedKmh,
+                                    ruleParameter = highestLimitRule.parameter
+                                )
                             )
-                        )
+                        }
                     }
                 }
             }
@@ -138,7 +144,6 @@ class LocationHandler(
             Log.d("LocationHandler", "  > Analyzing Monitor: ${rules.firstOrNull()?.monitorName ?: monitorId}")
 
             for (rule in rules) {
-                // [ATUALIZADO] Verificação Dinâmica
                 val isActive = isActiveChecker(rule)
                 
                 val geoData = rule.geofenceData

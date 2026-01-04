@@ -33,6 +33,7 @@ class SafetyMonitorService : Service() {
         const val ACTION_STOP_TIMER = "pt.isec.amov2526.projetoKotlin.services.ACTION_STOP_TIMER"
         const val ACTION_FINISH_ALERT = "pt.isec.amov2526.projetoKotlin.services.ACTION_FINISH_ALERT"
         const val ACTION_CANCEL_ALERT = "pt.isec.amov2526.projetoKotlin.services.ACTION_CANCEL_ALERT" // Alias for compatibility
+        const val ACTION_UI_RESET = "pt.isec.amov2526.projetoKotlin.services.ACTION_UI_RESET"
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
@@ -74,6 +75,7 @@ class SafetyMonitorService : Service() {
     private var isAlertInProgress = false
 
     private var alertJob: Job? = null
+    private var uiTimeoutJob: Job? = null // [NOVO] Timeout para evitar bloqueio visual
     private var lastBatteryAlertTime = 0L
 
     private val batteryReceiver = object : android.content.BroadcastReceiver() {
@@ -137,6 +139,25 @@ class SafetyMonitorService : Service() {
         return effectivelyActive
     }
 
+    private fun processNextInQueue() {
+        // Garante limpeza de jobs anteriores
+        uiTimeoutJob?.cancel()
+        uiTimeoutJob = null
+        alertJob?.cancel()
+        alertJob = null
+
+        if (serviceQueue.isNotEmpty()) {
+            val next = serviceQueue.removeAt(0)
+            Log.d("SafetyMonitorService", "Processing next queued alert: ${next.type}")
+            // launchAlertUI iniciará o novo timer de UI
+            launchAlertUI(next.type, next.details, next.infractions, next.alertId)
+            scheduleAlertCreation(next.type, next.details, next.monitors, next.infractions, next.alertId)
+        } else {
+            isAlertInProgress = false
+            getSystemService(NotificationManager::class.java).cancel(999)
+        }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START_ALERT -> {
@@ -150,17 +171,19 @@ class SafetyMonitorService : Service() {
                 getSystemService(NotificationManager::class.java).cancel(999)
             }
             ACTION_FINISH_ALERT, ACTION_CANCEL_ALERT -> {
-                alertJob?.cancel()
-                alertJob = null
-                
-                if (serviceQueue.isNotEmpty()) {
-                    val next = serviceQueue.removeAt(0)
-                    Log.d("SafetyMonitorService", "Processing next queued alert: ${next.type}")
-                    launchAlertUI(next.type, next.details, next.infractions, next.alertId)
-                    scheduleAlertCreation(next.type, next.details, next.monitors, next.infractions, next.alertId)
-                } else {
-                    isAlertInProgress = false
-                    getSystemService(NotificationManager::class.java).cancel(999)
+                processNextInQueue()
+            }
+            ACTION_UI_RESET -> {
+                // [CORREÇÃO] Se a UI reiniciou (crash/swipe), assumimos que o ecrã de alerta fechou
+                if (isAlertInProgress) {
+                    Log.d("SafetyMonitorService", "UI Reset detected. Clearing stale alert state.")
+                    // Se houver fila, processa o próximo, senão limpa
+                    if (serviceQueue.isNotEmpty()) {
+                        processNextInQueue() // Reutiliza a lógica centralizada
+                    } else {
+                        isAlertInProgress = false
+                        uiTimeoutJob?.cancel() // Garante que o timer não dispara depois
+                    }
                 }
             }
         }
@@ -173,14 +196,14 @@ class SafetyMonitorService : Service() {
                 if (isProtectionActive && result.infractions.isNotEmpty()) {
                     val first = result.infractions.first()
                     val type = if (first.ruleType == RuleType.FALL) ActivityAlertType.FALL else ActivityAlertType.ACCIDENT
-                    triggerAlertSequence(type, result.infractions.joinToString(", ") { it.description }, result.activeMonitorsToNotify.toList(), result.infractions)
+                    triggerAlertSequence(type, result.infractions.map { it.description }.distinct().joinToString(", "), result.activeMonitorsToNotify.toList(), result.infractions)
                 }
             }
         }
         serviceScope.launch {
             inactivityHandler.infractions.collect { result ->
                 if (isProtectionActive && result.infractions.isNotEmpty()) {
-                    triggerAlertSequence(ActivityAlertType.INACTIVITY, result.infractions.joinToString(", ") { it.description }, result.activeMonitorsToNotify.toList(), result.infractions)
+                    triggerAlertSequence(ActivityAlertType.INACTIVITY, result.infractions.map { it.description }.distinct().joinToString(", "), result.activeMonitorsToNotify.toList(), result.infractions)
                 }
             }
         }
@@ -189,7 +212,7 @@ class SafetyMonitorService : Service() {
                 if (isProtectionActive && result.infractions.isNotEmpty()) {
                     val first = result.infractions.first()
                     val type = if (first.ruleType == RuleType.SPEED) ActivityAlertType.SPEED else ActivityAlertType.GEOFENCE
-                    triggerAlertSequence(type, result.infractions.joinToString(", ") { it.description }, result.activeMonitorsToNotify.toList(), result.infractions)
+                    triggerAlertSequence(type, result.infractions.map { it.description }.distinct().joinToString(", "), result.activeMonitorsToNotify.toList(), result.infractions)
                 }
             }
         }
@@ -220,7 +243,13 @@ class SafetyMonitorService : Service() {
                     ActivityAlertType.INACTIVITY -> "Inatividade Detetada"
                     else -> "Alerta Automático"
                 }
-                createAlert(type, if (details != null) "$title: $details" else title, monitors, infractions, alertId)
+                
+                // [CORREÇÃO] Evita prefixos duplicados se o details já contiver o título (ex: vindo do triggerAlertSequence)
+                val finalMessage = if (details != null) {
+                    if (details.startsWith(title)) details else "$title: $details"
+                } else title
+
+                createAlert(type, finalMessage, monitors, infractions, alertId)
                 getSystemService(NotificationManager::class.java).cancel(999)
             }
             alertJob = null
@@ -228,6 +257,16 @@ class SafetyMonitorService : Service() {
     }
 
     private fun launchAlertUI(type: ActivityAlertType, details: String?, infractions: List<pt.isec.amov2526.projetoKotlin.data.model.RuleInfraction>?, alertId: String) {
+        // [NOVO] Inicia timer de 60s para rodar a fila caso o user não interaja
+        uiTimeoutJob?.cancel()
+        uiTimeoutJob = serviceScope.launch {
+            delay(60000L) // 60 segundos
+            if (isAlertInProgress) {
+                Log.d("SafetyMonitorService", "Alert UI timed out (60s). Moving to next.")
+                processNextInQueue()
+            }
+        }
+
         val intent = Intent(this, pt.isec.amov2526.projetoKotlin.ui.MainActivity::class.java).apply {
             action = "ACTION_SHOW_ALERT"
             putExtra("ALERT_TYPE", type.name)

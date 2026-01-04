@@ -49,6 +49,27 @@ fun CountdownPanel(
             else -> "$alertType ALERT"
         }
     }
+    
+    // [CORREÇÃO] Remove redundância se os detalhes começarem com o nome do alerta (vários idiomas)
+    val cleanDetails = remember(alertDetails, alertType) {
+        if (alertDetails == null) return@remember null
+        
+        // Lista de prefixos possíveis vindos do Service (SafetyMonitorService.kt)
+        val prefixes = listOf(
+            "Queda Detetada", "Acidente de Viação", "Bateria Fraca", 
+            "Saiu da Zona Segura", "Velocidade Excessiva", "Inatividade Detetada", "Alerta Automático",
+            // Inglês (caso futuro)
+            "Fall Detected", "Car Accident", "Low Battery", "Safe Zone Exit", "High Speed", "Inactivity Detected"
+        )
+        
+        var d = alertDetails
+        for (p in prefixes) {
+            if (d?.startsWith(p, ignoreCase = true) == true) {
+                d = d?.removePrefix(p)?.trim()?.removePrefix(":")?.trim()
+            }
+        }
+        if (d.isNullOrEmpty()) null else d
+    }
 
     LaunchedEffect(timeLeft) {
         if (timeLeft > 0) {
@@ -74,9 +95,9 @@ fun CountdownPanel(
         )
 
         // [NOVO] Mostrar detalhes se existirem
-        if (alertDetails != null) {
+        if (cleanDetails != null) {
             Text(
-                text = alertDetails,
+                text = cleanDetails,
                 style = MaterialTheme.typography.titleMedium,
                 color = Color.White.copy(alpha = 0.8f),
                 modifier = Modifier.padding(top = 8.dp)

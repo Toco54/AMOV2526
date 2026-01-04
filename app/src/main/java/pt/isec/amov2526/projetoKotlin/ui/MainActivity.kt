@@ -40,6 +40,15 @@ class MainActivity : ComponentActivity() {
 
         checkIntentForAlert(intent)
 
+        // [CORREÇÃO] Notifica o serviço que a UI reiniciou, para limpar estados bloqueados (ex: isAlertInProgress)
+        // Só fazemos reset se NÃO for uma recriação por causa de um alerta ativo (ACTION_SHOW_ALERT)
+        if (intent.action != "ACTION_SHOW_ALERT") {
+             val resetIntent = Intent(this, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
+                action = "pt.isec.amov2526.projetoKotlin.services.ACTION_UI_RESET"
+            }
+            startService(resetIntent)
+        }
+
         enableEdgeToEdge()
         setContent {
             // --- Permission Handling in MainActivity ---
