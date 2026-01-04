@@ -1,8 +1,12 @@
 package pt.isec.amov2526.projetoKotlin.ui.screens.monitor.components.dashboard
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import pt.isec.amov2526.projetoKotlin.utils.LocationHelper
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -152,7 +156,7 @@ fun MonitorRuleGroup(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Slate50),
         shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Slate100)
+        border = BorderStroke(1.dp, Slate100)
     ) {
         Column {
             Row(modifier = Modifier
@@ -503,7 +507,7 @@ fun EditRuleDialog(
 
     var searchQuery by remember { mutableStateOf("") }
     val context = LocalContext.current
-    val locationHelper = remember { pt.isec.amov2526.projetoKotlin.utils.LocationHelper(context) }
+    val locationHelper = remember { LocationHelper(context) }
     val userLocation by locationHelper.currentLocation.collectAsState()
     var hasInitializedMap by remember { mutableStateOf(false) }
     var mapViewRef by remember { mutableStateOf<MapView?>(null) }
@@ -891,8 +895,8 @@ fun EditRuleDialog(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(top = 4.dp),
-                                    textStyle = androidx.compose.ui.text.TextStyle(
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    textStyle = TextStyle(
+                                        textAlign = TextAlign.Center,
                                         fontWeight = FontWeight.Bold
                                     ),
                                     enabled = false,
@@ -912,8 +916,8 @@ fun EditRuleDialog(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(top = 4.dp),
-                                    textStyle = androidx.compose.ui.text.TextStyle(
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    textStyle = TextStyle(
+                                        textAlign = TextAlign.Center,
                                         fontWeight = FontWeight.Bold
                                     ),
                                     enabled = false,

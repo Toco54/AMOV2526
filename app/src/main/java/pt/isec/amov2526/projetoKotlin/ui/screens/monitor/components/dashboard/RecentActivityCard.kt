@@ -6,6 +6,7 @@ import android.net.Uri
 import android.preference.PreferenceManager
 import android.view.Surface
 import android.view.TextureView
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -134,7 +135,7 @@ fun ActivityItemRow(activity: ActivityItem, onClick: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = Slate50),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Slate100)
+        border = BorderStroke(1.dp, Slate100)
     ) {
         Row(
             modifier = Modifier

@@ -1,6 +1,8 @@
 package pt.isec.amov2526.projetoKotlin.ui.screens.auth
 
+import android.util.Patterns
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -88,7 +90,7 @@ fun ForgotPasswordScreen(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = Slate800.copy(alpha = 0.5f)),
             shape = RoundedCornerShape(24.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Slate800)
+            border = BorderStroke(1.dp, Slate800)
         ) {
             Column(
                 modifier = Modifier
@@ -163,7 +165,7 @@ fun ForgotPasswordScreen(
                 Button(
                     onClick = {
                         val trimmedEmail = email.trim()
-                        if (trimmedEmail.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(
+                        if (trimmedEmail.isBlank() || !Patterns.EMAIL_ADDRESS.matcher(
                                 trimmedEmail
                             ).matches()
                         ) {
