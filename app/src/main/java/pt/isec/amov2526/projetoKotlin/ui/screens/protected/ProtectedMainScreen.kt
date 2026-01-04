@@ -139,6 +139,12 @@ fun ProtectedMainScreen(
                     if (showAlertScreen) {
                         alertQueue.add(PendingAlert(type, details, safeId, infractionsList, timestamp))
                         android.util.Log.d("ProtectedMainScreen", "Alert enqueued. Queue size: ${alertQueue.size}")
+                        
+                        // [NOVO] Auto-advance se o alerta atual já estiver confirmado/terminado
+                        // Assume-se (pela regra de negócio) que o novo alerta só chega quando o anterior termina.
+                        if (isAlertConfirmed) {
+                            processNextAlert()
+                        }
                     } else {
                         pendingAlertType = type
                         alertDetails = details
@@ -176,42 +182,46 @@ fun ProtectedMainScreen(
             )
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                AlertScreen(
-                    alertType = pendingAlertType.name,
-                    alertDetails = alertDetails,
-                    alertIdFromIntent = alertId,
-                    currentLocation = currentLocation,
-                    activeGeofences = activeGeofences,
-                    infractions = alertInfractions,
-                    initialSeconds = alertInitialSeconds,
-                    isConfirmedState = isAlertConfirmed,
-                    onCancel = { processNextAlert() },
-                    onConfirm = {
-                        isAlertConfirmed = true
-                        val targetMonitors = alertInfractions.mapNotNull { it.monitorId }.distinct().ifEmpty { null }
-                        guardViewModel.sendAlert(pendingAlertType, alertId, targetMonitors) { }
-                        val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
-                            action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_STOP_TIMER
-                        }
-                        context.startService(intent)
-                    },
-                    onValidatePin = { pin ->
-                        scope.launch {
-                            val isValid = guardViewModel.verifyPin(pin)
-                            if (isValid) {
-                                val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
-                                    action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_FINISH_ALERT
-                                }
-                                context.startService(intent)
-                                if (keyguardManager.isDeviceLocked) activity?.finish()
-                                processNextAlert()
-                            } else {
-                                Toast.makeText(context, "Invalid PIN", Toast.LENGTH_SHORT).show()
+                // [CORREÇÃO] key(alertId) força a recriação do AlertScreen quando o ID muda,
+                // garantindo que estados como isRecordingFinished/finalizedFile sejam resetados.
+                key(alertId) {
+                    AlertScreen(
+                        alertType = pendingAlertType.name,
+                        alertDetails = alertDetails,
+                        alertIdFromIntent = alertId,
+                        currentLocation = currentLocation,
+                        activeGeofences = activeGeofences,
+                        infractions = alertInfractions,
+                        initialSeconds = alertInitialSeconds,
+                        isConfirmedState = isAlertConfirmed,
+                        onCancel = { processNextAlert() },
+                        onConfirm = {
+                            isAlertConfirmed = true
+                            val targetMonitors = alertInfractions.mapNotNull { it.monitorId }.distinct().ifEmpty { null }
+                            guardViewModel.sendAlert(pendingAlertType, alertId, targetMonitors) { }
+                            val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
+                                action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_STOP_TIMER
                             }
+                            context.startService(intent)
+                        },
+                        onValidatePin = { pin ->
+                            scope.launch {
+                                val isValid = guardViewModel.verifyPin(pin)
+                                if (isValid) {
+                                    val intent = android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
+                                        action = pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService.ACTION_FINISH_ALERT
+                                    }
+                                    context.startService(intent)
+                                    if (keyguardManager.isDeviceLocked) activity?.finish()
+                                    processNextAlert()
+                                } else {
+                                    Toast.makeText(context, "Invalid PIN", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            false
                         }
-                        false
-                    }
-                )
+                    )
+                }
             }
         }
     }

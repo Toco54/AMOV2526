@@ -52,6 +52,13 @@ import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import kotlinx.coroutines.delay
+import android.net.Uri
+import android.view.TextureView
+import android.view.Surface
+import android.graphics.SurfaceTexture
+import android.media.MediaPlayer
+import androidx.compose.material.icons.filled.PlayArrow
+import java.io.File
 
 // --- Theme Colors ---
 private val AlertRed = Color(0xFFDC2626)
@@ -72,6 +79,7 @@ fun ConfirmedPanel(
     recordingStartTime: Long = 0L, // [NOVO]
     hasError: Boolean = false, // [NOVO]
     errorMessage: String? = null, // [NOVO]
+    recordedVideoFile: File? = null, // [NOVO]
     onClose: () -> Unit = {} // [NOVO]
 ) {
     var remainingSeconds by remember { mutableLongStateOf(12L) } // 12s como no branch fix/vids
@@ -189,6 +197,9 @@ fun ConfirmedPanel(
         }
 
         // 3. Video Feed Area
+        val showVideoPlayer = isRecordingFinished && !hasError && recordedVideoFile != null
+        var isPlaying by remember { mutableStateOf(true) }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -199,17 +210,79 @@ fun ConfirmedPanel(
                     width = 1.dp,
                     color = Color.Gray,
                     shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
-                ),
+                )
+                .clickable(enabled = showVideoPlayer) { isPlaying = !isPlaying },
             contentAlignment = Alignment.Center
         ) {
-            if (previewView != null) {
+            if (showVideoPlayer && recordedVideoFile != null) {
+                // Video Player Logic
+                val mediaPlayer = remember { MediaPlayer() }
+                
+                DisposableEffect(Unit) {
+                    onDispose {
+                        try {
+                            if (mediaPlayer.isPlaying) mediaPlayer.stop()
+                            mediaPlayer.release()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                }
+
+                LaunchedEffect(isPlaying) {
+                     try {
+                        if (isPlaying && !mediaPlayer.isPlaying) mediaPlayer.start()
+                        else if (!isPlaying && mediaPlayer.isPlaying) mediaPlayer.pause()
+                     } catch(e: Exception) { e.printStackTrace() }
+                }
+
                 AndroidView(
-                    factory = { 
-                        (previewView.parent as? ViewGroup)?.removeView(previewView)
-                        previewView 
+                    factory = { ctx ->
+                        TextureView(ctx).apply {
+                            surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                                override fun onSurfaceTextureAvailable(surface: SurfaceTexture, w: Int, h: Int) {
+                                    try {
+                                        mediaPlayer.setDataSource(ctx, Uri.fromFile(recordedVideoFile))
+                                        mediaPlayer.setSurface(Surface(surface))
+                                        mediaPlayer.isLooping = true
+                                        mediaPlayer.prepare()
+                                        if (isPlaying) mediaPlayer.start()
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
+                                }
+                                override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, w: Int, h: Int) {}
+                                override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean = true
+                                override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
+                            }
+                        }
                     },
                     modifier = Modifier.fillMaxSize()
                 )
+
+                if (!isPlaying) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier
+                            .size(64.dp)
+                            .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                            .padding(16.dp)
+                    )
+                }
+
+            } else {
+                 // Camera Preview Logic (Existing)
+                 if (previewView != null) {
+                    AndroidView(
+                        factory = { 
+                            (previewView.parent as? ViewGroup)?.removeView(previewView)
+                            previewView 
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
 
             if (!isRecordingFinished) {

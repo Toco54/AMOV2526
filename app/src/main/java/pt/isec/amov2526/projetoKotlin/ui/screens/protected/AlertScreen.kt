@@ -180,6 +180,7 @@ fun AlertScreen(
                 recordingStartTime = recordingStartTime,
                 hasError = hasError,
                 errorMessage = errorMessage,
+                recordedVideoFile = finalizedFile, // [NOVO]
                 onClose = { onCancel() }
             )
         }
