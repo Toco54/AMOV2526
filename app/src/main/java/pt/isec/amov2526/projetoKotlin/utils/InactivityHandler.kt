@@ -24,7 +24,8 @@ class InactivityHandler(
     private val _infractions = MutableSharedFlow<ProtectionCheckResult>()
     val infractions = _infractions.asSharedFlow()
 
-    private var lastMotionTimestamp: Long = System.currentTimeMillis()
+    // [MODIFICADO] Inicializa com o último timestamp conhecido do sensor, permitindo detetar inatividade acumulada
+    private var lastMotionTimestamp: Long = sensorHelper.lastMotionTimestamp.value
     private var monitoringJob: Job? = null
     private var sensorJob: Job? = null
     private var lastMinuteLogged: Long = 0
@@ -41,9 +42,19 @@ class InactivityHandler(
     fun startMonitoring() {
         if (monitoringJob?.isActive == true) return
         sensorHelper.startMotionDetection()
+        
+        // Monitorização do fluxo de movimentos (Timestamp)
         sensorJob = scope.launch {
-            sensorHelper.significantMotion.collect { hasMotion -> if (hasMotion) resetTimer() }
+            sensorHelper.lastMotionTimestamp.collect { timestamp -> 
+                // Ignora timestamps antigos na inicialização se necessário, ou processa tudo
+                if (timestamp > lastMotionTimestamp) {
+                    Log.d("InactivityHandler", "Movimento detetado em: $timestamp")
+                    resetTimer(timestamp)
+                }
+            }
         }
+        
+        // Ciclo de verificação periódica das regras de inatividade
         monitoringJob = scope.launch {
             while (true) { checkRules(); delay(5000L) }
         }
@@ -55,8 +66,10 @@ class InactivityHandler(
         sensorHelper.stopMotionDetection()
     }
 
-    private fun resetTimer() {
-        lastMotionTimestamp = System.currentTimeMillis()
+    // [MODIFICADO] Tornou-se interno para permitir reinicialização via Serviço (ex: ao ativar proteção)
+    fun resetTimer(timestamp: Long = System.currentTimeMillis()) {
+        Log.d("InactivityHandler", "Temporizador reiniciado. Referência: $timestamp")
+        lastMotionTimestamp = timestamp
         if (triggeredRulesThisSession.isNotEmpty()) {
             synchronized(triggeredRulesThisSession) { triggeredRulesThisSession.clear() }
         }

@@ -348,28 +348,28 @@ fun MonitorDashboardScreen(
                                             IconButton(onClick = { if (rule.deletedByProtege) viewModel.deleteRule(rule.id) else ruleIdToDelete = rule.id }, modifier = Modifier.size(32.dp)) {
                                                 Icon(imageVector = Icons.Default.Delete, contentDescription = null, tint = if (rule.deletedByProtege) Red600 else Slate400, modifier = Modifier.size(18.dp))
                                             }
-                                                                                        Spacer(modifier = Modifier.width(4.dp))
-                                            
-                                                                                        if (rule.deletedByProtege) {
-                                                                                            Icon(Icons.Default.Warning, "Deleted", tint = Red600, modifier = Modifier.size(24.dp))
-                                                                                        } else {
-                                                                                            // Show status icons alongside the switch
-                                                                                            if (rule.isDisabledByProtege) {
-                                                                                                Icon(Icons.Default.PersonOff, "Disabled by User", tint = Red600, modifier = Modifier.size(20.dp))
-                                                                                                Spacer(modifier = Modifier.width(8.dp))
-                                                                                            }
-                                                                                            if (rule.pausedUntil > currentTime) {
-                                                                                                Icon(Icons.Default.PauseCircle, "Paused", tint = Color(0xFFF59E0B), modifier = Modifier.size(20.dp))
-                                                                                                Spacer(modifier = Modifier.width(8.dp))
-                                                                                            }
-                                                                                            
-                                                                                            Switch(
-                                                                                                checked = rule.isEnabled,
-                                                                                                onCheckedChange = { viewModel.toggleRule(rule.id, it) },
-                                                                                                modifier = Modifier.scale(0.6f),
-                                                                                                colors = SwitchDefaults.colors(checkedTrackColor = Emerald500)
-                                                                                            )
-                                                                                        }
+
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            if (rule.deletedByProtege) {
+                                                Icon(Icons.Default.Warning, "Deleted", tint = Red600, modifier = Modifier.size(24.dp))
+                                            } else {
+                                                // Show status icons alongside the switch
+                                                if (rule.isDisabledByProtege) {
+                                                    Icon(Icons.Default.PersonOff, "Disabled by User", tint = Red600, modifier = Modifier.size(20.dp))
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                }
+                                                if (rule.pausedUntil > currentTime) {
+                                                    Icon(Icons.Default.PauseCircle, "Paused", tint = Color(0xFFF59E0B), modifier = Modifier.size(20.dp))
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                }
+
+                                                Switch(
+                                                    checked = rule.isEnabled,
+                                                    onCheckedChange = { viewModel.toggleRule(rule.id, it) },
+                                                    modifier = Modifier.scale(0.6f),
+                                                    colors = SwitchDefaults.colors(checkedTrackColor = Emerald500)
+                                                )
+                                            }
                                         }
                                     }
                                     Spacer(modifier = Modifier.height(12.dp))
