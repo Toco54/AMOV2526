@@ -13,7 +13,8 @@ enum class MonitorActionState { SENT, VIEWED }
 data class MonitorAction(
     val name: String,
     val state: MonitorActionState,
-    val time: String
+    val time: String,
+    val uid: String? = null // [NOVO] Identificador para permitir updates
 )
 
 data class ActivityItem(

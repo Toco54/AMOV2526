@@ -63,7 +63,8 @@ class AlertRepository {
                 mapOf(
                     "name" to action.name,
                     "state" to action.state.name,
-                    "time" to action.time
+                    "time" to action.time,
+                    "uid" to (action.uid ?: "") // [NOVO] Guardar UID
                 )
             }
             alertData["notifiedMonitors"] = actionsList
@@ -132,7 +133,8 @@ class AlertRepository {
                         monitorsList.add(MonitorAction(
                             name = m["name"] as? String ?: "Unknown",
                             state = MonitorActionState.valueOf(m["state"] as? String ?: "SENT"),
-                            time = m["time"] as? String ?: ""
+                            time = m["time"] as? String ?: "",
+                            uid = m["uid"] as? String // [NOVO] Ler UID
                         ))
                     }
 

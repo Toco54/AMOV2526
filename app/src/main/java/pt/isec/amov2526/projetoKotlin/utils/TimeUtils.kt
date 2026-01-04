@@ -126,4 +126,11 @@ object TimeUtils {
         }
         return "Schedule Inactive"
     }
+
+    fun getCurrentTime(): String {
+        val cal = Calendar.getInstance()
+        val h = cal.get(Calendar.HOUR_OF_DAY)
+        val m = cal.get(Calendar.MINUTE)
+        return String.format("%02d:%02d", h, m)
+    }
 }
