@@ -1,5 +1,8 @@
 package pt.isec.amov2526.projetoKotlin.ui.screens
 
+import android.app.Activity
+import android.content.Intent
+import android.os.Build
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -26,6 +29,7 @@ import pt.isec.amov2526.projetoKotlin.ui.screens.monitor.MonitorMainScreen
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.ProtectedMainScreen
 import pt.isec.amov2526.projetoKotlin.ui.theme.ProjetoKotlinTheme
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
+import pt.isec.amov2526.projetoKotlin.services.MonitorNotificationService
 
 @Composable
 fun MainScreen() {
@@ -45,12 +49,12 @@ fun MainScreen() {
 
 
         LaunchedEffect(user) {
-            val intent = android.content.Intent(
+            val intent = Intent(
                 context,
-                pt.isec.amov2526.projetoKotlin.services.MonitorNotificationService::class.java
+                MonitorNotificationService::class.java
             )
             if (user != null) {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     context.startForegroundService(intent)
                 } else {
                     context.startService(intent)
@@ -63,7 +67,7 @@ fun MainScreen() {
         DisposableEffect(lifecycleOwner) {
             val observer = LifecycleEventObserver { _, event ->
                 if (event == Lifecycle.Event.ON_RESUME) {
-                    val activity = context as? android.app.Activity
+                    val activity = context as? Activity
                     val intent = activity?.intent
 
                     if (intent?.action == "ACTION_SHOW_ALERT") {
@@ -108,7 +112,7 @@ fun MainScreen() {
         LaunchedEffect(user, currentViewMode) {
             if (user != null && currentViewMode != null) {
                 val currentRoute = navController.currentBackStackEntry?.destination?.route
-                val activity = context as? android.app.Activity
+                val activity = context as? Activity
 
 
 

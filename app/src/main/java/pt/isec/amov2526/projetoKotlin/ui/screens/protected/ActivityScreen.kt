@@ -17,11 +17,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.data.model.ActivityItem
 import pt.isec.amov2526.projetoKotlin.data.model.MonitorRule
@@ -29,10 +31,11 @@ import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.activity.A
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.activity.AlertDetailModal
 import pt.isec.amov2526.projetoKotlin.ui.theme.Slate50
 import pt.isec.amov2526.projetoKotlin.ui.theme.Slate900
+import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
 
 @Composable
 fun ActivityScreen(
-    viewModel: pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
+    viewModel: ProtectedMainViewModel = viewModel(),
     activeGeofences: List<MonitorRule> = emptyList()
 ) {
     var selectedActivity by remember { mutableStateOf<ActivityItem?>(null) }
@@ -57,7 +60,7 @@ fun ActivityScreen(
         if (activities.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
-                contentAlignment = androidx.compose.ui.Alignment.Center
+                contentAlignment = Alignment.Center
             ) {
                 Text(stringResource(id = R.string.history_no_alerts), color = Color.Gray)
             }
