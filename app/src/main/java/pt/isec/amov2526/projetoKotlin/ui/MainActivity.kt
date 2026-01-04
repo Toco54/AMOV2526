@@ -2,16 +2,26 @@ package pt.isec.amov2526.projetoKotlin.ui
 
 import android.Manifest
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import pt.isec.amov2526.projetoKotlin.ui.screens.MainScreen
 
 class MainActivity : ComponentActivity() {
@@ -54,8 +64,40 @@ class MainActivity : ComponentActivity() {
                 onResult = { /* Handle results if needed */ }
             )
 
+            val context = LocalContext.current
+            var showOverlayPermissionDialog by remember { mutableStateOf(false) }
+
             LaunchedEffect(Unit) {
                 permissionLauncher.launch(permissionsToRequest.toTypedArray())
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                    showOverlayPermissionDialog = true
+                }
+            }
+
+            if (showOverlayPermissionDialog) {
+                AlertDialog(
+                    onDismissRequest = { showOverlayPermissionDialog = false },
+                    title = { Text("Permissão Necessária") },
+                    text = { Text("Para garantir que os Alertas de Emergência abrem imediatamente sobre outras apps, a SafetySec precisa de autorização para sobreposição.") },
+                    confirmButton = {
+                        Button(onClick = {
+                            showOverlayPermissionDialog = false
+                            val intent = Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:${context.packageName}")
+                            )
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(intent)
+                        }) {
+                            Text("Autorizar")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showOverlayPermissionDialog = false }) {
+                            Text("Agora não")
+                        }
+                    }
+                )
             }
 
             // --- UI Entry Point ---

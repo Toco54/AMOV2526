@@ -145,13 +145,6 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
 
         } else {
             // --- LIGAR (ONLINE) ---
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
-            isProtectionActive = true
-            
             viewModelScope.launch {
                 try {
                     val doc = db.collection("users").document(uid).get().await()
@@ -179,9 +172,19 @@ class ProtectedMainViewModel(application: Application) : AndroidViewModel(applic
                         updates["storedRemainingPause"] = 0L
                     }
                     
+                    // 1. Atualizar BD e esperar confirmação
                     db.collection("users").document(uid).update(updates).await()
+
+                    // 2. Só agora iniciar o serviço
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(intent)
+                    } else {
+                        context.startService(intent)
+                    }
+                    isProtectionActive = true
+
                 } catch (e: Exception) {
-                    // Fail silent
+                    e.printStackTrace()
                 }
             }
         }

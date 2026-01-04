@@ -217,12 +217,10 @@ fun ProtectedMainScreen(
     }
 
     var isEditingProfile by remember { mutableStateOf(false) }
-    var showGoOnlineDialog by remember { mutableStateOf(false) }
     var showOverlayPermissionDialog by remember { mutableStateOf(false) }
     val currentUserData = viewModel.currentUserData
 
     LaunchedEffect(Unit) {
-        if (!protectedViewModel.isProtectionActive) showGoOnlineDialog = true
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M &&
             !android.provider.Settings.canDrawOverlays(context)) {
             showOverlayPermissionDialog = true
@@ -252,21 +250,6 @@ fun ProtectedMainScreen(
                     Text("Agora não")
                 }
             }
-        )
-    }
-
-    if (showGoOnlineDialog) {
-        AlertDialog(
-            onDismissRequest = { showGoOnlineDialog = false },
-            title = { Text("Activate Protection?") },
-            text = { Text("Do you want to go ONLINE and start monitoring your safety now?") },
-            confirmButton = {
-                Button(onClick = { protectedViewModel.toggleProtection(); showGoOnlineDialog = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.ui.graphics.Color(0xFF10B981))) {
-                    Text("Go Online")
-                }
-            },
-            dismissButton = { TextButton(onClick = { showGoOnlineDialog = false }) { Text("Stay Offline") } }
         )
     }
 
