@@ -8,8 +8,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.data.model.*
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.activity.ActivityCard
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.activity.AlertDetailModal
@@ -17,8 +19,6 @@ import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.activity.A
 // --- CORES ---
 private val Slate50 = Color(0xFFF8FAFC)
 private val Slate900 = Color(0xFF0F172A)
-
-
 
 @Composable
 fun ActivityScreen(
@@ -37,7 +37,7 @@ fun ActivityScreen(
     ) {
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "Alert History",
+            text = stringResource(id = R.string.history_title),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = Slate900,
@@ -46,7 +46,7 @@ fun ActivityScreen(
 
         if (activities.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-                Text("No alerts recorded yet.", color = Color.Gray)
+                Text(stringResource(id = R.string.history_no_alerts), color = Color.Gray)
             }
         } else {
             LazyColumn(

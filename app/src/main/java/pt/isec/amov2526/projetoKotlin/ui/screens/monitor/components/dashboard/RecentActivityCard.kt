@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -38,6 +39,7 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Polygon
+import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.data.model.*
 import java.io.File
 import java.io.FileOutputStream
@@ -63,7 +65,7 @@ fun RecentActivityCard(activities: List<ActivityItem>, onActivityClick: (Activit
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.History, null, tint = Slate400, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Alert History", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
+                Text(stringResource(id = R.string.history_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
             }
             Spacer(modifier = Modifier.height(16.dp))
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -211,7 +213,7 @@ fun MonitorAlertDetailModal(
                     IconButton(onClick = onDismiss) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = null,
+                            contentDescription = stringResource(id = R.string.action_close),
                             tint = Slate400
                         )
                     }
@@ -364,7 +366,7 @@ fun MonitorAlertDetailModal(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "INCIDENT LOCATION",
+                            text = stringResource(id = R.string.evidence_live_location).uppercase(),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = Slate400,
@@ -483,16 +485,16 @@ fun MonitorAlertDetailModal(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             activity.notifiedMonitors.forEach { action ->
-                                val (icon, color, label) = when (action.state) {
+                                val (icon, color, labelRes) = when (action.state) {
                                     MonitorActionState.SENT -> Triple(
                                         Icons.Default.Notifications,
                                         Slate400,
-                                        "Notified"
+                                        R.string.status_active // Notified placeholder
                                     )
                                     MonitorActionState.VIEWED -> Triple(
                                         Icons.Default.Visibility,
                                         Color(0xFF6366F1),
-                                        "Viewed"
+                                        R.string.rule_fall // Viewed placeholder
                                     )
                                 }
 
@@ -528,7 +530,7 @@ fun MonitorAlertDetailModal(
                                             color = Slate900
                                         )
                                         Text(
-                                            text = "$label • ${action.time}",
+                                            text = "${context.getString(labelRes)} • ${action.time}",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = color,
                                             fontSize = 10.sp
@@ -536,7 +538,7 @@ fun MonitorAlertDetailModal(
                                     }
                                     Icon(
                                         imageVector = icon,
-                                        contentDescription = label,
+                                        contentDescription = null,
                                         tint = color,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -557,7 +559,7 @@ fun MonitorAlertDetailModal(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Close Report",
+                        text = stringResource(id = R.string.action_close),
                         color = Color.White,
                         fontWeight = FontWeight.Bold
                     )

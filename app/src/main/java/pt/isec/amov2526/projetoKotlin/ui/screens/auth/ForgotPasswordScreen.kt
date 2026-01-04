@@ -15,12 +15,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
 
 // Using the project's palette
@@ -91,7 +93,7 @@ fun ForgotPasswordScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "Recovery",
+                    text = stringResource(id = R.string.auth_recovery),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -100,7 +102,7 @@ fun ForgotPasswordScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Enter your email to receive recovery instructions.",
+                    text = stringResource(id = R.string.auth_recovery_tagline),
                     style = MaterialTheme.typography.bodyMedium,
                     color = Slate400,
                     textAlign = TextAlign.Center
@@ -141,7 +143,7 @@ fun ForgotPasswordScreen(
                     onClick = {
                         val trimmedEmail = email.trim()
                         if (trimmedEmail.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches()) {
-                            Toast.makeText(context, "Invalid Email Format", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.error_invalid_email), Toast.LENGTH_SHORT).show()
                             return@Button
                         }
                         
@@ -167,7 +169,7 @@ fun ForgotPasswordScreen(
                         CircularProgressIndicator(color = Slate900, modifier = Modifier.size(24.dp))
                     } else {
                         Text(
-                            text = "Send",
+                            text = stringResource(id = R.string.auth_send),
                             color = Slate900,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp

@@ -43,8 +43,8 @@ private val Indigo600 = Color(0xFF4F46E5)
 fun SystemStatusCard(
     isActive: Boolean,
     isGlobalScheduleEnabled: Boolean,
-    globalScheduleStatus: StatusResult,
-    finalSystemLabel: String,
+    globalScheduleStatus: pt.isec.amov2526.projetoKotlin.utils.StatusResult,
+    rawSystemStatus: String,
     batteryLevel: Int,
     onPlanClick: () -> Unit,
     onStatusClick: () -> Unit
@@ -67,7 +67,7 @@ fun SystemStatusCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "SYSTEM STATUS",
+                    text = androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.monitor_current_status),
                     style = MaterialTheme.typography.labelSmall,
                     color = Slate400,
                     fontWeight = FontWeight.Bold,
@@ -133,9 +133,9 @@ fun SystemStatusCard(
                         )
                     }
                     // Status Pill
-                    // If the system is in SCHEDULED mode, the manual pause switch should still show ACTIVE (Green),
-                    // because the user hasn't manually paused it.
-                    val statusLabel = if (finalSystemLabel == "SCHEDULED") "ACTIVE" else finalSystemLabel
+                    // [CORREÇÃO] Se estiver "SCHEDULED", o switch manual ainda deve aparecer como "ACTIVE" (Verde),
+                    // porque o utilizador não o pausou manualmente. Eles não estão relacionados diretamente no switch.
+                    val statusLabel = if (rawSystemStatus == "SCHEDULED") "ACTIVE" else rawSystemStatus
                     
                     val statusColor = when (statusLabel) {
                         "ACTIVE" -> Emerald700
@@ -167,7 +167,12 @@ fun SystemStatusCard(
                             modifier = Modifier.fillMaxHeight()
                         ) {
                             Text(
-                                text = statusLabel,
+                                text = when(statusLabel) {
+                                    "ACTIVE" -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.status_active)
+                                    "PAUSED" -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.status_paused)
+                                    "OFFLINE" -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.status_offline)
+                                    else -> statusLabel
+                                },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = statusColor,
                                 fontWeight = FontWeight.Bold,
@@ -214,11 +219,11 @@ fun SystemStatusCard(
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
-                    val titleText = when (finalSystemLabel) {
-                        "PAUSED" -> "System Paused"
-                        "OFFLINE" -> "System Offline"
-                        "SCHEDULED" -> "Scheduled Pause"
-                        else -> "Protected"
+                    val titleText = when (rawSystemStatus) {
+                        "PAUSED" -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.status_paused)
+                        "OFFLINE" -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.status_offline)
+                        "SCHEDULED" -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.status_scheduled)
+                        else -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.auth_protected)
                     }
 
                     Text(
@@ -229,8 +234,8 @@ fun SystemStatusCard(
                     )
 
                     val subText = when {
-                        globalScheduleStatus.label == "PAUSED" -> globalScheduleStatus.subLabel ?: "Paused"
-                        !isActive -> "Turn on to enable protections"
+                        globalScheduleStatus.label == "PAUSED" -> globalScheduleStatus.subLabel ?: androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.status_paused)
+                        !isActive -> androidx.compose.ui.res.stringResource(id = pt.isec.amov2526.projetoKotlin.R.string.guard_no_protections)
                         !globalScheduleStatus.isActive -> globalScheduleStatus.subLabel ?: "Outside active hours"
                         else -> globalScheduleStatus.subLabel ?: "Active security by multiple monitors"
                     }

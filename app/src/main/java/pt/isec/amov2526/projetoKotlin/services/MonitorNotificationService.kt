@@ -39,6 +39,11 @@ class MonitorNotificationService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        if (auth.currentUser == null) {
+            Log.w("MonitorService", "Service started without an authenticated user. Stopping.")
+            stopSelf()
+            return
+        }
         startForegroundService()
         startListening()
     }
@@ -55,8 +60,8 @@ class MonitorNotificationService : Service() {
         }
 
         val notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("Monitorização Ativa")
-            .setContentText("A aguardar alertas dos seus protegidos...")
+            .setContentTitle(getString(R.string.monitor_notif_title))
+            .setContentText(getString(R.string.monitor_notif_desc))
             .setSmallIcon(R.drawable.ic_shield_check)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
@@ -187,7 +192,7 @@ class MonitorNotificationService : Service() {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_shield_check)
             .setContentTitle("Alerta de $protegeName")
-            .setContentText("$alertTypeDesc. Toque para ver detalhes.")
+            .setContentText(getString(R.string.monitor_notif_alert_desc, alertTypeDesc))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)

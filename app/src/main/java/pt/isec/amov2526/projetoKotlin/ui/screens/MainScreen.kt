@@ -82,11 +82,17 @@ fun MainScreen() {
                             if (authViewModel.currentViewMode != "MONITOR") {
                                 authViewModel.currentViewMode = "MONITOR"
                             }
-                            // Navega diretamente, limpando backstack relativo ao monitor se necessário
-                            navController.navigate("monitor/dashboard/$targetUid/$targetName") {
-                                // Força a recriação do ecrã de destino se necessário
-                                launchSingleTop = false 
+                            
+                            // [CORREÇÃO] Garante que o ecrã principal do monitor está na pilha antes de ir para o dashboard
+                            // Isto evita que o botão "back" leve para a Landing Page
+                            navController.navigate("monitor") {
+                                popUpTo("landing") { inclusive = true }
                             }
+                            
+                            navController.navigate("monitor/dashboard/$targetUid/$targetName") {
+                                launchSingleTop = true 
+                            }
+                            
                             // Limpa a action para não re-navegar ao rodar o ecrã
                             intent.action = null 
                         }
@@ -103,10 +109,14 @@ fun MainScreen() {
         LaunchedEffect(user, currentViewMode) {
             if (user != null && currentViewMode != null) {
                 val currentRoute = navController.currentBackStackEntry?.destination?.route
+                val activity = context as? android.app.Activity
+                
+                // [CORREÇÃO] Se houver um Intent de alerta de monitorização pendente, 
+                // deixamos o DisposableEffect tratar a navegação para o dashboard específico.
+                if (activity?.intent?.action == "ACTION_MONITOR_ALERT") return@LaunchedEffect
 
                 if (currentViewMode == "MONITOR") {
-                    // [CORREÇÃO] Permite qualquer rota que comece por "monitor" (ex: dashboard)
-                    // para não expulsar o utilizador do dashboard ao mudar o modo ou ao navegar via notificação.
+                    // Permite qualquer rota que comece por "monitor" (ex: dashboard)
                     if (currentRoute?.startsWith("monitor") != true) {
                         navController.navigate("monitor") {
                             popUpTo("landing") { inclusive = true }

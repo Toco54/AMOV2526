@@ -91,6 +91,16 @@ class SafetyMonitorService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        
+        // [CORREÇÃO] Se não houver utilizador, não faz sentido ter o serviço a correr
+        if (auth.currentUser == null) {
+            Log.w("SafetyMonitorService", "Service started without an authenticated user. Stopping.")
+            // Para evitar "Service did not call startForeground", criamos uma notificação muda temporária se necessário
+            // Mas no Android 12+ o ideal é nem tentar iniciar se não houver user (já corrigido no MainActivity e MainScreen)
+            stopSelf()
+            return
+        }
+
         isServiceRunning = true
         startForegroundService()
 
@@ -292,7 +302,9 @@ class SafetyMonitorService : Service() {
             notificationManager.createNotificationChannel(channel)
         }
         val notification = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_shield_check).setContentTitle("ALERTA DE SEGURANÇA").setContentText("A enviar ajuda em 10s...")
+            .setSmallIcon(R.drawable.ic_shield_check)
+            .setContentTitle(getString(R.string.app_name).uppercase())
+            .setContentText(getString(R.string.evidence_help_coming))
             .setPriority(NotificationCompat.PRIORITY_MAX).setCategory(NotificationCompat.CATEGORY_ALARM)
             .setFullScreenIntent(pendingIntent, true).setAutoCancel(false).setOngoing(true).build()
         notificationManager.notify(999, notification)
@@ -360,7 +372,8 @@ class SafetyMonitorService : Service() {
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
         val notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("SafetySec Ativo").setContentText("Estamos a proteger-te em segundo plano.")
+            .setContentTitle(getString(R.string.notif_active_title))
+            .setContentText(getString(R.string.notif_active_desc))
             .setSmallIcon(R.drawable.ic_shield_check).setPriority(NotificationCompat.PRIORITY_LOW).setOngoing(true).build()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
         else startForeground(1, notification)
@@ -369,8 +382,8 @@ class SafetyMonitorService : Service() {
     private fun updateNotification(isPaused: Boolean) {
         val channelId = "SafetySecChannel"
         val notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle(if (isPaused) "SafetySec em Pausa" else "SafetySec Ativo")
-            .setContentText(if (isPaused) "A proteção está suspensa." else "Proteção ativa.")
+            .setContentTitle(if (isPaused) getString(R.string.notif_paused_title) else getString(R.string.notif_active_title))
+            .setContentText(if (isPaused) getString(R.string.notif_paused_desc) else getString(R.string.notif_active_desc))
             .setSmallIcon(R.drawable.ic_shield_check).setPriority(NotificationCompat.PRIORITY_LOW).setOngoing(true).setOnlyAlertOnce(true).build()
         getSystemService(NotificationManager::class.java).notify(1, notification)
     }
@@ -382,7 +395,7 @@ class SafetyMonitorService : Service() {
         serviceScope.launch {
             db.collection("users").document(uid).addSnapshotListener { snapshot, _ ->
                 if (snapshot != null && snapshot.exists()) {
-                    systemStatus = snapshot.getString("systemStatus") ?: "ACTIVE"
+                    systemStatus = snapshot.getString("systemStatus") ?: "OFFLINE"
                     if (systemStatus == "OFFLINE") {
                         isProtectionActive = false
                         stopForeground(STOP_FOREGROUND_REMOVE)

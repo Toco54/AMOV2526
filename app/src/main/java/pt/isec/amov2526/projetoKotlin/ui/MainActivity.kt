@@ -7,7 +7,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.WindowManager
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -22,9 +22,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.ui.screens.MainScreen
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -42,7 +44,8 @@ class MainActivity : ComponentActivity() {
 
         // [CORREÇÃO] Notifica o serviço que a UI reiniciou, para limpar estados bloqueados (ex: isAlertInProgress)
         // Só fazemos reset se NÃO for uma recriação por causa de um alerta ativo (ACTION_SHOW_ALERT)
-        if (intent.action != "ACTION_SHOW_ALERT") {
+        // E só se houver um utilizador logado, para evitar notificações PAUSED orfãs
+        if (intent.action != "ACTION_SHOW_ALERT" && com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null) {
              val resetIntent = Intent(this, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java).apply {
                 action = "pt.isec.amov2526.projetoKotlin.services.ACTION_UI_RESET"
             }
@@ -86,8 +89,8 @@ class MainActivity : ComponentActivity() {
             if (showOverlayPermissionDialog) {
                 AlertDialog(
                     onDismissRequest = { showOverlayPermissionDialog = false },
-                    title = { Text("Permissão Necessária") },
-                    text = { Text("Para garantir que os Alertas de Emergência abrem imediatamente sobre outras apps, a SafetySec precisa de autorização para sobreposição.") },
+                    title = { Text(stringResource(id = R.string.dialog_perm_title)) },
+                    text = { Text(stringResource(id = R.string.dialog_perm_desc)) },
                     confirmButton = {
                         Button(onClick = {
                             showOverlayPermissionDialog = false
@@ -98,12 +101,12 @@ class MainActivity : ComponentActivity() {
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             context.startActivity(intent)
                         }) {
-                            Text("Autorizar")
+                            Text(stringResource(id = R.string.dialog_perm_confirm))
                         }
                     },
                     dismissButton = {
                         TextButton(onClick = { showOverlayPermissionDialog = false }) {
-                            Text("Agora não")
+                            Text(stringResource(id = R.string.dialog_perm_dismiss))
                         }
                     }
                 )

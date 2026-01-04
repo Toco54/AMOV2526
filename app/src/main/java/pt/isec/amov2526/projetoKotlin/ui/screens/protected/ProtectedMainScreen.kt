@@ -8,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewModelScope
@@ -17,6 +18,7 @@ import androidx.navigation.compose.*
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.data.model.ActivityAlertType
 import pt.isec.amov2526.projetoKotlin.ui.components.EditProfileView
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.ProtectedBottomBar
@@ -221,7 +223,7 @@ fun ProtectedMainScreen(
                                     if (keyguardManager.isDeviceLocked) activity?.finish()
                                     processNextAlert()
                                 } else {
-                                    Toast.makeText(context, "Invalid PIN", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.error_invalid_pin), Toast.LENGTH_SHORT).show()
                                 }
                             }
                             false
@@ -247,8 +249,8 @@ fun ProtectedMainScreen(
     if (showEnableMonitorDialog) {
         AlertDialog(
             onDismissRequest = { showEnableMonitorDialog = false },
-            title = { Text("Enable Monitor Mode") },
-            text = { Text("To access the Monitor Dashboard, your account will be upgraded to support both roles (Protected + Monitor). Do you want to proceed?") },
+            title = { Text(stringResource(id = R.string.dual_role_title)) },
+            text = { Text(stringResource(id = R.string.dual_role_desc)) },
             confirmButton = {
                 Button(onClick = {
                     showEnableMonitorDialog = false
@@ -256,12 +258,12 @@ fun ProtectedMainScreen(
                          viewModel.switchViewMode()
                     }
                 }) {
-                    Text("Enable & Switch")
+                    Text(stringResource(id = R.string.dual_role_confirm))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showEnableMonitorDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(id = R.string.action_cancel))
                 }
             }
         )
@@ -270,8 +272,8 @@ fun ProtectedMainScreen(
     if (showOverlayPermissionDialog) {
         AlertDialog(
             onDismissRequest = { showOverlayPermissionDialog = false },
-            title = { Text("Permissão Necessária") },
-            text = { Text("Para garantir que os Alertas de Emergência abrem imediatamente sobre outras apps (Facebook, WhatsApp, etc.), precisa de autorizar a sobreposição.") },
+            title = { Text(stringResource(id = R.string.dialog_perm_title)) },
+            text = { Text(stringResource(id = R.string.dialog_perm_desc)) },
             confirmButton = {
                 Button(onClick = {
                     showOverlayPermissionDialog = false
@@ -282,12 +284,12 @@ fun ProtectedMainScreen(
                     intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     context.startActivity(intent)
                 }) {
-                    Text("Autorizar")
+                    Text(stringResource(id = R.string.dialog_perm_confirm))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showOverlayPermissionDialog = false }) {
-                    Text("Agora não")
+                    Text(stringResource(id = R.string.dialog_perm_dismiss))
                 }
             }
         )

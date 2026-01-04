@@ -2,6 +2,7 @@ package pt.isec.amov2526.projetoKotlin.ui.screens.protected
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
@@ -10,8 +11,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import pt.isec.amov2526.projetoKotlin.R
+import pt.isec.amov2526.projetoKotlin.ui.components.LanguageSwitch
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.profile.ProfileActionButton
 
 // Cores do Mockup
@@ -87,26 +91,52 @@ fun ProfileScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             ProfileActionButton(
-                text = "Edit Profile",
+                text = stringResource(id = R.string.profile_edit_profile),
                 icon = Icons.Default.ManageAccounts,
                 onClick = onEditProfile
             )
 
             // Botão único para troca de modo (agora sempre visível)
             ProfileActionButton(
-                text = "Switch to Monitor Mode",
+                text = stringResource(id = R.string.profile_switch_monitor),
                 icon = Icons.Default.SwapHoriz,
                 onClick = onSwitchMode
             )
 
-            ProfileActionButton(
-                text = "App Settings",
-                icon = Icons.Default.Settings,
-                onClick = onAppSettings
-            )
+            // [NOVO] Language Switch Card
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Language,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.size(12.dp))
+                        Text(
+                            text = stringResource(id = R.string.profile_language),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    LanguageSwitch()
+                }
+            }
 
             ProfileActionButton(
-                text = "Logout",
+                text = stringResource(id = R.string.profile_logout),
                 icon = Icons.AutoMirrored.Filled.Logout,
                 onClick = onLogout,
                 isLogout = true,

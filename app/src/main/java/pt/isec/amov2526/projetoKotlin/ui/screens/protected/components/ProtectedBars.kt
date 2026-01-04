@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -27,7 +28,7 @@ fun ProtectedTopBar(onProfileClick: () -> Unit) {
     TopAppBar(
         title = {
             Text(
-                text = "SafetYSec",
+                text = stringResource(id = R.string.app_name),
                 fontWeight = FontWeight.Bold
             )
         },
@@ -45,7 +46,7 @@ fun ProtectedTopBar(onProfileClick: () -> Unit) {
             IconButton(onClick = onProfileClick) {
                 Icon(
                     imageVector = Icons.Default.AccountCircle,
-                    contentDescription = "Go to Profile"
+                    contentDescription = stringResource(id = R.string.nav_profile)
                 )
             }
         },
@@ -67,10 +68,10 @@ fun ProtectedBottomBar(
             icon = {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_shield_check),
-                    contentDescription = "Guard"
+                    contentDescription = stringResource(id = R.string.nav_guard)
                 )
             },
-            label = { Text("Guard") },
+            label = { Text(stringResource(id = R.string.nav_guard)) },
             selected = currentDestination?.hierarchy?.any { it.route == "guard" } == true,
             onClick = {
                 navController.navigate("guard") {
@@ -87,10 +88,10 @@ fun ProtectedBottomBar(
             icon = {
                 Icon(
                     imageVector = Icons.Default.SupervisorAccount,
-                    contentDescription = "Monitors"
+                    contentDescription = stringResource(id = R.string.nav_monitors)
                 )
             },
-            label = { Text("Monitors") },
+            label = { Text(stringResource(id = R.string.nav_monitors)) },
             selected = currentDestination?.hierarchy?.any { it.route == "monitors" } == true,
             onClick = {
                 navController.navigate("monitors") {
@@ -107,10 +108,10 @@ fun ProtectedBottomBar(
             icon = {
                 Icon(
                     imageVector = Icons.Default.History,
-                    contentDescription = "Activity"
+                    contentDescription = stringResource(id = R.string.nav_activity)
                 )
             },
-            label = { Text("Activity") },
+            label = { Text(stringResource(id = R.string.nav_activity)) },
             selected = currentDestination?.hierarchy?.any { it.route == "activity" } == true,
             onClick = {
                 navController.navigate("activity") {
@@ -127,10 +128,10 @@ fun ProtectedBottomBar(
             icon = {
                 Icon(
                     imageVector = Icons.Default.Person,
-                    contentDescription = "Profile"
+                    contentDescription = stringResource(id = R.string.nav_profile)
                 )
             },
-            label = { Text("Profile") },
+            label = { Text(stringResource(id = R.string.nav_profile)) },
             selected = currentDestination?.hierarchy?.any { it.route == "profile" } == true,
             onClick = {
                 navController.navigate("profile") {

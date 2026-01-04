@@ -286,6 +286,14 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
 
     fun logout() {
         viewModelScope.launch {
+            val context = getApplication<android.app.Application>()
+            try {
+                context.stopService(android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.SafetyMonitorService::class.java))
+                context.stopService(android.content.Intent(context, pt.isec.amov2526.projetoKotlin.services.MonitorNotificationService::class.java))
+            } catch (e: Exception) {
+                // Ignore errors during service stop
+            }
+
             repository.logout()
             user = null
             userRole = null

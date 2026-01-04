@@ -78,6 +78,9 @@ class AuthRepository(private val app: SafetySecApp) {
                 "role" to role,
                 "pin" to (pin ?: ""),
                 "mfaEnabled" to false,
+                "systemStatus" to "OFFLINE",
+                "globalPausedUntil" to 0L,
+                "activeProtections" to emptyMap<String, Any>(),
                 // Campos futuros para a Associação (OTP) pedida no enunciado
                 "associatedIds" to emptyList<String>(),
                 "fcmToken" to "" // Para notificações (Firebase Messaging)

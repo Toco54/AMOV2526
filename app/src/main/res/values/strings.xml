@@ -1,3 +1,179 @@
 <resources>
-    <string name="app_name">SafetYSec</string>
+    <string name="app_name">SafetySec</string>
+    <string name="landing_tagline">Advanced protection for you and
+your loved ones.</string>
+    <string name="landing_continue_email">Continue with Email</string>
+    <string name="landing_have_account">Already have an account? </string>
+    <string name="landing_login">Log In</string>
+    
+    <string name="auth_welcome">Welcome back</string>
+    <string name="auth_signin_tagline">Sign in to access your dashboard.</string>
+    <string name="auth_email">EMAIL</string>
+    <string name="auth_password">PASSWORD</string>
+    <string name="auth_forgot_password">Forgot Password?</string>
+    <string name="auth_no_account">Don\'t have an account? </string>
+    <string name="auth_signup">Sign Up</string>
+    <string name="auth_security_check">Security Check</string>
+    <string name="auth_mfa_tagline">Please enter the 6-digit code sent to your email.</string>
+    <string name="auth_verification_code">VERIFICATION CODE</string>
+    <string name="auth_verify_code">Verify Code</string>
+    <string name="auth_create_account">Create Account</string>
+    <string name="auth_signup_tagline">Join SafetySec for advanced protection.</string>
+    <string name="auth_monitor">Monitor</string>
+    <string name="auth_protected">Protected</string>
+    <string name="auth_full_name">FULL NAME</string>
+    <string name="auth_safety_pin">SAFETY PIN (4 DIGITS)</string>
+    <string name="auth_recovery">Recovery</string>
+    <string name="auth_recovery_tagline">Enter your email to receive recovery instructions.</string>
+    <string name="auth_send">Send</string>
+    
+    <string name="error_fill_all">Please fill in all fields</string>
+    <string name="error_invalid_email">Invalid Email Format</string>
+    <string name="error_password_length">Password must be at least 6 characters</string>
+    <string name="error_invalid_pin">Invalid PIN</string>
+    <string name="error_mismatch_pass">Passwords Do Not Match</string>
+    
+    <string name="profile_edit_profile">Edit Profile</string>
+    <string name="profile_switch_monitor">Switch to Monitor Mode</string>
+    <string name="profile_switch_protected">Switch to Protected Mode</string>
+    <string name="profile_app_settings">App Settings</string>
+    <string name="profile_logout">Logout</string>
+    <string name="profile_language">Language</string>
+    <string name="profile_mfa">MULTI-FACTOR AUTHENTICATION</string>
+    <string name="profile_mfa_desc">Require email code on login</string>
+    <string name="profile_save_changes">Save Changes</string>
+    <string name="profile_updated">Profile Updated Successfully</string>
+    <string name="profile_current_pin">Current PIN</string>
+    <string name="profile_new_pin">New PIN</string>
+    <string name="profile_new_password">New Password</string>
+    <string name="profile_confirm_password">Confirm New Password</string>
+    <string name="profile_current_password_req">CURRENT PASSWORD (REQUIRED TO SAVE)</string>
+    <string name="profile_enter_current_pass">Enter current password</string>
+
+    <string name="rule_fall">Fall</string>
+    <string name="rule_accident">Accident</string>
+    <string name="rule_geofencing">Geofencing</string>
+    <string name="rule_speed">Speed Control</string>
+    <string name="rule_inactivity">Inactivity</string>
+    
+    <string name="guard_active_protections">Active Protections</string>
+    <string name="guard_no_protections">No protections active.</string>
+    <string name="guard_pause_rule">Pause %1$s\'s Rule</string>
+    <string name="guard_pause_type">Pause %1$s</string>
+    <string name="guard_pause_protection">Pause Protection</string>
+    <string name="guard_schedule_rule">Schedule Rule</string>
+    <string name="guard_schedule_type">Schedule %1$s</string>
+    <string name="guard_global_schedule">Global Schedule</string>
+    <string name="guard_active_window">Active window: %1$s — %2$s</string>
+    <string name="guard_resumes_in">Resumes in: %1$s</string>
+    
+    <string name="status_active">ACTIVE</string>
+    <string name="status_paused">PAUSED</string>
+    <string name="status_scheduled">SCHEDULED</string>
+    <string name="status_offline">OFFLINE</string>
+    <string name="status_disconnected">DISCONNECTED</string>
+
+    <string name="history_title">Alert History</string>
+    <string name="history_no_alerts">No alerts recorded yet.</string>
+
+    <string name="monitors_title">Manage Monitors</string>
+    <string name="monitors_active">ACTIVE MONITORS</string>
+    <string name="monitors_no_active">No active monitors yet.</string>
+    <string name="monitors_add">Add Monitor</string>
+    <string name="monitors_remove_title">Remove Monitor?</string>
+    <string name="monitors_remove_desc">%1$s will no longer have access to your alerts or status.</string>
+
+    <string name="action_save">Save</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_add">Add</string>
+    <string name="action_confirm">Confirm</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_remove">Remove</string>
+    <string name="action_close">Close</string>
+    <string name="action_accept">Accept</string>
+    <string name="action_reject">Reject</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_connect">Connect</string>
+
+    <string name="alert_fall">FALL DETECTED</string>
+    <string name="alert_accident">ACCIDENT DETECTED</string>
+    <string name="alert_geofence">SAFE ZONE EXIT</string>
+    <string name="alert_speed">HIGH SPEED</string>
+    <string name="alert_inactivity">INACTIVITY ALERT</string>
+    <string name="alert_battery">LOW BATTERY</string>
+    <string name="alert_sos">SOS ALERT</string>
+    <string name="alert_enter_pin">Enter PIN to Cancel</string>
+    <string name="alert_help_now">HELP NOW</string>
+
+    <string name="evidence_failed">PROCESS FAILED</string>
+    <string name="evidence_uploaded">EVIDENCE UPLOADED</string>
+    <string name="evidence_help_requested">HELP REQUESTED</string>
+    <string name="evidence_failed_sub">Help notified, but evidence failed.</string>
+    <string name="evidence_uploaded_sub">Monitors received your data.</string>
+    <string name="evidence_requested_sub">Monitors Notified • Recording Evidence</string>
+    <string name="evidence_camera_recording">BACKCAMERA RECORDING</string>
+    <string name="evidence_uploading">UPLOADING...</string>
+    <string name="evidence_live_location">Live Location</string>
+    <string name="evidence_waiting_gps">Waiting for GPS signal...</string>
+    <string name="evidence_acquiring_gps">Acquiring GPS...</string>
+    <string name="evidence_infringed_rules">Infringed Rules (Select to View on Map)</string>
+    <string name="evidence_left_safe_zone">Left Safe Zone</string>
+    <string name="evidence_close_panel">CLOSE ALERT PANEL</string>
+    <string name="evidence_uploading_wait">Uploading evidence... please wait.</string>
+    <string name="evidence_help_coming">Keep the app open. Help is coming.</string>
+
+    <string name="monitor_live_dashboard">LIVE DASHBOARD</string>
+    <string name="monitor_manage_rules">Manage Protection Rules</string>
+    <string name="monitor_no_rules">No active rules. Tap + to add.</string>
+    <string name="monitor_delete_rule_title">Delete Rule</string>
+    <string name="monitor_delete_rule_desc">Are you sure you want to remove this protection rule? This action cannot be undone.</string>
+    <string name="monitor_delete_rule_soft">User removed this rule. Permanently delete from dashboard?</string>
+    <string name="monitor_current_status">CURRENT STATUS</string>
+    <string name="monitor_active_plan">ACTIVE PLAN</string>
+    <string name="monitor_connection_lost">Connection lost. Protege is not sending signal.</string>
+    <string name="monitor_alert_trends">Alert Trends</string>
+    <string name="monitor_my_proteges">MY PROTEGES</string>
+    <string name="monitor_no_proteges">No protected users yet. Tap + to add one.</string>
+    <string name="monitor_confirm_conn_title">Confirm Connection</string>
+    <string name="monitor_confirm_conn_desc">Do you want to connect with this user?</string>
+    <string name="monitor_access_level">ACCESS LEVEL</string>
+    <string name="monitor_rule_type">Protection Type</string>
+    <string name="monitor_rule_defined">DEFINED</string>
+    <string name="monitor_rule_marked_delete">Marked for deletion by User</string>
+    <string name="monitor_search_address">Search address...</string>
+    <string name="monitor_radius_meters">RADIUS: %1$s METERS</string>
+    <string name="monitor_rule_no_params">This rule automatically detects events and notifies you. No parameters required.</string>
+    <string name="monitor_rule_schedule">Rule Schedule</string>
+    <string name="monitor_managed_by_user">Managed by User (Read-Only)</string>
+    <string name="monitor_active_days">ACTIVE DAYS</string>
+    <string name="monitor_start">START</string>
+    <string name="monitor_end">END</string>
+    <string name="monitor_perm_delete">Permanently Delete</string>
+    
+    <string name="dialog_perm_title">Permission Required</string>
+    <string name="dialog_perm_desc">To ensure that Emergency Alerts open immediately over other apps, SafetySec needs overlay authorization.</string>
+    <string name="dialog_perm_confirm">Authorize</string>
+    <string name="dialog_perm_dismiss">Not now</string>
+    
+    <string name="dual_role_title">Enable Monitor Mode</string>
+    <string name="dual_role_desc">To access the Monitor Dashboard, your account will be upgraded to support both roles (Protected + Monitor). Do you want to proceed?</string>
+    <string name="dual_role_confirm">Enable &amp; Switch</string>
+    
+    <string name="nav_guard">Guard</string>
+    <string name="nav_monitors">Monitors</string>
+    <string name="nav_activity">Activity</string>
+    <string name="nav_profile">Profile</string>
+    
+    <string name="notif_active_title">SafetySec Active</string>
+    <string name="notif_active_desc">Your safety is being monitored in the background.</string>
+    <string name="notif_paused_title">SafetySec Paused</string>
+    <string name="notif_paused_desc">Automatic monitoring is temporarily suspended or outside scheduled hours.</string>
+
+    <string name="monitor_notif_title">Remote Monitoring Active</string>
+    <string name="monitor_notif_desc">Waiting for alerts from your proteges...</string>
+    <string name="monitor_notif_alert_desc">%1$s detected. Tap to view details.</string>
+    
+    <string name="code_new">New Code</string>
+    <string name="code_retry">Retry</string>
 </resources>

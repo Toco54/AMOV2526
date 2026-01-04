@@ -26,7 +26,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import pt.isec.amov2526.projetoKotlin.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -141,14 +143,14 @@ fun ConfirmedPanel(
             else -> AlertRed
         }
         val headerTitle = when {
-            hasError -> errorMessage ?: "PROCESS FAILED"
-            isRecordingFinished -> "EVIDENCE UPLOADED"
-            else -> "HELP REQUESTED"
+            hasError -> errorMessage ?: stringResource(id = R.string.evidence_failed)
+            isRecordingFinished -> stringResource(id = R.string.evidence_uploaded)
+            else -> stringResource(id = R.string.evidence_help_requested)
         }
         val headerSub = when {
-            hasError -> "Help notified, but evidence failed."
-            isRecordingFinished -> "Monitors received your data."
-            else -> "Monitors Notified • Recording Evidence"
+            hasError -> stringResource(id = R.string.evidence_failed_sub)
+            isRecordingFinished -> stringResource(id = R.string.evidence_uploaded_sub)
+            else -> stringResource(id = R.string.evidence_requested_sub)
         }
 
         Box(
@@ -193,7 +195,7 @@ fun ConfirmedPanel(
                 .padding(vertical = 12.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = "BACK CAMERA RECORDING", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Text(text = stringResource(id = R.string.evidence_camera_recording), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
         }
 
         // 3. Video Feed Area
@@ -301,7 +303,7 @@ fun ConfirmedPanel(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(text = "${remainingSeconds}s", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     } else {
-                        val uploadText = if (hasError) "UPLOAD FAILED" else "UPLOADING..."
+                        val uploadText = if (hasError) "UPLOAD FAILED" else stringResource(id = R.string.evidence_uploading)
                         val uploadColor = if (hasError) AlertYellow else Color.White
                         Icon(imageVector = Icons.Default.CloudUpload, contentDescription = null, tint = uploadColor, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(6.dp))
@@ -315,7 +317,7 @@ fun ConfirmedPanel(
 
         // 4. Map View
         Text(
-            text = "Live Location",
+            text = stringResource(id = R.string.evidence_live_location),
             color = Color.White.copy(alpha = 0.7f),
             modifier = Modifier
                 .align(Alignment.Start)
@@ -394,7 +396,7 @@ fun ConfirmedPanel(
                 )
             } else {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("A aguardar sinal de GPS...", color = Color.Gray)
+                    Text(stringResource(id = R.string.evidence_waiting_gps), color = Color.Gray)
                 }
             }
 
@@ -410,7 +412,7 @@ fun ConfirmedPanel(
                 val locText = if (currentLocation != null) {
                     "Lat: %.4f\nLng: %.4f".format(currentLocation.latitude, currentLocation.longitude)
                 } else {
-                    "A adquirir GPS..."
+                    context.getString(R.string.evidence_acquiring_gps)
                 }
 
                 Text(
@@ -426,7 +428,7 @@ fun ConfirmedPanel(
         if (infractions.isNotEmpty()) {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Infringed Rules (Select to View on Map)",
+                text = stringResource(id = R.string.evidence_infringed_rules),
                 color = Color.White.copy(alpha = 0.7f),
                 modifier = Modifier
                     .align(Alignment.Start)
@@ -496,7 +498,7 @@ fun ConfirmedPanel(
                             val detailText = when(inf.ruleType) {
                                 "SPEED" -> "Limit: ${inf.parameter ?: "?"} km/h"
                                 "INACTIVITY" -> "Max Time: ${inf.parameter ?: "?"} min"
-                                "GEOFENCING" -> "Left Safe Zone"
+                                "GEOFENCING" -> stringResource(id = R.string.evidence_left_safe_zone)
                                 "FALL" -> "Fall Detected"
                                 "ACCIDENT" -> "Accident Detected"
                                 else -> inf.description
@@ -525,11 +527,11 @@ fun ConfirmedPanel(
                 colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text(text = "CLOSE ALERT PANEL", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(text = stringResource(id = R.string.evidence_close_panel), color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         } else {
             Text(
-                text = if (isTimeUp) "Uploading evidence... please wait." else "Keep the app open. Help is coming.",
+                text = if (isTimeUp) stringResource(id = R.string.evidence_uploading_wait) else stringResource(id = R.string.evidence_help_coming),
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp

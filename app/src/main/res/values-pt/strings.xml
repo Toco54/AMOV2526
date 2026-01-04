@@ -1,0 +1,173 @@
+<resources>
+    <string name="app_name">SafetySec</string>
+    <string name="landing_tagline">Proteção avançada para si e\npara os seus entes queridos.</string>
+    <string name="landing_continue_email">Continuar com Email</string>
+    <string name="landing_have_account">Já tem uma conta? </string>
+    <string name="landing_login">Entrar</string>
+    
+    <string name="auth_welcome">Bem-vindo de volta</string>
+    <string name="auth_signin_tagline">Inicie sessão para aceder ao seu painel.</string>
+    <string name="auth_email">EMAIL</string>
+    <string name="auth_password">PALAVRA-PASSE</string>
+    <string name="auth_forgot_password">Esqueceu-se da palavra-passe?</string>
+    <string name="auth_no_account">Não tem uma conta? </string>
+    <string name="auth_signup">Registar</string>
+    <string name="auth_security_check">Verificação de Segurança</string>
+    <string name="auth_mfa_tagline">Por favor, insira o código de 6 dígitos enviado para o seu email.</string>
+    <string name="auth_verification_code">CÓDIGO DE VERIFICAÇÃO</string>
+    <string name="auth_verify_code">Verificar Código</string>
+    <string name="auth_create_account">Criar Conta</string>
+    <string name="auth_signup_tagline">Junte-se à SafetySec para uma proteção avançada.</string>
+    <string name="auth_monitor">Monitor</string>
+    <string name="auth_protected">Protegido</string>
+    <string name="auth_full_name">NOME COMPLETO</string>
+    <string name="auth_safety_pin">PIN DE SEGURANÇA (4 DÍGITOS)</string>
+    <string name="auth_recovery">Recuperação</string>
+    <string name="auth_recovery_tagline">Insira o seu email para receber instruções de recuperação.</string>
+    <string name="auth_send">Enviar</string>
+    
+    <string name="error_fill_all">Por favor, preencha todos os campos</string>
+    <string name="error_invalid_email">Formato de Email Inválido</string>
+    <string name="error_password_length">A palavra-passe deve ter pelo menos 6 caracteres</string>
+    <string name="error_invalid_pin">PIN Inválido</string>
+    <string name="error_mismatch_pass">As palavras-passe não coincidem</string>
+    
+    <string name="profile_edit_profile">Editar Perfil</string>
+    <string name="profile_switch_monitor">Mudar para Modo Monitor</string>
+    <string name="profile_switch_protected">Mudar para Modo Protegido</string>
+    <string name="profile_app_settings">Definições da App</string>
+    <string name="profile_logout">Sair</string>
+    <string name="profile_language">Idioma</string>
+    <string name="profile_mfa">AUTENTICAÇÃO MULTI-FATOR</string>
+    <string name="profile_mfa_desc">Exigir código por email ao entrar</string>
+    <string name="profile_save_changes">Guardar Alterações</string>
+    <string name="profile_updated">Perfil Atualizado com Sucesso</string>
+    <string name="profile_current_pin">PIN Atual</string>
+    <string name="profile_new_pin">Novo PIN</string>
+    <string name="profile_new_password">Nova Palavra-passe</string>
+    <string name="profile_confirm_password">Confirmar Nova Palavra-passe</string>
+    <string name="profile_current_password_req">PALAVRA-PASSE ATUAL (OBRIGATÓRIO PARA GUARDAR)</string>
+    <string name="profile_enter_current_pass">Insira a palavra-passe atual</string>
+
+    <string name="rule_fall">Queda</string>
+    <string name="rule_accident">Acidente</string>
+    <string name="rule_geofencing">Geofencing</string>
+    <string name="rule_speed">Controlo de Velocidade</string>
+    <string name="rule_inactivity">Inatividade</string>
+    
+    <string name="guard_active_protections">Proteções Ativas</string>
+    <string name="guard_no_protections">Sem proteções ativas.</string>
+    <string name="guard_pause_rule">Pausar Regra de %1$s</string>
+    <string name="guard_pause_type">Pausar %1$s</string>
+    <string name="guard_pause_protection">Pausar Proteção</string>
+    <string name="guard_schedule_rule">Agendar Regra</string>
+    <string name="guard_schedule_type">Agendar %1$s</string>
+    <string name="guard_global_schedule">Agendamento Global</string>
+    <string name="guard_active_window">Janela ativa: %1$s — %2$s</string>
+    <string name="guard_resumes_in">Retoma em: %1$s</string>
+    
+    <string name="status_active">ATIVO</string>
+    <string name="status_paused">EM PAUSA</string>
+    <string name="status_scheduled">AGENDADO</string>
+    <string name="status_offline">OFFLINE</string>
+    <string name="status_disconnected">DESLIGADO</string>
+
+    <string name="history_title">Histórico de Alertas</string>
+    <string name="history_no_alerts">Ainda sem alertas registados.</string>
+
+    <string name="monitors_title">Gerir Monitores</string>
+    <string name="monitors_active">MONITORES ATIVOS</string>
+    <string name="monitors_no_active">Ainda sem monitores ativos.</string>
+    <string name="monitors_add">Adicionar Monitor</string>
+    <string name="monitors_remove_title">Remover Monitor?</string>
+    <string name="monitors_remove_desc">%1$s deixará de ter acesso aos seus alertas ou estado.</string>
+
+    <string name="action_save">Guardar</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_add">Adicionar</string>
+    <string name="action_confirm">Confirmar</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_remove">Remover</string>
+    <string name="action_close">Fechar</string>
+    <string name="action_accept">Aceitar</string>
+    <string name="action_reject">Rejeitar</string>
+    <string name="action_retry">Tentar de novo</string>
+    <string name="action_copy">Copiar</string>
+    <string name="action_connect">Ligar</string>
+
+    <string name="alert_fall">QUEDA DETETADA</string>
+    <string name="alert_accident">ACIDENTE DETETADO</string>
+    <string name="alert_geofence">SAÍDA DE ZONA SEGURA</string>
+    <string name="alert_speed">VELOCIDADE ELEVADA</string>
+    <string name="alert_inactivity">ALERTA DE INATIVIDADE</string>
+    <string name="alert_battery">BATERIA FRACA</string>
+    <string name="alert_sos">ALERTA SOS</string>
+    <string name="alert_enter_pin">Insira PIN para Cancelar</string>
+    <string name="alert_help_now">PEDIR AJUDA</string>
+
+    <string name="evidence_failed">FALHA NO PROCESSO</string>
+    <string name="evidence_uploaded">EVIDÊNCIA ENVIADA</string>
+    <string name="evidence_help_requested">AJUDA SOLICITADA</string>
+    <string name="evidence_failed_sub">Ajuda notificada, mas falha na evidência.</string>
+    <string name="evidence_uploaded_sub">Os monitores receberam os seus dados.</string>
+    <string name="evidence_requested_sub">Monitores Notificados • A Gravar Evidência</string>
+    <string name="evidence_camera_recording">GRAVAÇÃO DA CÂMARA TRASEIRA</string>
+    <string name="evidence_uploading">A ENVIAR...</string>
+    <string name="evidence_live_location">Localização em Direto</string>
+    <string name="evidence_waiting_gps">A aguardar sinal de GPS...</string>
+    <string name="evidence_acquiring_gps">A adquirir GPS...</string>
+    <string name="evidence_infringed_rules">Regras Infringidas (Selecione para ver no mapa)</string>
+    <string name="evidence_left_safe_zone">Saiu da Zona Segura</string>
+    <string name="evidence_close_panel">FECHAR PAINEL DE ALERTA</string>
+    <string name="evidence_uploading_wait">A enviar evidência... por favor aguarde.</string>
+    <string name="evidence_help_coming">Mantenha a app aberta. A ajuda está a caminho.</string>
+
+    <string name="monitor_live_dashboard">PAINEL EM DIRETO</string>
+    <string name="monitor_manage_rules">Gerir Regras de Proteção</string>
+    <string name="monitor_no_rules">Sem regras ativas. Toque em + para adicionar.</string>
+    <string name="monitor_delete_rule_title">Eliminar Regra</string>
+    <string name="monitor_delete_rule_desc">Tem a certeza que deseja remover esta regra de proteção? Esta ação não pode ser desfeita.</string>
+    <string name="monitor_delete_rule_soft">O utilizador removeu esta regra. Eliminar permanentemente do painel?</string>
+    <string name="monitor_current_status">ESTADO ATUAL</string>
+    <string name="monitor_active_plan">PLANO ATIVO</string>
+    <string name="monitor_connection_lost">Ligação perdida. O protegido não está a enviar sinal.</string>
+    <string name="monitor_alert_trends">Tendências de Alerta</string>
+    <string name="monitor_my_proteges">MEUS PROTEGIDOS</string>
+    <string name="monitor_no_proteges">Ainda sem utilizadores protegidos. Toque em + para adicionar.</string>
+    <string name="monitor_confirm_conn_title">Confirmar Ligação</string>
+    <string name="monitor_confirm_conn_desc">Deseja ligar-se a este utilizador?</string>
+    <string name="monitor_access_level">NÍVEL DE ACESSO</string>
+    <string name="monitor_rule_type">Tipo de Proteção</string>
+    <string name="monitor_rule_defined">DEFINIDO</string>
+    <string name="monitor_rule_marked_delete">Marcado para eliminação pelo utilizador</string>
+    <string name="monitor_search_address">Procurar endereço...</string>
+    <string name="monitor_radius_meters">RAIO: %1$s METROS</string>
+    <string name="monitor_rule_no_params">Esta regra deteta eventos automaticamente. Sem parâmetros necessários.</string>
+    <string name="monitor_rule_schedule">Agendamento da Regra</string>
+    <string name="monitor_managed_by_user">Gerido pelo Utilizador (Apenas Leitura)</string>
+    <string name="monitor_active_days">DIAS ATIVOS</string>
+    <string name="monitor_start">INÍCIO</string>
+    <string name="monitor_end">FIM</string>
+    <string name="monitor_perm_delete">Eliminar Permanentemente</string>
+    
+    <string name="dialog_perm_title">Permissão Necessária</string>
+    <string name="dialog_perm_desc">Para garantir que os Alertas de Emergência abrem imediatamente sobre outras apps, a SafetySec precisa de autorização para sobreposição.</string>
+    <string name="dialog_perm_confirm">Autorizar</string>
+    <string name="dialog_perm_dismiss">Agora não</string>
+    
+    <string name="dual_role_title">Ativar Modo Monitor</string>
+    <string name="dual_role_desc">Para aceder ao Painel de Monitor, a sua conta será atualizada para suportar ambos os perfis (Protegido + Monitor). Deseja continuar?</string>
+    <string name="dual_role_confirm">Ativar e Mudar</string>
+    
+    <string name="nav_guard">Proteção</string>
+    <string name="nav_monitors">Monitores</string>
+    <string name="nav_activity">Atividade</string>
+    <string name="nav_profile">Perfil</string>
+    
+    <string name="monitor_notif_title">Monitorização Remota Ativa</string>
+    <string name="monitor_notif_desc">A aguardar alertas dos protegidos...</string>
+    <string name="monitor_notif_alert_desc">%1$s detetado. Toque para detalhes.</string>
+    
+    <string name="code_new">Novo Código</string>
+    <string name="code_retry">Tentar de novo</string>
+</resources>

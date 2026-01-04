@@ -2,13 +2,14 @@ package pt.isec.amov2526.projetoKotlin.data.model
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import pt.isec.amov2526.projetoKotlin.R
 
-enum class MonitorRuleType(val title: String, val isMultiInstance: Boolean) {
-    FALL("Fall", false),
-    ACCIDENT("Accident", false),
-    GEOFENCING("Geofencing", true),
-    SPEED("Speed Control", true),
-    INACTIVITY("Prolonged Inactivity", true)
+enum class MonitorRuleType(val titleRes: Int, val isMultiInstance: Boolean) {
+    FALL(R.string.rule_fall, false),
+    ACCIDENT(R.string.rule_accident, false),
+    GEOFENCING(R.string.rule_geofencing, true),
+    SPEED(R.string.rule_speed, true),
+    INACTIVITY(R.string.rule_inactivity, true)
 }
 
 data class ProtectionRule(

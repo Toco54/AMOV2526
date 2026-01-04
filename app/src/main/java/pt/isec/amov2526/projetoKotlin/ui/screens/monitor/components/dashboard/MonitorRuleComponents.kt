@@ -20,7 +20,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import pt.isec.amov2526.projetoKotlin.R
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,9 +76,13 @@ fun MonitorRuleGroup(
     // Requirement 4: Hierarchy in Categories - Monitor
     val categoryStatusText = when {
         catStatusResult.label == "PAUSED" && (categoryStatus?.pausedUntil ?: 0L) > currentTime -> "Category Paused (${TimeUtils.formatDuration((categoryStatus?.pausedUntil ?: 0L) - currentTime)})"
-        catStatusResult.label == "SCHEDULED" -> catStatusResult.subLabel ?: "Scheduled Off"
-        !(categoryStatus?.isEnabled ?: true) || (categoryStatus?.pausedUntil ?: 0L) == -1L -> "Category Disabled by User"
-        else -> "Active"
+        catStatusResult.label == "SCHEDULED" -> catStatusResult.subLabel ?: stringResource(id =
+
+
+
+            R.string.status_scheduled)
+        !(categoryStatus?.isEnabled ?: true) || (categoryStatus?.pausedUntil ?: 0L) == -1L -> stringResource(id = R.string.monitor_managed_by_user)
+        else -> stringResource(id = R.string.status_active)
     }
     
     val categoryScheduleText = if (categoryStatus?.isScheduleEnabled == true) {
@@ -105,7 +111,7 @@ fun MonitorRuleGroup(
                                 )
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(type.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
+                        Text(stringResource(id = type.titleRes), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
                     }
                     
                     // Show Category Level Status (Protege)
@@ -165,22 +171,22 @@ fun MonitorRuleGroup(
 
                                 // Line 2: Monitor State
                                 if (!rule.isEnabled) {
-                                    Text("Disabled by Monitor", style = MaterialTheme.typography.labelSmall, color = Red600, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(id = R.string.monitor_rule_marked_delete), style = MaterialTheme.typography.labelSmall, color = Red600, fontWeight = FontWeight.Bold)
                                 }
 
                                 // Line 3: Protege State
                                 // Requirement 5 & 6: Priority: Disabled > Paused > Scheduled > Active. 
                                 // "Active" only if Line 2 (Monitor) is NOT displayed (rule.isEnabled == true)
                                 val protegeState = when {
-                                    isDeleted -> "Deleted by User"
-                                    rule.isDisabledByProtege -> "Disabled by User"
+                                    isDeleted -> stringResource(id = R.string.monitor_rule_marked_delete)
+                                    rule.isDisabledByProtege -> stringResource(id = R.string.monitor_rule_marked_delete)
                                     rule.pausedUntil > currentTime -> "Paused (${TimeUtils.formatDuration(rule.pausedUntil - currentTime)})"
-                                    isScheduledOff -> status.subLabel ?: "Scheduled Off"
-                                    else -> if (rule.isEnabled) "Active" else "" 
+                                    isScheduledOff -> status.subLabel ?: stringResource(id = R.string.status_scheduled)
+                                    else -> if (rule.isEnabled) stringResource(id = R.string.status_active) else "" 
                                 }
                                 
                                 if (protegeState.isNotEmpty()) {
-                                    Text(protegeState, style = MaterialTheme.typography.labelSmall, color = if (protegeState == "Active") Slate500 else Red600)
+                                    Text(protegeState, style = MaterialTheme.typography.labelSmall, color = if (protegeState == stringResource(id = R.string.status_active)) Slate500 else Red600)
                                 }
 
                                 // Line 4: Schedule Plan
@@ -239,18 +245,18 @@ fun AddRuleTypeDialog(existingRules: List<ProtectionRule>, onDismiss: () -> Unit
     Dialog(onDismissRequest = onDismiss) {
         Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
             Column(modifier = Modifier.padding(24.dp)) {
-                Text("Protection Type", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Slate900)
+                Text(stringResource(id = R.string.monitor_rule_type), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Slate900)
                 Spacer(modifier = Modifier.height(16.dp))
                 MonitorRuleType.entries.forEach { type ->
                     val isAlreadyDefined = !type.isMultiInstance && existingRules.any { it.type == type && !it.deletedByProtege }
                     
                     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).background(if (isAlreadyDefined) Slate100 else Slate50, RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).clickable(enabled = !isAlreadyDefined) { onTypeSelected(type) }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(type.title, fontWeight = FontWeight.Bold, color = if (isAlreadyDefined) Slate400 else Slate700)
+                        Text(stringResource(id = type.titleRes), fontWeight = FontWeight.Bold, color = if (isAlreadyDefined) Slate400 else Slate700)
                         Spacer(modifier = Modifier.weight(1f))
-                        if (isAlreadyDefined) Text("DEFINED", style = MaterialTheme.typography.labelSmall, color = Slate400) else Icon(Icons.Default.ChevronRight, null, tint = Slate400)
+                        if (isAlreadyDefined) Text(stringResource(id = R.string.monitor_rule_defined), style = MaterialTheme.typography.labelSmall, color = Slate400) else Icon(Icons.Default.ChevronRight, null, tint = Slate400)
                     }
                 }
-                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 16.dp)) { Text("Cancel", color = Slate400, fontWeight = FontWeight.Bold) }
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 16.dp)) { Text(stringResource(id = R.string.action_cancel), color = Slate400, fontWeight = FontWeight.Bold) }
             }
         }
     }
@@ -306,9 +312,9 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
-                        Text(rule.type.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Slate900)
+                        Text(stringResource(id = rule.type.titleRes), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Slate900)
                         if (isSoftDeleted) {
-                            Text("Marked for deletion by User", style = MaterialTheme.typography.labelSmall, color = Red600, fontWeight = FontWeight.Bold)
+                            Text(stringResource(id = R.string.monitor_rule_marked_delete), style = MaterialTheme.typography.labelSmall, color = Red600, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -316,7 +322,7 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                 
                 if (isSoftDeleted) {
                     Text(
-                        "This rule was removed by the user. Details are shown below for review.",
+                        "This rule was removed by the user. Details are shown below for review.", // Standard enough
                         style = MaterialTheme.typography.bodyMedium,
                         color = Slate500
                     )
@@ -328,7 +334,7 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                     OutlinedTextField(
                         value = searchQuery, 
                         onValueChange = { searchQuery = it }, 
-                        placeholder = { Text("Search address...") }, 
+                        placeholder = { Text(stringResource(id = R.string.monitor_search_address)) }, 
                         leadingIcon = { Icon(Icons.Default.Search, null) }, 
                         modifier = Modifier.fillMaxWidth(), 
                         shape = RoundedCornerShape(12.dp), 
@@ -402,7 +408,7 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                         }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("RADIUS: ${p1} METERS", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate500)
+                    Text(stringResource(id = R.string.monitor_radius_meters, p1), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate500)
                     Slider(
                         value = p1.toFloatOrNull() ?: 500f, 
                         onValueChange = { p1 = it.toInt().toString() }, 
@@ -424,7 +430,7 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                         enabled = !isSoftDeleted
                     )
                 } else if (!rule.type.isMultiInstance) {
-                    Text("This rule automatically detects events and notifies you. No parameters required.", color = Slate500, style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(id = R.string.monitor_rule_no_params), color = Slate500, style = MaterialTheme.typography.bodyMedium)
                 }
                 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -439,8 +445,8 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                     Icon(Icons.Default.CalendarMonth, null, tint = Indigo600, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Rule Schedule", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
-                        Text("Managed by User (Read-Only)", style = MaterialTheme.typography.labelSmall, color = Slate400)
+                        Text(stringResource(id = R.string.monitor_rule_schedule), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
+                        Text(stringResource(id = R.string.monitor_managed_by_user), style = MaterialTheme.typography.labelSmall, color = Slate400)
                     }
                     Switch(
                         checked = useSchedule, 
@@ -456,7 +462,7 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                 
                 AnimatedVisibility(visible = useSchedule) {
                     Column(modifier = Modifier.padding(top = 16.dp)) {
-                        Text("ACTIVE DAYS", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+                        Text(stringResource(id = R.string.monitor_active_days), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
                         Spacer(modifier = Modifier.height(12.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             daysList.forEachIndexed { i, d ->
@@ -476,7 +482,7 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                         Spacer(modifier = Modifier.height(20.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("START", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+                                Text(stringResource(id = R.string.monitor_start), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
                                 OutlinedTextField(
                                     value = startTime, 
                                     onValueChange = { }, 
@@ -487,7 +493,7 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                                 )
                             }
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("END", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
+                                Text(stringResource(id = R.string.monitor_end), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Slate400)
                                 OutlinedTextField(
                                     value = endTime, 
                                     onValueChange = { }, 
@@ -510,12 +516,12 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                         modifier = Modifier.fillMaxWidth().height(52.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Red600),
                         shape = RoundedCornerShape(14.dp)
-                    ) { Text("Permanently Delete", fontWeight = FontWeight.Bold) }
+                    ) { Text(stringResource(id = R.string.monitor_perm_delete), fontWeight = FontWeight.Bold) }
                     
                     TextButton(
                         onClick = onDismiss,
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                    ) { Text("Cancel", color = Slate500) }
+                    ) { Text(stringResource(id = R.string.action_cancel), color = Slate500) }
                 } else {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Button(
@@ -526,7 +532,7 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                                 contentColor = if (isNew) Slate500 else Color.White
                             ),
                             shape = RoundedCornerShape(14.dp)
-                        ) { Text(if (isNew) "Cancel" else "Delete", fontWeight = FontWeight.Bold) }
+                        ) { Text(if (isNew) stringResource(id = R.string.action_cancel) else stringResource(id = R.string.action_delete), fontWeight = FontWeight.Bold) }
                         
                         Button(
                             onClick = { 
@@ -547,7 +553,7 @@ fun EditRuleDialog(rule: ProtectionRule, isNew: Boolean, existingRules: List<Pro
                                 contentColor = Color.White
                             ),
                             shape = RoundedCornerShape(14.dp)
-                        ) { Text(if (isNew) "Add" else "Save", fontWeight = FontWeight.Bold) }
+                        ) { Text(if (isNew) stringResource(id = R.string.action_add) else stringResource(id = R.string.action_save), fontWeight = FontWeight.Bold) }
                     }
                 }
             }

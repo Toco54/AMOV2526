@@ -4,16 +4,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import pt.isec.amov2526.projetoKotlin.R
 
 // --- CORES ---
 private val Slate400 = Color(0xFF94A3B8)
 
-enum class RuleType(val title: String, val icon: ImageVector, val color: Color) {
-    FALL("Fall", Icons.Default.MonitorHeart, Color(0xFFFF7043)),
-    ACCIDENT("Accident", Icons.Default.CarCrash, Color(0xFFEF4444)),
-    GEOFENCING("Geofencing", Icons.Default.LocationOn, Color(0xFF7E57C2)),
-    SPEED("Speed Control", Icons.Default.Speed, Color(0xFF42A5F5)),
-    INACTIVITY("Inactivity", Icons.Default.Schedule, Slate400)
+enum class RuleType(val titleRes: Int, val icon: ImageVector, val color: Color) {
+    FALL(R.string.rule_fall, Icons.Default.MonitorHeart, Color(0xFFFF7043)),
+    ACCIDENT(R.string.rule_accident, Icons.Default.CarCrash, Color(0xFFEF4444)),
+    GEOFENCING(R.string.rule_geofencing, Icons.Default.LocationOn, Color(0xFF7E57C2)),
+    SPEED(R.string.rule_speed, Icons.Default.Speed, Color(0xFF42A5F5)),
+    INACTIVITY(R.string.rule_inactivity, Icons.Default.Schedule, Slate400)
 }
 
 data class MonitorRule(

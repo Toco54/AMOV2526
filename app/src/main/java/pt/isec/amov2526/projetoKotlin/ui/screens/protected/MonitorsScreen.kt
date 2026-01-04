@@ -17,14 +17,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
+import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.data.model.ConnectedUser
-// [REMOVIDO] Import do AccessSelectionDialog desnecessário
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.monitors.GenerateCodeModal
 import pt.isec.amov2526.projetoKotlin.ui.screens.protected.components.monitors.MonitorCard
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
@@ -45,7 +46,6 @@ fun MonitorsScreen(
     val monitors = viewModel.monitors
     var showRemoveDialog by remember { mutableStateOf<ConnectedUser?>(null) }
     var showGenerateCodeModal by remember { mutableStateOf(false) }
-    // [REMOVIDO] var showAccessSelectionDialog
 
     Box(
         modifier = Modifier
@@ -60,7 +60,7 @@ fun MonitorsScreen(
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Manage Monitors",
+                    text = stringResource(id = R.string.monitors_title),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = Slate900,
@@ -72,7 +72,7 @@ fun MonitorsScreen(
             if (monitors.isNotEmpty()) {
                 item {
                     Text(
-                        text = "ACTIVE MONITORS",
+                        text = stringResource(id = R.string.monitors_active),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = Slate400,
@@ -89,7 +89,7 @@ fun MonitorsScreen(
             } else {
                 item {
                     Text(
-                        text = "No active monitors yet.",
+                        text = stringResource(id = R.string.monitors_no_active),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Slate400,
                         modifier = Modifier.padding(vertical = 8.dp)
@@ -104,7 +104,6 @@ fun MonitorsScreen(
 
         FloatingActionButton(
             onClick = {
-                // [ALTERADO] Gera logo o código com permissão "Full Monitoring" e abre o modal
                 viewModel.generateCode("Full Monitoring")
                 showGenerateCodeModal = true
             },
@@ -118,7 +117,7 @@ fun MonitorsScreen(
         ) {
             Icon(
                 imageVector = Icons.Filled.Add,
-                contentDescription = "Add Monitor",
+                contentDescription = stringResource(id = R.string.monitors_add),
                 modifier = Modifier.size(28.dp)
             )
         }
@@ -153,14 +152,14 @@ fun MonitorsScreen(
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Remove Monitor?",
+                        text = stringResource(id = R.string.monitors_remove_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = Slate900
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "${showRemoveDialog!!.name} will no longer have access to your alerts or status.",
+                        text = stringResource(id = R.string.monitors_remove_desc, showRemoveDialog!!.name),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Slate500,
                         textAlign = TextAlign.Center
@@ -173,7 +172,7 @@ fun MonitorsScreen(
                     ) {
                         TextButton(onClick = { showRemoveDialog = null }) {
                             Text(
-                                text = "Cancel",
+                                text = stringResource(id = R.string.action_cancel),
                                 fontWeight = FontWeight.Bold,
                                 color = Slate500
                             )
@@ -190,7 +189,7 @@ fun MonitorsScreen(
                                 .shadow(elevation = 2.dp, shape = RoundedCornerShape(12.dp))
                         ) {
                             Text(
-                                text = "Remove",
+                                text = stringResource(id = R.string.action_remove),
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
                             )
@@ -200,8 +199,6 @@ fun MonitorsScreen(
             }
         }
     }
-
-    // [REMOVIDO] Bloco do AccessSelectionDialog
 
     if (showGenerateCodeModal) {
         GenerateCodeModal(

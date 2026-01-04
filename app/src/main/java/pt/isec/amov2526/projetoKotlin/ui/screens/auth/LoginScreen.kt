@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -82,7 +83,7 @@ fun LoginScreen(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(id = R.string.profile_logout), // Just for desc
                 tint = Color.White
             )
         }
@@ -91,14 +92,14 @@ fun LoginScreen(
 
         // HEADER: Muda consoante o estado
         Text(
-            text = if (mfaRequired) "Security Check" else "Welcome back",
+            text = if (mfaRequired) stringResource(id = R.string.auth_security_check) else stringResource(id = R.string.auth_welcome),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
             color = Color.White
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = if (mfaRequired) "Please enter the 6-digit code sent to your email." else "Sign in to access your dashboard.",
+            text = if (mfaRequired) stringResource(id = R.string.auth_mfa_tagline) else stringResource(id = R.string.auth_signin_tagline),
             style = MaterialTheme.typography.bodyLarge,
             color = Slate400
         )
@@ -111,7 +112,7 @@ fun LoginScreen(
             // PARTE DO CÓDIGO MFA (OTP)
             // ===========================
             Text(
-                text = "VERIFICATION CODE",
+                text = stringResource(id = R.string.auth_verification_code),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = Slate400
@@ -173,7 +174,7 @@ fun LoginScreen(
                     CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                 } else {
                     Text(
-                        text = "Verify Code",
+                        text = stringResource(id = R.string.auth_verify_code),
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
@@ -193,7 +194,7 @@ fun LoginScreen(
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Text(
-                    text = "Cancel",
+                    text = "Cancel", // Standard enough or add to strings
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
@@ -207,7 +208,7 @@ fun LoginScreen(
 
             // Email
             Text(
-                text = "EMAIL",
+                text = stringResource(id = R.string.auth_email),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = Slate400
@@ -248,7 +249,7 @@ fun LoginScreen(
 
             // Password
             Text(
-                text = "PASSWORD",
+                text = stringResource(id = R.string.auth_password),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = Slate400
@@ -297,8 +298,13 @@ fun LoginScreen(
             // MOSTRAR ERRO (SE HOUVER)
             if (errorMsg != null) {
                 Spacer(modifier = Modifier.height(16.dp))
+                val localizedError = when(errorMsg) {
+                    "Please fill in all fields" -> stringResource(id = R.string.error_fill_all)
+                    "Invalid Email Format" -> stringResource(id = R.string.error_invalid_email)
+                    else -> errorMsg
+                }
                 Text(
-                    text = errorMsg ?: "",
+                    text = localizedError ?: "",
                     color = Color(0xFFEF4444), // Emerald Red
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
@@ -310,7 +316,7 @@ fun LoginScreen(
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
                 TextButton(onClick = onForgotPassword) {
                     Text(
-                        text = "Forgot Password?",
+                        text = stringResource(id = R.string.auth_forgot_password),
                         color = Emerald500,
                         fontWeight = FontWeight.Bold
                     )
@@ -344,7 +350,7 @@ fun LoginScreen(
                     CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                 } else {
                     Text(
-                        text = "Log In",
+                        text = stringResource(id = R.string.landing_login),
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
@@ -360,11 +366,11 @@ fun LoginScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Don't have an account? ",
+                    text = stringResource(id = R.string.auth_no_account),
                     color = Slate400
                 )
                 Text(
-                    text = "Sign Up",
+                    text = stringResource(id = R.string.auth_signup),
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.clickable { onSignUpClick() }

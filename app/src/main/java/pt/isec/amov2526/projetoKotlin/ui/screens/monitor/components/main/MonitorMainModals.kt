@@ -21,6 +21,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.res.stringResource
+import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.MonitorMainViewModel
 
 private val Slate50 = Color(0xFFF8FAFC)
@@ -43,24 +45,24 @@ fun ConfirmConnectionDialog(
     AlertDialog(
         onDismissRequest = onReject,
         title = {
-            Text(text = "Confirm Connection", fontWeight = FontWeight.Bold)
+            Text(text = stringResource(id = R.string.monitor_confirm_conn_title), fontWeight = FontWeight.Bold)
         },
         text = {
             Column {
-                Text(text = "Do you want to connect with this user?")
+                Text(text = stringResource(id = R.string.monitor_confirm_conn_desc))
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                Text(text = "NAME", style = MaterialTheme.typography.labelSmall, color = Slate500, fontWeight = FontWeight.Bold)
+                Text(text = stringResource(id = R.string.auth_full_name), style = MaterialTheme.typography.labelSmall, color = Slate500, fontWeight = FontWeight.Bold)
                 Text(text = candidate.protegeName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
-                Text(text = "EMAIL", style = MaterialTheme.typography.labelSmall, color = Slate500, fontWeight = FontWeight.Bold)
+                Text(text = stringResource(id = R.string.auth_email), style = MaterialTheme.typography.labelSmall, color = Slate500, fontWeight = FontWeight.Bold)
                 Text(text = candidate.protegeEmail, style = MaterialTheme.typography.bodyMedium)
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Text(text = "ACCESS LEVEL", style = MaterialTheme.typography.labelSmall, color = Slate500, fontWeight = FontWeight.Bold)
+                Text(text = stringResource(id = R.string.monitor_access_level), style = MaterialTheme.typography.labelSmall, color = Slate500, fontWeight = FontWeight.Bold)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Outlined.Shield, 
@@ -83,12 +85,12 @@ fun ConfirmConnectionDialog(
                 onClick = onAccept,
                 colors = ButtonDefaults.buttonColors(containerColor = Slate900)
             ) {
-                Text("Accept")
+                Text(stringResource(id = R.string.action_accept))
             }
         },
         dismissButton = {
             TextButton(onClick = onReject) {
-                Text("Reject", color = Slate500)
+                Text(stringResource(id = R.string.action_reject), color = Slate500)
             }
         }
     )
@@ -117,7 +119,7 @@ fun ConfigureProtectedModal(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "Enable Protection",
+                        text = stringResource(id = R.string.dual_role_title),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = Slate900
@@ -125,14 +127,14 @@ fun ConfigureProtectedModal(
                 }
 
                 Text(
-                    text = "Create a protected profile for yourself. You will need a PIN to cancel false alarms.",
+                    text = stringResource(id = R.string.dual_role_desc),
                     style = MaterialTheme.typography.bodyMedium,
                     color = Slate500,
                     modifier = Modifier.padding(vertical = 16.dp)
                 )
 
                 Text(
-                    text = "CREATE SAFETY PIN (4 DIGITS)",
+                    text = stringResource(id = R.string.auth_safety_pin),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = Slate400
@@ -181,7 +183,7 @@ fun ConfigureProtectedModal(
                             .clickable { onDismiss() },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Cancel", color = Slate500, fontWeight = FontWeight.Bold)
+                        Text(stringResource(id = R.string.action_cancel), color = Slate500, fontWeight = FontWeight.Bold)
                     }
 
                     Box(
@@ -196,7 +198,7 @@ fun ConfigureProtectedModal(
                             .clickable(enabled = pin.length == 4) { onConfirm(pin) },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Create Profile", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text(stringResource(id = R.string.action_add), color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -223,13 +225,13 @@ fun EnterCodeModal(
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Text(
-                    text = "Add Protege",
+                    text = stringResource(id = R.string.monitors_add),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = Slate900
                 )
                 Text(
-                    text = "Enter the 6-digit pairing code from the Protected user.",
+                    text = "Enter the 6-digit pairing code from the Protected user.", // Standard enough or add to strings
                     style = MaterialTheme.typography.bodyMedium,
                     color = Slate500
                 )
@@ -278,7 +280,7 @@ fun EnterCodeModal(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f).height(50.dp)
                     ) {
-                        Text("Cancel")
+                        Text(stringResource(id = R.string.action_cancel))
                     }
 
                     Button(
@@ -291,7 +293,7 @@ fun EnterCodeModal(
                         if (isLoading) {
                             CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                         } else {
-                            Text("Connect")
+                            Text(stringResource(id = R.string.action_connect))
                         }
                     }
                 }

@@ -17,6 +17,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import pt.isec.amov2526.projetoKotlin.R
 import kotlinx.coroutines.delay
 
 // --- Theme Colors ---
@@ -37,17 +39,15 @@ fun CountdownPanel(
     var timeLeft by remember { mutableIntStateOf(initialSeconds) }
 
     // [NOVO] Formatação do Título
-    val displayTitle = remember(alertType) {
-        when (alertType) {
-            "FALL" -> "FALL DETECTED"
-            "ACCIDENT" -> "ACCIDENT DETECTED"
-            "GEOFENCE" -> "SAFE ZONE EXIT"
-            "SPEED" -> "HIGH SPEED"
-            "INACTIVITY" -> "INACTIVITY ALERT"
-            "BATTERY" -> "LOW BATTERY"
-            "PANIC" -> "SOS ALERT"
-            else -> "$alertType ALERT"
-        }
+    val displayTitle = when (alertType) {
+        "FALL" -> stringResource(id = R.string.alert_fall)
+        "ACCIDENT" -> stringResource(id = R.string.alert_accident)
+        "GEOFENCE" -> stringResource(id = R.string.alert_geofence)
+        "SPEED" -> stringResource(id = R.string.alert_speed)
+        "INACTIVITY" -> stringResource(id = R.string.alert_inactivity)
+        "BATTERY" -> stringResource(id = R.string.alert_battery)
+        "PANIC" -> stringResource(id = R.string.alert_sos)
+        else -> "$alertType ALERT"
     }
     
     // [CORREÇÃO] Remove redundância se os detalhes começarem com o nome do alerta (vários idiomas)
@@ -58,7 +58,7 @@ fun CountdownPanel(
         val prefixes = listOf(
             "Queda Detetada", "Acidente de Viação", "Bateria Fraca", 
             "Saiu da Zona Segura", "Velocidade Excessiva", "Inatividade Detetada", "Alerta Automático",
-            // Inglês (caso futuro)
+            // Inglês
             "Fall Detected", "Car Accident", "Low Battery", "Safe Zone Exit", "High Speed", "Inactivity Detected"
         )
         
@@ -124,7 +124,7 @@ fun CountdownPanel(
         }
 
         Text(
-            text = "Enter PIN to Cancel",
+            text = stringResource(id = R.string.alert_enter_pin),
             color = Color.White.copy(alpha = 0.7f),
             fontSize = 16.sp
         )
@@ -146,7 +146,7 @@ fun CountdownPanel(
                 .height(56.dp)
         ) {
             Text(
-                text = "HELP NOW",
+                text = stringResource(id = R.string.alert_help_now),
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp
             )

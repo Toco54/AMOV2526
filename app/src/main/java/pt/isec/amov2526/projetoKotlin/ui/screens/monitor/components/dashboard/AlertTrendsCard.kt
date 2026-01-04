@@ -18,6 +18,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.data.model.AlertStat
 
 private val Slate100 = Color(0xFFF1F5F9)
@@ -33,7 +35,7 @@ fun AlertTrendsCard(stats: List<AlertStat>) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.AutoMirrored.Filled.ShowChart, null, tint = Slate400, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Alert Trends", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
+                Text(stringResource(id = R.string.monitor_alert_trends), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
             }
             Spacer(modifier = Modifier.height(24.dp))
             Row(modifier = Modifier.fillMaxWidth().height(160.dp), verticalAlignment = Alignment.Bottom) {

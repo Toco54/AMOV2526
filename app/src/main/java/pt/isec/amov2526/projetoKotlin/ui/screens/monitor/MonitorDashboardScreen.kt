@@ -27,7 +27,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -71,6 +73,8 @@ fun MonitorDashboardScreen(
 
     val activities by viewModel.activities.collectAsState()
     val alertStats by viewModel.alertStats.collectAsState()
+
+    val context = LocalContext.current
 
     // Timer vivo para countdowns
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -134,13 +138,13 @@ fun MonitorDashboardScreen(
                         }
                         
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("LIVE DASHBOARD", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Indigo600, letterSpacing = 0.5.sp)
+                            Text(stringResource(id = R.string.monitor_live_dashboard), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Indigo600, letterSpacing = 0.5.sp)
                             
                             // Show details ONLY if connected
                             if (!isDisconnected) {
                                 // Dynamic Countdown Logic for TopBar
                                 val dynamicDetail = if (systemStatus == "PAUSED" && pausedUntil > currentTime) {
-                                    "Paused (${pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration(pausedUntil - currentTime)})"
+                                    context.getString(R.string.guard_resumes_in, pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration(pausedUntil - currentTime))
                                 } else {
                                     statusDetail
                                 }
@@ -162,7 +166,7 @@ fun MonitorDashboardScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Slate900)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(id = R.string.profile_logout), tint = Slate900)
                     }
                 },
                 actions = {
@@ -170,7 +174,7 @@ fun MonitorDashboardScreen(
                         onClick = { showStatusDetailDialog = true },
                         modifier = Modifier.size(32.dp)
                     ) {
-                        Icon(Icons.Default.Info, "Status Info", tint = Indigo600, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Info, stringResource(id = R.string.monitor_current_status), tint = Indigo600, modifier = Modifier.size(18.dp))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
@@ -207,15 +211,15 @@ fun MonitorDashboardScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(painterResource(id = R.drawable.ic_shield_check), null, tint = Emerald500, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Manage Protection Rules", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
+                            Text(stringResource(id = R.string.monitor_manage_rules), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Slate900)
                         }
                         IconButton(onClick = { showAddRuleSelection = true }, modifier = Modifier.size(28.dp).background(Slate100, CircleShape)) {
-                            Icon(Icons.Default.Add, "Add", tint = Slate900, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Add, stringResource(id = R.string.action_add), tint = Slate900, modifier = Modifier.size(18.dp))
                         }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                     if (rules.isEmpty()) {
-                        Text("No active rules. Tap + to add.", style = MaterialTheme.typography.bodySmall, color = Slate400, modifier = Modifier.padding(vertical = 12.dp))
+                        Text(stringResource(id = R.string.monitor_no_rules), style = MaterialTheme.typography.bodySmall, color = Slate400, modifier = Modifier.padding(vertical = 12.dp))
                     } else {
                         val groupedRules = rules.groupBy { it.type }.toList().sortedBy { it.first.ordinal }
                         groupedRules.forEach { (type, typeRules) ->
@@ -247,9 +251,9 @@ fun MonitorDashboardScreen(
                                     )
                                     
                                     val catStatusText = when {
-                                        catStatusResult.label == "PAUSED" && (catStatus?.pausedUntil ?: 0L) > currentTime -> "${type.title} Paused (${pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration((catStatus?.pausedUntil ?: 0L) - currentTime)})"
-                                        catStatusResult.label == "SCHEDULED" -> catStatusResult.subLabel ?: "Scheduled Off"
-                                        !(catStatus?.isEnabled ?: true) || (catStatus?.pausedUntil ?: 0L) == -1L -> "${type.title} Disabled by User"
+                                        catStatusResult.label == "PAUSED" && (catStatus?.pausedUntil ?: 0L) > currentTime -> context.getString(R.string.guard_pause_type, context.getString(type.titleRes)) + " Paused (${pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration((catStatus?.pausedUntil ?: 0L) - currentTime)})"
+                                        catStatusResult.label == "SCHEDULED" -> catStatusResult.subLabel ?: stringResource(id = R.string.status_scheduled)
+                                        !(catStatus?.isEnabled ?: true) || (catStatus?.pausedUntil ?: 0L) == -1L -> context.getString(R.string.guard_pause_type, context.getString(type.titleRes)) + " " + stringResource(id = R.string.monitor_rule_marked_delete)
                                         else -> ""
                                     }
 
@@ -283,7 +287,7 @@ fun MonitorDashboardScreen(
                                                     )
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                     Text(
-                                                        text = type.title,
+                                                        text = stringResource(id = type.titleRes),
                                                         style = MaterialTheme.typography.titleSmall,
                                                         fontWeight = FontWeight.Bold,
                                                         color = Slate900
@@ -302,7 +306,7 @@ fun MonitorDashboardScreen(
 
                                                 // Line 1: Monitor State
                                                 if (!rule.isEnabled) {
-                                                    Text("Disabled by Monitor", style = MaterialTheme.typography.labelSmall, color = Red600, fontWeight = FontWeight.Bold)
+                                                    Text(stringResource(id = R.string.monitor_rule_marked_delete), style = MaterialTheme.typography.labelSmall, color = Red600, fontWeight = FontWeight.Bold)
                                                 }
 
                                                 // Line 2: Protege State (Rule Only)
@@ -318,11 +322,11 @@ fun MonitorDashboardScreen(
                                                 val isScheduledOff = ruleStatus.label == "SCHEDULED"
 
                                                 val detailText = when {
-                                                    rule.deletedByProtege -> "Deleted by User"
-                                                    rule.isDisabledByProtege -> "Disabled by User"
+                                                    rule.deletedByProtege -> stringResource(id = R.string.monitor_rule_marked_delete)
+                                                    rule.isDisabledByProtege -> stringResource(id = R.string.monitor_rule_marked_delete)
                                                     rule.pausedUntil > currentTime -> "Paused (${pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration(rule.pausedUntil - currentTime)})"
-                                                    isScheduledOff -> ruleStatus.subLabel ?: "Scheduled Off"
-                                                    rule.isEnabled -> "Monitoring Active" // Show Active only if Monitor enabled
+                                                    isScheduledOff -> ruleStatus.subLabel ?: stringResource(id = R.string.status_scheduled)
+                                                    rule.isEnabled -> stringResource(id = R.string.status_active)
                                                     else -> ""
                                                 }
                                                 
@@ -330,7 +334,7 @@ fun MonitorDashboardScreen(
                                                     Text(
                                                         text = detailText,
                                                         style = MaterialTheme.typography.labelSmall,
-                                                        color = if (detailText == "Monitoring Active") Slate400 else Red600
+                                                        color = if (detailText == stringResource(id = R.string.status_active)) Slate400 else Red600
                                                     )
                                                 }
                                                 
@@ -346,20 +350,20 @@ fun MonitorDashboardScreen(
                                                 }
                                             }
                                             IconButton(onClick = { if (rule.deletedByProtege) viewModel.deleteRule(rule.id) else ruleIdToDelete = rule.id }, modifier = Modifier.size(32.dp)) {
-                                                Icon(imageVector = Icons.Default.Delete, contentDescription = null, tint = if (rule.deletedByProtege) Red600 else Slate400, modifier = Modifier.size(18.dp))
+                                                Icon(imageVector = Icons.Default.Delete, contentDescription = stringResource(id = R.string.action_delete), tint = if (rule.deletedByProtege) Red600 else Slate400, modifier = Modifier.size(18.dp))
                                             }
 
                                             Spacer(modifier = Modifier.width(4.dp))
                                             if (rule.deletedByProtege) {
-                                                Icon(Icons.Default.Warning, "Deleted", tint = Red600, modifier = Modifier.size(24.dp))
+                                                Icon(Icons.Default.Warning, stringResource(id = R.string.monitor_rule_marked_delete), tint = Red600, modifier = Modifier.size(24.dp))
                                             } else {
                                                 // Show status icons alongside the switch
                                                 if (rule.isDisabledByProtege) {
-                                                    Icon(Icons.Default.PersonOff, "Disabled by User", tint = Red600, modifier = Modifier.size(20.dp))
+                                                    Icon(Icons.Default.PersonOff, stringResource(id = R.string.monitor_rule_marked_delete), tint = Red600, modifier = Modifier.size(20.dp))
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                 }
                                                 if (rule.pausedUntil > currentTime) {
-                                                    Icon(Icons.Default.PauseCircle, "Paused", tint = Color(0xFFF59E0B), modifier = Modifier.size(20.dp))
+                                                    Icon(Icons.Default.PauseCircle, stringResource(id = R.string.status_paused), tint = Color(0xFFF59E0B), modifier = Modifier.size(20.dp))
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                 }
 
@@ -401,7 +405,7 @@ fun MonitorDashboardScreen(
     if (ruleIdToDelete != null) {
         val ruleToDelete = rules.find { it.id == ruleIdToDelete }
         val isSoftDeleted = ruleToDelete?.deletedByProtege == true
-        AlertDialog(onDismissRequest = { ruleIdToDelete = null }, title = { Text("Delete Rule", fontWeight = FontWeight.Bold, color = Slate900) }, text = { Text(if (isSoftDeleted) "User removed this rule. Permanently delete from dashboard?" else "Are you sure you want to remove this protection rule? This action cannot be undone.", color = Slate500) }, confirmButton = { Button(onClick = { viewModel.deleteRule(ruleIdToDelete!!); ruleIdToDelete = null; editingRule = null }, colors = ButtonDefaults.buttonColors(containerColor = Red600)) { Text("Delete", fontWeight = FontWeight.Bold) } }, dismissButton = { TextButton(onClick = { ruleIdToDelete = null }) { Text("Cancel", color = Slate500, fontWeight = FontWeight.Bold) } }, containerColor = Color.White, shape = RoundedCornerShape(24.dp))
+        AlertDialog(onDismissRequest = { ruleIdToDelete = null }, title = { Text(stringResource(id = R.string.monitor_delete_rule_title), fontWeight = FontWeight.Bold, color = Slate900) }, text = { Text(if (isSoftDeleted) stringResource(id = R.string.monitor_delete_rule_soft) else stringResource(id = R.string.monitor_delete_rule_desc), color = Slate500) }, confirmButton = { Button(onClick = { viewModel.deleteRule(ruleIdToDelete!!); ruleIdToDelete = null; editingRule = null }, colors = ButtonDefaults.buttonColors(containerColor = Red600)) { Text(stringResource(id = R.string.action_delete), fontWeight = FontWeight.Bold) } }, dismissButton = { TextButton(onClick = { ruleIdToDelete = null }) { Text(stringResource(id = R.string.action_cancel), color = Slate500, fontWeight = FontWeight.Bold) } }, containerColor = Color.White, shape = RoundedCornerShape(24.dp))
     }
 
     if (showStatusDetailDialog) {
@@ -441,7 +445,7 @@ fun MonitorDashboardScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Section 1: Current Status
-                Text("CURRENT STATUS", style = MaterialTheme.typography.labelSmall, color = Slate400, fontWeight = FontWeight.Bold)
+                Text(stringResource(id = R.string.monitor_current_status), style = MaterialTheme.typography.labelSmall, color = Slate400, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = Modifier.size(12.dp).background(displayStatusColor, CircleShape))
@@ -454,7 +458,7 @@ fun MonitorDashboardScreen(
                     if (systemStatus == "PAUSED" && pausedUntil > currentTime) {
                         val remaining = pausedUntil - currentTime
                         Text(
-                            text = "Resumes in: ${pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration(remaining)}",
+                            text = context.getString(R.string.guard_resumes_in, pt.isec.amov2526.projetoKotlin.utils.TimeUtils.formatDuration(remaining)),
                             style = MaterialTheme.typography.bodyLarge,
                             color = Color(0xFFF59E0B),
                             fontWeight = FontWeight.Bold,
@@ -473,7 +477,7 @@ fun MonitorDashboardScreen(
                 // Section 2: Global Schedule (If enabled)
                 if (globalSchedule?.isEnabled == true) {
                     Spacer(modifier = Modifier.height(32.dp))
-                    Text("ACTIVE PLAN", style = MaterialTheme.typography.labelSmall, color = Slate400, fontWeight = FontWeight.Bold)
+                    Text(stringResource(id = R.string.monitor_active_plan), style = MaterialTheme.typography.labelSmall, color = Slate400, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     // Days row
@@ -508,7 +512,7 @@ fun MonitorDashboardScreen(
                             Icon(Icons.Default.Schedule, null, tint = Indigo600, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                text = "Active window: ${globalSchedule!!.start} — ${globalSchedule!!.end}",
+                                text = context.getString(R.string.guard_active_window, globalSchedule!!.start, globalSchedule!!.end),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Slate900
@@ -529,7 +533,7 @@ fun MonitorDashboardScreen(
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Warning, null, tint = Red600, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text("Connection lost. Protege is not sending signal.", color = Red600, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                            Text(stringResource(id = R.string.monitor_connection_lost), color = Red600, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

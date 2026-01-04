@@ -19,12 +19,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import pt.isec.amov2526.projetoKotlin.R
 
 // Cores (Partilhadas)
 private val Slate50 = Color(0xFFF8FAFC)
@@ -32,8 +34,6 @@ private val Slate200 = Color(0xFFE2E8F0)
 private val Slate500 = Color(0xFF64748B)
 private val Slate900 = Color(0xFF0F172A)
 private val Indigo600 = Color(0xFF4F46E5)
-
-//TODO The EDITPROFILE FOR THE MONITOR CANT HAVE THE EDIT PIN FIELD
 
 @Composable
 fun EditProfileView(
@@ -60,7 +60,7 @@ fun EditProfileView(
     var confirmPassword by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
 
-    val canChangePassword = currentPassword.isNotEmpty()
+    val canSave = currentPassword.isNotEmpty()
 
     Column(
         modifier = Modifier
@@ -87,7 +87,7 @@ fun EditProfileView(
                 )
             }
             Text(
-                text = "Edit Profile",
+                text = stringResource(id = R.string.profile_edit_profile),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = Slate900
@@ -103,7 +103,7 @@ fun EditProfileView(
         ) {
             // Name
             Text(
-                text = "FULL NAME",
+                text = stringResource(id = R.string.auth_full_name),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = Slate500
@@ -126,7 +126,7 @@ fun EditProfileView(
 
             // Email
             Text(
-                text = "EMAIL",
+                text = stringResource(id = R.string.auth_email),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = Slate500
@@ -155,13 +155,13 @@ fun EditProfileView(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "MULTI-FACTOR AUTHENTICATION",
+                        text = stringResource(id = R.string.profile_mfa),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = Slate500
                     )
                     Text(
-                        text = "Require email code on login",
+                        text = stringResource(id = R.string.profile_mfa_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = Slate500
                     )
@@ -178,7 +178,7 @@ fun EditProfileView(
 
             if (showPinOptions && currentPin != null) {
                 Text(
-                    text = "SAFETY PIN (4 DIGITS)",
+                    text = stringResource(id = R.string.auth_safety_pin),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = Slate500
@@ -234,7 +234,7 @@ fun EditProfileView(
                                 )
                             }
                         },
-                        placeholder = { Text("Current PIN") }
+                        placeholder = { Text(stringResource(id = R.string.profile_current_pin)) }
                     )
                 }
                 if (isPinVerified) {
@@ -272,7 +272,7 @@ fun EditProfileView(
                                 tint = Slate500
                             )
                         },
-                        placeholder = { Text("New PIN") }
+                        placeholder = { Text(stringResource(id = R.string.profile_new_pin)) }
                     )
                 }
                 Spacer(modifier = Modifier.height(24.dp))
@@ -288,7 +288,7 @@ fun EditProfileView(
 
             // --- CHANGE PASSWORD SECTION (Optional) ---
             Text(
-                text = "CHANGE PASSWORD (OPTIONAL)",
+                text = stringResource(id = R.string.profile_new_password).uppercase(),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = Slate500
@@ -297,7 +297,7 @@ fun EditProfileView(
             TextField(
                 value = newPassword,
                 onValueChange = { newPassword = it },
-                placeholder = { Text("New Password") },
+                placeholder = { Text(stringResource(id = R.string.profile_new_password)) },
                 visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     IconButton(onClick = { showPassword = !showPassword }) {
@@ -325,7 +325,7 @@ fun EditProfileView(
                 TextField(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
-                    placeholder = { Text("Confirm New Password") },
+                    placeholder = { Text(stringResource(id = R.string.profile_confirm_password)) },
                     visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -349,7 +349,7 @@ fun EditProfileView(
 
             // --- CONFIRM IDENTITY (Mandatory) ---
             Text(
-                text = "CURRENT PASSWORD (REQUIRED TO SAVE)",
+                text = stringResource(id = R.string.profile_current_password_req),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFFDC2626) // Red to emphasize requirement
@@ -357,7 +357,7 @@ fun EditProfileView(
             TextField(
                 value = currentPassword,
                 onValueChange = { currentPassword = it },
-                placeholder = { Text("Enter current password") },
+                placeholder = { Text(stringResource(id = R.string.profile_enter_current_pass)) },
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -374,8 +374,6 @@ fun EditProfileView(
             Spacer(modifier = Modifier.weight(1f))
 
             // Save Button
-            val canSave = currentPassword.isNotEmpty()
-            
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -395,7 +393,7 @@ fun EditProfileView(
                         
                         // If user tried to change password but mismatch, don't save (or handle error UI)
                         if (newPassword.isNotEmpty() && newPassword != confirmPassword) {
-                            Toast.makeText(context, "Passwords Do Not Match", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.error_mismatch_pass), Toast.LENGTH_SHORT).show()
                             return@clickable
                         }
 
@@ -404,7 +402,7 @@ fun EditProfileView(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Save Changes",
+                    text = stringResource(id = R.string.profile_save_changes),
                     color = if (canSave) Color.White else Slate500,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp

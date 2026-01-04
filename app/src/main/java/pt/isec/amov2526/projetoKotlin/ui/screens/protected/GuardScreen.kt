@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -21,6 +22,7 @@ import pt.isec.amov2526.projetoKotlin.ui.viewmodels.GuardViewModel
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
 import pt.isec.amov2526.projetoKotlin.utils.TimeUtils
 import pt.isec.amov2526.projetoKotlin.utils.LocationHelper
+import pt.isec.amov2526.projetoKotlin.R
 
 private val Slate50 = Color(0xFFF8FAFC)
 
@@ -89,7 +91,7 @@ fun GuardScreen(
     // [INTENT HANDLING REMOVED] - Centralized in ProtectedMainScreen
 
     // Fix: Prioritize PAUSED over SCHEDULED
-    val finalSystemLabel = if (!isServiceRunning) "OFFLINE"
+    val rawSystemStatus = if (!isServiceRunning) "OFFLINE"
     else if (globalScheduleStatus.label == "PAUSED") "PAUSED"
     else if (globalScheduleStatus.label == "SCHEDULED") "SCHEDULED"
     else "ACTIVE"
@@ -110,7 +112,7 @@ fun GuardScreen(
                 isActive = isServiceRunning,
                 isGlobalScheduleEnabled = globalSchedule.isEnabled,
                 globalScheduleStatus = globalScheduleStatus,
-                finalSystemLabel = finalSystemLabel,
+                rawSystemStatus = rawSystemStatus,
                 batteryLevel = batteryLevel,
                 onPlanClick = { showGlobalScheduleModal = true }, // Agora abre o modal global
                 onStatusClick = {
@@ -179,9 +181,9 @@ fun GuardScreen(
     // 1. Modal de Pausa
     if (showPauseModal) {
         val title = when {
-            selectedRuleToPause != null -> "Pause ${selectedRuleToPause!!.monitorName}'s Rule"
-            selectedTypeToPause != null -> "Pause ${selectedTypeToPause!!.title}"
-            else -> "Pause Protection"
+            selectedRuleToPause != null -> context.getString(R.string.guard_pause_rule, selectedRuleToPause!!.monitorName)
+            selectedTypeToPause != null -> context.getString(R.string.guard_pause_type, context.getString(selectedTypeToPause!!.titleRes))
+            else -> stringResource(id = R.string.guard_pause_protection)
         }
         PauseSystemModal(
             title = title,
@@ -211,12 +213,12 @@ fun GuardScreen(
     if (showScheduleModal) {
         val scheduleCtx = when {
             selectedRuleToSchedule != null -> Triple(
-                Triple("Schedule Rule", selectedRuleToSchedule!!.isScheduleEnabled, selectedRuleToSchedule!!.scheduleDays.ifEmpty { listOf(1, 2, 3, 4, 5) }),
+                Triple(stringResource(id = R.string.guard_schedule_rule), selectedRuleToSchedule!!.isScheduleEnabled, selectedRuleToSchedule!!.scheduleDays.ifEmpty { listOf(1, 2, 3, 4, 5) }),
                 selectedRuleToSchedule!!.scheduleStart.ifEmpty { "09:00" },
                 selectedRuleToSchedule!!.scheduleEnd.ifEmpty { "18:00" }
             )
             selectedGroupToSchedule != null -> Triple(
-                Triple("Schedule ${selectedGroupToSchedule!!.type.title}", selectedGroupToSchedule!!.isScheduleEnabled, selectedGroupToSchedule!!.scheduleDays.ifEmpty { listOf(1, 2, 3, 4, 5) }),
+                Triple(context.getString(R.string.guard_schedule_type, context.getString(selectedGroupToSchedule!!.type.titleRes)), selectedGroupToSchedule!!.isScheduleEnabled, selectedGroupToSchedule!!.scheduleDays.ifEmpty { listOf(1, 2, 3, 4, 5) }),
                 selectedGroupToSchedule!!.scheduleStart.ifEmpty { "09:00" },
                 selectedGroupToSchedule!!.scheduleEnd.ifEmpty { "18:00" }
             )
@@ -255,7 +257,7 @@ fun GuardScreen(
     // 3. Modal de Agendamento Global (Botão PLAN) - ESTAVA EM FALTA
     if (showGlobalScheduleModal) {
         ScheduleSystemModal(
-            title = "Global Schedule",
+            title = stringResource(id = R.string.guard_global_schedule),
             initialEnabled = globalSchedule.isEnabled,
             initialDays = globalSchedule.days,
             initialStart = globalSchedule.start,

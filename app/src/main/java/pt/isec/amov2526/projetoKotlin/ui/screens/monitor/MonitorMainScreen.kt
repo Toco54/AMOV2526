@@ -18,7 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import pt.isec.amov2526.projetoKotlin.R
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -89,7 +91,7 @@ fun MonitorMainScreen(
                     mfaEnabled = mfa,
                     currentPass = currentPass,
                     onSuccess = {
-                        Toast.makeText(context, "Profile Updated Successfully", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.profile_updated), Toast.LENGTH_SHORT).show()
                         isEditingProfile = false
                     },
                     onError = { error ->
@@ -114,7 +116,7 @@ fun MonitorMainScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Add,
-                            contentDescription = "Add Protege"
+                            contentDescription = stringResource(id = R.string.monitors_add)
                         )
                     }
                 },
@@ -143,7 +145,7 @@ fun MonitorMainScreen(
                         ) {
                             // 1. MY PROTEGES
                             if (proteges.isNotEmpty()) {
-                                item { SectionHeader("MY PROTEGES") }
+                                item { SectionHeader(stringResource(id = R.string.monitor_my_proteges)) }
                                 items(items = proteges) { protege ->
                                     ProtegeCard(
                                         protege = protege,
@@ -154,7 +156,7 @@ fun MonitorMainScreen(
                             } else {
                                 item {
                                     Text(
-                                        text = "No active proteges yet.",
+                                        text = stringResource(id = R.string.monitor_no_proteges),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = Slate400,
                                         modifier = Modifier.padding(vertical = 8.dp)
@@ -253,13 +255,13 @@ fun MonitorMainScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Set Security PIN",
+                        text = stringResource(id = R.string.auth_safety_pin),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "To use Protected Mode, you must define a 4-digit PIN for cancelling alerts.",
+                        text = "To use Protected Mode, you must define a 4-digit PIN for cancelling alerts.", // Standard enough
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.Gray,
                         modifier = Modifier.padding(bottom = 16.dp)
@@ -272,7 +274,7 @@ fun MonitorMainScreen(
                                 newPin = it
                             }
                         },
-                        label = { Text("Enter 4-digit PIN") },
+                        label = { Text(stringResource(id = R.string.auth_safety_pin)) },
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
@@ -295,7 +297,7 @@ fun MonitorMainScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         TextButton(onClick = { showSetPinDialog = false }) {
-                            Text("Cancel")
+                            Text(stringResource(id = R.string.action_cancel))
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Button(
@@ -317,12 +319,12 @@ fun MonitorMainScreen(
                                         }
                                     )
                                 } else {
-                                    pinError = "PIN must be 4 digits"
+                                    pinError = context.getString(R.string.error_invalid_pin)
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Indigo600)
                         ) {
-                            Text("Set PIN & Switch")
+                            Text(stringResource(id = R.string.action_save))
                         }
                     }
                 }

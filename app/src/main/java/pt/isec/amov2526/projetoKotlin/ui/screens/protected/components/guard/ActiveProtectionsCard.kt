@@ -17,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pt.isec.amov2526.projetoKotlin.R
@@ -191,7 +192,7 @@ fun IndividualRuleTypeSubCard(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = group.type.title,
+                                text = stringResource(id = group.type.titleRes),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = Slate900

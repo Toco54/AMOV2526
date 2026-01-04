@@ -13,12 +13,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import pt.isec.amov2526.projetoKotlin.R
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.ProtectedMainViewModel
 
 private val Slate50 = Color(0xFFF8FAFC)
@@ -96,7 +98,7 @@ fun GenerateCodeModal(
                         ) {
                             Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("New Code")
+                            Text(stringResource(id = R.string.code_new))
                         }
 
                         Button(
@@ -109,19 +111,19 @@ fun GenerateCodeModal(
                         ) {
                             Icon(Icons.Default.ContentCopy, null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Copy")
+                            Text(stringResource(id = R.string.action_copy))
                         }
                     }
                 } else if (errorMsg != null) {
                     Text(text = errorMsg, color = Red600)
                     Button(onClick = { viewModel.generateCode("Full Monitoring") }) {
-                        Text("Retry")
+                        Text(stringResource(id = R.string.code_retry))
                     }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
                 TextButton(onClick = onDismiss) {
-                    Text("Close", color = Slate500)
+                    Text(stringResource(id = R.string.action_close), color = Slate500)
                 }
             }
         }

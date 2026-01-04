@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import pt.isec.amov2526.projetoKotlin.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
@@ -84,14 +85,14 @@ fun RegisterScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         Text(
-            text = "Create Account",
+            text = stringResource(id = R.string.auth_create_account),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
             color = Color.White
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Join SafetySec for advanced protection.",
+            text = stringResource(id = R.string.auth_signup_tagline),
             style = MaterialTheme.typography.bodyLarge,
             color = Slate400
         )
@@ -118,7 +119,7 @@ fun RegisterScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Monitor",
+                        text = stringResource(id = R.string.auth_monitor),
                         fontWeight = FontWeight.Bold,
                         color = if (monitorSelected) Color.White else Slate400
                     )
@@ -134,7 +135,7 @@ fun RegisterScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Protected",
+                        text = stringResource(id = R.string.auth_protected),
                         fontWeight = FontWeight.Bold,
                         color = if (protectedSelected) Color.White else Slate400
                     )
@@ -146,7 +147,7 @@ fun RegisterScreen(
 
         // Full Name
         Text(
-            text = "FULL NAME",
+            text = stringResource(id = R.string.auth_full_name),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             color = Slate400
@@ -163,7 +164,7 @@ fun RegisterScreen(
         // Email
         Text(
 
-            text = "EMAIL",
+            text = stringResource(id = R.string.auth_email),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             color = Slate400
@@ -180,7 +181,7 @@ fun RegisterScreen(
 
         // Password
         Text(
-            text = "PASSWORD",
+            text = stringResource(id = R.string.auth_password),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             color = Slate400
@@ -197,7 +198,7 @@ fun RegisterScreen(
         if (selectedRole == "Protected") {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "SAFETY PIN (4 DIGITS)",
+                text = stringResource(id = R.string.auth_safety_pin),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = Slate400
@@ -256,7 +257,7 @@ fun RegisterScreen(
                 CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
             } else {
                 Text(
-                    text = "Sign Up",
+                    text = stringResource(id = R.string.auth_signup),
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
@@ -266,8 +267,14 @@ fun RegisterScreen(
 
         if (errorMsg != null) {
             Spacer(modifier = Modifier.height(16.dp))
+            val localizedError = when(errorMsg) {
+                "Please fill in all fields correctly" -> stringResource(id = R.string.error_fill_all)
+                "Invalid Email Format" -> stringResource(id = R.string.error_invalid_email)
+                "Password must be at least 6 characters" -> stringResource(id = R.string.error_password_length)
+                else -> errorMsg
+            }
             Text(
-                text = errorMsg ?: "",
+                text = localizedError ?: "",
                 color = Color(0xFFEF4444),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
@@ -283,11 +290,11 @@ fun RegisterScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Already have an account? ",
+                text = stringResource(id = R.string.landing_have_account),
                 color = Slate400
             )
             Text(
-                text = "Log In",
+                text = stringResource(id = R.string.landing_login),
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.clickable { onLoginClick() }
