@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -24,9 +25,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel // <--- Importante
+import androidx.lifecycle.viewmodel.compose.viewModel
 import pt.isec.amov2526.projetoKotlin.R
-import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel // <--- O teu ViewModel
+import pt.isec.amov2526.projetoKotlin.ui.viewmodels.AuthViewModel
 
 // Using the project's palette (Mantido igual)
 private val Slate900 = Color(0xFF0F172A)
@@ -46,15 +47,19 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
 
-    // --- LÓGICA ADICIONADA ---
+    // [NOVO] Estado para o input do código MFA
+    var mfaCode by remember { mutableStateOf("") }
+
+    // --- LÓGICA DO VIEWMODEL ---
     val isLoading = viewModel.isLoading
     val errorMsg = viewModel.errorMsg
     val user = viewModel.user
     val userRole = viewModel.userRole
+    val mfaRequired = viewModel.mfaRequired // Observamos se precisamos de mostrar o MFA
 
-    // Quando o login é feito e a role é descoberta, avançamos
+    // Quando o login é feito (MFA passou) e a role é descoberta, avançamos
     LaunchedEffect(user, userRole) {
-        if (user != null && userRole != null) {
+        if (user != null && userRole != null && !mfaRequired) {
             onLogin(userRole)
         }
     }
@@ -68,7 +73,9 @@ fun LoginScreen(
     ) {
         // Back Button
         IconButton(
-            onClick = onBack,
+            onClick = {
+                if (mfaRequired) viewModel.cancelMfa() else onBack()
+            },
             modifier = Modifier
                 .size(48.dp)
                 .background(Slate800, CircleShape)
@@ -82,227 +89,328 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        // HEADER: Muda consoante o estado
         Text(
-            text = "Welcome back",
+            text = if (mfaRequired) "Security Check" else "Welcome back",
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
             color = Color.White
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Sign in to access your dashboard.",
+            text = if (mfaRequired) "Please enter the 6-digit code sent to your email." else "Sign in to access your dashboard.",
             style = MaterialTheme.typography.bodyLarge,
             color = Slate400
         )
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Email
-        Text(
-            text = "EMAIL",
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = Slate400
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            placeholder = {
-                Text(
-                    text = "name@example.com",
-                    color = Slate400.copy(alpha = 0.5f)
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Email,
-                    contentDescription = null,
-                    tint = Slate400
-                )
-            },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Slate800,
-                unfocusedContainerColor = Slate800,
-                focusedBorderColor = Emerald500,
-                unfocusedBorderColor = Slate800,
-                cursorColor = Emerald500,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
-            ),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Password
-        Text(
-            text = "PASSWORD",
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = Slate400
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            placeholder = {
-                Text(
-                    text = "••••••••",
-                    color = Slate400.copy(alpha = 0.5f)
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Lock,
-                    contentDescription = null,
-                    tint = Slate400
-                )
-            },
-            trailingIcon = {
-                IconButton(onClick = { showPassword = !showPassword }) {
+        // --- CONTEÚDO CONDICIONAL ---
+        if (mfaRequired) {
+            // ===========================
+            // PARTE DO CÓDIGO MFA (OTP)
+            // ===========================
+            Text(
+                text = "VERIFICATION CODE",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = Slate400
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = mfaCode,
+                onValueChange = { if (it.length <= 6) mfaCode = it },
+                placeholder = {
+                    Text(text = "123456", color = Slate400.copy(alpha = 0.5f))
+                },
+                leadingIcon = {
                     Icon(
-                        imageVector = if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        imageVector = Icons.Default.Security,
                         contentDescription = null,
                         tint = Slate400
                     )
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Slate800,
-                unfocusedContainerColor = Slate800,
-                focusedBorderColor = Emerald500,
-                unfocusedBorderColor = Slate800,
-                cursorColor = Emerald500,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
-            ),
-            singleLine = true,
-            visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation()
-        )
-
-        // MOSTRAR ERRO (SE HOUVER)
-        if (errorMsg != null) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = errorMsg ?: "", 
-                color = Color(0xFFEF4444), // Emerald Red
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(horizontal = 4.dp)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Slate800,
+                    unfocusedContainerColor = Slate800,
+                    focusedBorderColor = Emerald500,
+                    unfocusedBorderColor = Slate800,
+                    cursorColor = Emerald500,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                ),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
-        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-            TextButton(onClick = onForgotPassword) {
+            // MOSTRAR ERRO (SE HOUVER)
+            if (errorMsg != null) {
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Forgot Password?",
-                    color = Emerald500,
-                    fontWeight = FontWeight.Bold
+                    text = errorMsg ?: "",
+                    color = Color(0xFFEF4444),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(horizontal = 4.dp)
                 )
             }
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-        // O BOTÃO DE LOGIN AGORA CHAMA O VIEWMODEL
-        Button(
-            onClick = { 
-                if (email.isBlank() || password.isBlank()) {
-                    // Local validation before calling VM
-                    viewModel.errorMsg = "Please fill in all fields"
-                } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-                    viewModel.errorMsg = "Invalid Email Format"
+            // BOTÃO VERIFICAR
+            Button(
+                onClick = { viewModel.verifyMfaCode(mfaCode) },
+                enabled = mfaCode.length == 6 && !isLoading,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Emerald500),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                 } else {
-                    viewModel.login(email, password) 
+                    Text(
+                        text = "Verify Code",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
                 }
-            },
-            enabled = !isLoading,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Emerald500),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-            } else {
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // BOTÃO CANCELAR
+            Button(
+                onClick = { viewModel.cancelMfa() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Slate800),
+                shape = RoundedCornerShape(16.dp)
+            ) {
                 Text(
-                    text = "Log In",
+                    text = "Cancel",
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
             }
-        }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        } else {
+            // ===========================
+            // PARTE DO LOGIN NORMAL
+            // ===========================
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            HorizontalDivider(modifier = Modifier.weight(1f), color = Slate400.copy(alpha = 0.3f))
+            // Email
             Text(
-                text = "OR CONTINUE WITH",
-                color = Slate400,
+                text = "EMAIL",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp),
-                fontSize = 10.sp
-            )
-            HorizontalDivider(modifier = Modifier.weight(1f), color = Slate400.copy(alpha = 0.3f))
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Button(
-            onClick = { /* TODO: Google Auth */ },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Slate800),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.android_light_rd_na),
-                contentDescription = "Google",
-                tint = Color.Unspecified,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = "Google",
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Don't have an account? ",
                 color = Slate400
             )
-            Text(
-                text = "Sign Up",
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.clickable { onSignUpClick() }
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                placeholder = {
+                    Text(
+                        text = "name@example.com",
+                        color = Slate400.copy(alpha = 0.5f)
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Email,
+                        contentDescription = null,
+                        tint = Slate400
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Slate800,
+                    unfocusedContainerColor = Slate800,
+                    focusedBorderColor = Emerald500,
+                    unfocusedBorderColor = Slate800,
+                    cursorColor = Emerald500,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                ),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
             )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Password
+            Text(
+                text = "PASSWORD",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = Slate400
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                placeholder = {
+                    Text(
+                        text = "••••••••",
+                        color = Slate400.copy(alpha = 0.5f)
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = Slate400
+                    )
+                },
+                trailingIcon = {
+                    IconButton(onClick = { showPassword = !showPassword }) {
+                        Icon(
+                            imageVector = if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = null,
+                            tint = Slate400
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Slate800,
+                    unfocusedContainerColor = Slate800,
+                    focusedBorderColor = Emerald500,
+                    unfocusedBorderColor = Slate800,
+                    cursorColor = Emerald500,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                ),
+                singleLine = true,
+                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation()
+            )
+
+            // MOSTRAR ERRO (SE HOUVER)
+            if (errorMsg != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = errorMsg ?: "",
+                    color = Color(0xFFEF4444), // Emerald Red
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                TextButton(onClick = onForgotPassword) {
+                    Text(
+                        text = "Forgot Password?",
+                        color = Emerald500,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // O BOTÃO DE LOGIN AGORA CHAMA O VIEWMODEL
+            Button(
+                onClick = {
+                    if (email.isBlank() || password.isBlank()) {
+                        viewModel.errorMsg = "Please fill in all fields"
+                    } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                        viewModel.errorMsg = "Invalid Email Format"
+                    } else {
+                        viewModel.login(email, password)
+                    }
+                },
+                enabled = !isLoading,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Emerald500),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                } else {
+                    Text(
+                        text = "Log In",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                HorizontalDivider(modifier = Modifier.weight(1f), color = Slate400.copy(alpha = 0.3f))
+                Text(
+                    text = "OR CONTINUE WITH",
+                    color = Slate400,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    fontSize = 10.sp
+                )
+                HorizontalDivider(modifier = Modifier.weight(1f), color = Slate400.copy(alpha = 0.3f))
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = { /* TODO: Google Auth */ },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Slate800),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.android_light_rd_na),
+                    contentDescription = "Google",
+                    tint = Color.Unspecified,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "Google",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Don't have an account? ",
+                    color = Slate400
+                )
+                Text(
+                    text = "Sign Up",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable { onSignUpClick() }
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
         }
-        Spacer(modifier = Modifier.height(16.dp))
     }
 }

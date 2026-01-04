@@ -7,16 +7,33 @@ import kotlinx.coroutines.tasks.await
 import pt.isec.amov2526.projetoKotlin.SafetySecApp
 import pt.isec.amov2526.projetoKotlin.data.local.UserEntity
 
+// [NOVO] Imports para o MFA e Envio de Email
+import java.util.Properties
+import javax.mail.Message
+import javax.mail.PasswordAuthentication
+import javax.mail.Session
+import javax.mail.Transport
+import javax.mail.internet.InternetAddress
+import javax.mail.internet.MimeMessage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlin.random.Random
+
 class AuthRepository(private val app: SafetySecApp) {
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
 
     private val userDao = app.database.userDao()
 
+    // [NOVO] --- CONFIGURAÇÃO DO EMAIL DE SISTEMA (MFA) ---
+    // Substitui pelo teu email e pela App Password de 16 caracteres
+    private val SENDER_EMAIL = "safetysec.projeto@gmail.com"
+    private val SENDER_PASSWORD = "stej jhqd qznj qpkz"
+
     // Variável para saber quem está logado
     val currentUser get() = auth.currentUser
 
-    // Login simples
+    // Login simples (Mantido igual)
     suspend fun login(email: String, pass: String): Result<String> {
         return try {
             auth.signInWithEmailAndPassword(email, pass).await()
@@ -43,7 +60,7 @@ class AuthRepository(private val app: SafetySecApp) {
         }
     }
 
-    // Registo com criação de perfil na Firestore (Como pede o enunciado: Monitor vs Protegido)
+    // Registo com criação de perfil na Firestore (Mantido igual)
     suspend fun register(email: String, pass: String, name: String, isMonitor: Boolean, pin: String?): Result<String> {
         return try {
             // 1. Criar utilizador na Autenticação
@@ -81,7 +98,7 @@ class AuthRepository(private val app: SafetySecApp) {
         userDao.clearUser()
     }
 
-    // Função auxiliar para saber o tipo de utilizador depois do login
+    // Função auxiliar para saber o tipo de utilizador depois do login (Mantido igual)
     suspend fun getUserRole(uid: String): String? {
         val localUser = userDao.getUser()
         if (localUser != null && localUser.uid == uid) {
@@ -160,8 +177,8 @@ class AuthRepository(private val app: SafetySecApp) {
                 val credential = EmailAuthProvider.getCredential(user.email!!, currentPass)
                 user.reauthenticate(credential).await()
             } else if (!newPass.isNullOrEmpty() || email != user.email) {
-                 // If changing pass/email but no current pass provided -> Error (or let Firebase fail)
-                 // However, the UI logic should ensure currentPass is passed if fields are edited.
+                // If changing pass/email but no current pass provided -> Error (or let Firebase fail)
+                // However, the UI logic should ensure currentPass is passed if fields are edited.
             }
 
             // 1. Update Firebase Auth (Email & Password)
@@ -186,13 +203,55 @@ class AuthRepository(private val app: SafetySecApp) {
             val currentLocal = userDao.getUser()
             val role = currentLocal?.role ?: "PROTECTED"
             val pinToSave = newPin ?: currentLocal?.pin
-            
+
             val newUser = UserEntity(uid, name, email, role, pinToSave)
             userDao.insertUser(newUser)
 
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    // [NOVO] Função para gerar código e enviar Email Real via SMTP
+    suspend fun sendMfaEmail(targetEmail: String): Result<String> {
+        return withContext(Dispatchers.IO) {
+            try {
+                // 1. Gerar Código de 6 dígitos
+                val code = Random.nextInt(100000, 999999).toString()
+
+                // 2. Configurar Propriedades SMTP do Gmail
+                val props = Properties().apply {
+                    put("mail.smtp.auth", "true")
+                    put("mail.smtp.starttls.enable", "true")
+                    put("mail.smtp.host", "smtp.gmail.com")
+                    put("mail.smtp.port", "587")
+                }
+
+                // 3. Criar Sessão de Autenticação
+                val session = Session.getInstance(props, object : javax.mail.Authenticator() {
+                    override fun getPasswordAuthentication(): PasswordAuthentication {
+                        return PasswordAuthentication(SENDER_EMAIL, SENDER_PASSWORD)
+                    }
+                })
+
+                // 4. Criar a Mensagem de Email
+                val message = MimeMessage(session).apply {
+                    setFrom(InternetAddress(SENDER_EMAIL))
+                    setRecipients(Message.RecipientType.TO, InternetAddress.parse(targetEmail))
+                    subject = "SafetySec - Código de Verificação"
+                    setText("Olá,\n\nO seu código de verificação para entrar na SafetySec é:\n\n$code\n\nEste código expira em breve.\n\nSegurança SafetySec")
+                }
+
+                // 5. Enviar Email
+                Transport.send(message)
+
+                // 6. Retorna o código gerado para o ViewModel comparar com o input do user
+                Result.success(code)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Result.failure(Exception("Falha ao enviar email MFA: ${e.message}"))
+            }
         }
     }
 }

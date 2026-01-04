@@ -17,10 +17,15 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
     var isLoading by mutableStateOf(false)
     var errorMsg by mutableStateOf<String?>(null)
 
+    // [NOVO] Estados para o MFA
+    var mfaRequired by mutableStateOf(false)
+    var generatedMfaCode by mutableStateOf<String?>(null)
+    var tempUserEmail by mutableStateOf<String?>(null)
+
     // Para navegação: guardar se é Monitor ou Protegido
     var userRole by mutableStateOf<String?>(null)
 
-    // [NOVO] Modo de Visualização Atual (Dinâmico para permitir switch)
+    // Modo de Visualização Atual (Dinâmico para permitir switch)
     var currentViewMode by mutableStateOf<String?>(null)
 
     // Dados completos do perfil (para edição)
@@ -30,6 +35,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
     var userEmail by mutableStateOf<String>("")
 
     init {
+        // Se o user já estava logado (sessão persistente), carregamos os dados
         if (user != null) {
             viewModelScope.launch {
                 loadUserData(user!!.uid, user!!.email ?: "")
@@ -47,7 +53,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
                 userRole = fullUser.role
                 userName = fullUser.name
 
-                // [NOVO] Inicializa o modo de visualização com o role da BD se ainda não estiver definido
+                // Inicializa o modo de visualização com o role da BD se ainda não estiver definido
                 if (currentViewMode == null) {
                     currentViewMode = fullUser.role
                 }
@@ -65,7 +71,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
         }
     }
 
-    // [NOVO] Função para alternar entre modos
+    // Função para alternar entre modos
     fun switchViewMode() {
         currentViewMode = if (currentViewMode == "MONITOR") {
             "PROTECTED"
@@ -74,26 +80,30 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
         }
     }
 
+    // [ALTERADO] Login agora inicia o processo MFA
     fun login(email: String, pass: String) {
         isLoading = true
         errorMsg = null
         viewModelScope.launch {
+            // 1. Autenticação Base (Firebase)
             val result = repository.login(email, pass)
+
             if (result.isSuccess) {
-                user = repository.currentUser
+                // SUCESSO na password.
+                // Mas NÃO definimos o 'user' ainda. Vamos iniciar o MFA.
+                tempUserEmail = email
 
-                // Initial Ping: Set lastUpdate immediately so Monitor sees user as Online
-                if (user != null) {
-                    try {
-                        com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                            .collection("users").document(user!!.uid)
-                            .update("lastUpdate", System.currentTimeMillis())
-                    } catch (e: Exception) {
-                        // Ignore network error on initial ping
-                    }
+                // 2. Enviar Email MFA
+                val mfaResult = repository.sendMfaEmail(email)
+
+                if (mfaResult.isSuccess) {
+                    generatedMfaCode = mfaResult.getOrNull()
+                    mfaRequired = true // Isto faz a UI mudar para o ecrã de código
+                } else {
+                    // Se falhar o envio do email, fazemos logout forçado
+                    repository.logout()
+                    errorMsg = "Password correta, mas falha ao enviar email de verificação."
                 }
-
-                loadUserData(user!!.uid, user!!.email ?: "")
             } else {
                 val exception = result.exceptionOrNull()
                 errorMsg = when (exception) {
@@ -103,6 +113,44 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
                     else -> "Login Failed"
                 }
             }
+            isLoading = false
+        }
+    }
+
+    // [NOVO] Verifica o código inserido
+    fun verifyMfaCode(inputCode: String) {
+        if (inputCode == generatedMfaCode) {
+            // CÓDIGO CORRETO -> Finalizar Login
+            mfaRequired = false
+            generatedMfaCode = null
+
+            // Atualizar o estado principal 'user' que vai desencadear a navegação
+            user = repository.currentUser
+
+            // Initial Ping e Carregamento de dados
+            if (user != null) {
+                try {
+                    com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                        .collection("users").document(user!!.uid)
+                        .update("lastUpdate", System.currentTimeMillis())
+                } catch (e: Exception) {
+                    // Ignore network error on initial ping
+                }
+                loadUserData(user!!.uid, user!!.email ?: "")
+            }
+        } else {
+            errorMsg = "Código Incorreto. Verifique o seu email."
+        }
+    }
+
+    // [NOVO] Cancelar o processo MFA
+    fun cancelMfa() {
+        viewModelScope.launch {
+            repository.logout()
+            mfaRequired = false
+            generatedMfaCode = null
+            tempUserEmail = null
+            errorMsg = null
             isLoading = false
         }
     }
@@ -118,7 +166,7 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
                 userName = name
                 userEmail = email
 
-                // [NOVO] Define o modo inicial após registo
+                // Define o modo inicial após registo
                 currentViewMode = userRole
 
                 // Force load to set currentUserData
@@ -194,9 +242,12 @@ class AuthViewModel(application: android.app.Application) : androidx.lifecycle.A
             repository.logout()
             user = null
             userRole = null
-            currentViewMode = null // [NOVO] Reset ao modo
+            currentViewMode = null
             userName = ""
             currentUserData = null
+            // Reset MFA
+            mfaRequired = false
+            generatedMfaCode = null
         }
     }
 }

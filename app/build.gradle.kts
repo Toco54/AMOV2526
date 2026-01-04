@@ -39,6 +39,12 @@ android {
     buildFeatures {
         compose = true
     }
+    packaging {
+        resources {
+            excludes += "META-INF/LICENSE.md"
+            excludes += "META-INF/NOTICE.md"
+        }
+    }
 }
 
 dependencies {
@@ -58,6 +64,9 @@ dependencies {
     implementation(libs.vico.compose)
     implementation(libs.vico.compose.m3)
     implementation(libs.vico.core)
+
+    implementation("com.sun.mail:android-mail:1.6.7")
+    implementation("com.sun.mail:android-activation:1.6.7")
 
     implementation("org.osmdroid:osmdroid-android:6.1.18")
 
